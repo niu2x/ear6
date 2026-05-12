@@ -7,7 +7,7 @@ BUILD_DIR_WEB = build-web
 WEB_UI_DIR    = app/web-ui
 WEB_PUBLIC    = $(WEB_UI_DIR)/public/ear6
 
-NPROC         := $(shell nproc)
+NPROC         := $(shell sysctl -n hw.ncpu 2>/dev/null || nproc)
 JOB           := $(shell echo $$(($(NPROC) > 2 ? $(NPROC) - 1 : 1)))
 
 .PHONY: ear6 ear6-web serve clean

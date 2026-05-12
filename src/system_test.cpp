@@ -18,23 +18,23 @@ int TestSystem::step() {
     return 0;
 }
 
-const uint8_t* TestSystem::framebuffer() const {
+const uint8_t* TestSystem::get_framebuffer() const {
     return framebuffer_.data();
 }
 
-int TestSystem::frame_width() const {
+int TestSystem::get_frame_width() const {
     return WIDTH;
 }
 
-int TestSystem::frame_height() const {
+int TestSystem::get_frame_height() const {
     return HEIGHT;
 }
 
-const int16_t* TestSystem::audiobuffer() const {
+const int16_t* TestSystem::get_audiobuffer() const {
     return nullptr;
 }
 
-int TestSystem::audio_num_samples() const {
+int TestSystem::get_audio_num_samples() const {
     return 0;
 }
 

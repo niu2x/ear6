@@ -13,12 +13,12 @@ public:
     int load(const void* data, int size) override;
     int step() override;
 
-    const uint8_t* framebuffer() const override;
-    int frame_width() const override;
-    int frame_height() const override;
+    const uint8_t* get_framebuffer() const override;
+    int get_frame_width() const override;
+    int get_frame_height() const override;
 
-    const int16_t* audiobuffer() const override;
-    int audio_num_samples() const override;
+    const int16_t* get_audiobuffer() const override;
+    int get_audio_num_samples() const override;
 
 private:
     void generate_mosaic();

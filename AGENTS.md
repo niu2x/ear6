@@ -20,8 +20,9 @@ cmake --build build --target ear6   # rebuild catches compile errors
 - **Enum constants**: UPPER_SNAKE_CASE (`DISCONNECTED`, `HANDSHAKING`, `CHOKE`, `BITFIELD`)
 - **Functions / variables**: snake_case (`parse_value`, `piece_length`)
 - **Non-public members**: snake_case + trailing underscore (`data_`, `pos_`)
-- **Getters**: `get_xxx()` for general getters (`get_peer_info()`, `get_state()`, `get_io_context()`)
-- **Boolean getters**: `is_xxx()` (`is_connected()`)
+- **Getters**: MUST use `get_xxx()` prefix — no bare noun or property name. Example: `get_framebuffer()`, `get_frame_width()`, `get_state()`, `get_peer_info()`. Wrong: `framebuffer()`, `width()`, `state()`.
+- **Boolean getters**: MUST use `is_xxx()` prefix. Example: `is_connected()`, `is_ready()`. Wrong: `connected()`, `ready()`.
+- **Setters**: MUST use `set_xxx()` prefix. Example: `set_state()`, `set_callback()`. Wrong: `state()`, `callback()`.
 
 ## Project Structure
 

@@ -69,16 +69,16 @@ extern "C" int ear6_step(Ear6* ctx) {
         if (result == 0) {
             if (ctx->frame_cb) {
                 ctx->frame_cb(
-                    ctx->system->framebuffer(),
-                    ctx->system->frame_width(),
-                    ctx->system->frame_height(),
+                    ctx->system->get_framebuffer(),
+                    ctx->system->get_frame_width(),
+                    ctx->system->get_frame_height(),
                     ctx->frame_user_data
                 );
             }
-            if (ctx->audio_cb && ctx->system->audio_num_samples() > 0) {
+            if (ctx->audio_cb && ctx->system->get_audio_num_samples() > 0) {
                 ctx->audio_cb(
-                    ctx->system->audiobuffer(),
-                    ctx->system->audio_num_samples(),
+                    ctx->system->get_audiobuffer(),
+                    ctx->system->get_audio_num_samples(),
                     ctx->audio_user_data
                 );
             }
@@ -95,25 +95,25 @@ extern "C" int ear6_test(void) {
 
 extern "C" const uint8_t* ear6_get_framebuffer(Ear6* ctx) {
     if (!ctx || !ctx->system) return nullptr;
-    return ctx->system->framebuffer();
+    return ctx->system->get_framebuffer();
 }
 
 extern "C" int ear6_get_frame_width(Ear6* ctx) {
     if (!ctx || !ctx->system) return 0;
-    return ctx->system->frame_width();
+    return ctx->system->get_frame_width();
 }
 
 extern "C" int ear6_get_frame_height(Ear6* ctx) {
     if (!ctx || !ctx->system) return 0;
-    return ctx->system->frame_height();
+    return ctx->system->get_frame_height();
 }
 
 extern "C" const int16_t* ear6_get_audiobuffer(Ear6* ctx) {
     if (!ctx || !ctx->system) return nullptr;
-    return ctx->system->audiobuffer();
+    return ctx->system->get_audiobuffer();
 }
 
 extern "C" int ear6_get_audio_num_samples(Ear6* ctx) {
     if (!ctx || !ctx->system) return 0;
-    return ctx->system->audio_num_samples();
+    return ctx->system->get_audio_num_samples();
 }

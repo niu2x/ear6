@@ -1,0 +1,45 @@
+#include <ear6/ear6.h>
+#include <emscripten.h>
+
+extern "C" {
+
+EMSCRIPTEN_KEEPALIVE
+Ear6* ear6_web_create(int system) {
+    return ear6_create(static_cast<Ear6SystemType>(system));
+}
+
+EMSCRIPTEN_KEEPALIVE
+void ear6_web_destroy(Ear6* ctx) {
+    ear6_destroy(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_load(Ear6* ctx, const void* data, int size) {
+    return ear6_load(ctx, data, size);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_step(Ear6* ctx) {
+    return ear6_step(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+const uint8_t* ear6_web_get_framebuffer(Ear6* ctx) {
+    return ear6_get_framebuffer(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_get_frame_width(Ear6* ctx) {
+    return ear6_get_frame_width(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_get_frame_height(Ear6* ctx) {
+    return ear6_get_frame_height(ctx);
+}
+
+}
+
+int main() {
+    return 0;
+}

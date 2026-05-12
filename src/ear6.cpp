@@ -15,10 +15,10 @@ struct Ear6 {
     void* audio_user_data = nullptr;
 };
 
-static ear6::System* create_system(Ear6SystemType type) {
+static std::unique_ptr<ear6::System> create_system(Ear6SystemType type) {
     switch (type) {
         case EAR6_SYSTEM_TEST:
-            return new ear6::TestSystem();
+            return std::make_unique<ear6::TestSystem>();
         case EAR6_SYSTEM_NES:
         case EAR6_SYSTEM_FLASH:
             throw std::runtime_error("system not implemented");
@@ -28,10 +28,10 @@ static ear6::System* create_system(Ear6SystemType type) {
 
 extern "C" Ear6* ear6_create(Ear6SystemType system) {
     try {
-        auto* ctx = new Ear6();
+        auto ctx = std::make_unique<Ear6>();
         ctx->system_type = system;
-        ctx->system.reset(create_system(system));
-        return ctx;
+        ctx->system = create_system(system);
+        return ctx.release();
     } catch (...) {
         return nullptr;
     }

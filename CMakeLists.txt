@@ -46,6 +46,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/nes_apu.cpp
     src/nes/nes_control_manager.cpp
     src/nes/nes_console.cpp
+    src/nes/nes_system.cpp
 )
 
 target_include_directories(ear6 PUBLIC

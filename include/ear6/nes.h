@@ -13,6 +13,7 @@ typedef enum {
 
 EAR6_API int ear6_nes_set_region(Ear6* ctx, Ear6NesRegion region);
 EAR6_API int ear6_nes_set_mapper(Ear6* ctx, int mapper_number);
+EAR6_API int ear6_nes_set_palette(Ear6* ctx, const uint32_t palette[64]);
 
 #ifdef __cplusplus
 }

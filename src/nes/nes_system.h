@@ -9,21 +9,15 @@ namespace ear6 {
 
 class NesSystem : public System {
 public:
-    NesSystem() : console_(std::make_unique<nes::NesConsole>()) {}
+    NesSystem();
 
     int load(const void* data, int size) override {
         return console_->load_rom(data, size);
     }
 
-    int step() override {
-        console_->run_frame();
-        return 0; // Frame completed
-    }
+    int step() override;
 
-    const uint8_t* get_framebuffer() const override {
-        return reinterpret_cast<const uint8_t*>(console_->get_framebuffer());
-    }
-
+    const uint8_t* get_framebuffer() const override;
     int get_frame_width() const override { return 256; }
     int get_frame_height() const override { return 240; }
 
@@ -35,10 +29,16 @@ public:
         return console_->get_audio_num_samples();
     }
 
+    void set_palette(const uint32_t* palette);
+
     nes::NesConsole* get_console() { return console_.get(); }
 
 private:
+    void convert_frame();
+
     std::unique_ptr<nes::NesConsole> console_;
+    uint32_t palette_[64] = {};
+    std::vector<uint8_t> rgba_framebuffer_;
 };
 
 } // namespace ear6

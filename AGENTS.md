@@ -18,6 +18,7 @@ cmake --build build --target ear6   # rebuild catches compile errors
 
 - **Classes / type aliases**: PascalCase (`NesCpu`, `MapperType`)
 - **Enum constants**: UPPER_SNAKE_CASE (`DISCONNECTED`, `HANDSHAKING`, `CHOKE`, `BITFIELD`)
+- **Constants (`constexpr` / `const` at file or namespace scope)**: UPPER_SNAKE_CASE (`DEFAULT_NES_PALETTE`)
 - **Functions / variables**: snake_case (`parse_value`, `piece_length`)
 - **Non-public members**: snake_case + trailing underscore (`data_`, `pos_`)
 - **Getters**: MUST use `get_xxx()` prefix — no bare noun or property name. Example: `get_framebuffer()`, `get_frame_width()`, `get_state()`, `get_peer_info()`. Wrong: `framebuffer()`, `width()`, `state()`.
@@ -91,6 +92,22 @@ NesConsole
 **Root cause**: When a `.h` file opens `namespace ear6::nes {`, subsequent `#include` directives in the `.cpp` are inside the namespace. Headers that include `<memory>`, `<vector>` etc. before their own namespace block will have those system includes nested.
 
 **Fix**: In `.cpp` files, always include ALL headers that have system includes (before their namespace) FIRST, then include any header that opens a namespace LAST. Better yet: NEVER include system headers from within an existing namespace.
+
+## Public API Contract
+
+All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their behavior and return values must be semantically consistent across every `Ear6SystemType` (NES, Test, Flash).
+
+| API | 保证 |
+|-----|------|
+| `ear6_get_framebuffer()` | 返回 RGBA8888，每像素 4 字节，R/G/B/A 各 8 bit |
+| `ear6_get_frame_width()` | 返回有效宽度 |
+| `ear6_get_frame_height()` | 返回有效高度 |
+| `ear6_get_audiobuffer()` | 返回 16-bit PCM 样本，无音频时返回 nullptr |
+| `ear6_get_audio_num_samples()` | 返回样本数，无音频时返回 0 |
+| `ear6_step()` | 推进一帧，返回 0 表示成功 |
+| `ear6_load()` | 加载 ROM/Swap 数据，空数据可用于初始化 |
+
+系统特有的行为（如 NES 调色板配置、Flash 版本设置）必须放在对应的系统专用头文件（`nes.h`、`flash.h`）中，不得在 `ear6.h` 中添加系统相关的 API。
 
 ## Notes for AI Agent
 

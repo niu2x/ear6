@@ -15,18 +15,7 @@ namespace po = boost::program_options;
 // Helpers
 // -----------------------------------------------------------------------
 
-static const uint32_t nes_rgb_palette[64] = {
-    0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
-    0x333500, 0x0B4800, 0x005200, 0x004F08, 0x00404D, 0x000000, 0x000000, 0x000000,
-    0xADADAD, 0x155FD9, 0x4240FF, 0x7527FE, 0xA01ACC, 0xB71E7B, 0xB53120, 0x994E00,
-    0x6B6D00, 0x388700, 0x0C9300, 0x008F32, 0x007C8D, 0x000000, 0x000000, 0x000000,
-    0xFFFEFF, 0x64B0FF, 0x9290FF, 0xC676FF, 0xF36AFF, 0xFE6ECC, 0xFE8170, 0xEA9E22,
-    0xBCBE00, 0x88D800, 0x5CE430, 0x45E082, 0x48CDDE, 0x4F4F4F, 0x000000, 0x000000,
-    0xFFFEFF, 0xC0DFFF, 0xD3D2FF, 0xE8C8FF, 0xFBC2FF, 0xFEC4EA, 0xFECCC5, 0xF7D8A5,
-    0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC, 0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000
-};
-
-static void write_ppm(const char* path, const uint16_t* fb, int w, int h) {
+static void write_ppm(const char* path, const uint8_t* fb, int w, int h) {
     FILE* f = fopen(path, "wb");
     if (!f) {
         fprintf(stderr, "Error: cannot write %s\n", path);
@@ -34,11 +23,9 @@ static void write_ppm(const char* path, const uint16_t* fb, int w, int h) {
     }
     fprintf(f, "P6\n%d %d\n255\n", w, h);
     for (int i = 0; i < w * h; ++i) {
-        uint8_t pal_idx = fb[i] & 0x3F;
-        uint32_t rgb = nes_rgb_palette[pal_idx];
-        fputc((rgb >> 16) & 0xFF, f);
-        fputc((rgb >> 8) & 0xFF, f);
-        fputc(rgb & 0xFF, f);
+        fputc(fb[i * 4 + 0], f);
+        fputc(fb[i * 4 + 1], f);
+        fputc(fb[i * 4 + 2], f);
     }
     fclose(f);
     printf("Saved %s\n", path);
@@ -249,7 +236,7 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
     int h = ear6_get_frame_height(ctx);
 
     if (fb && w > 0 && h > 0) {
-        write_ppm(output, reinterpret_cast<const uint16_t*>(fb), w, h);
+        write_ppm(output, fb, w, h);
     } else {
         fprintf(stderr, "Error: no framebuffer data\n");
         ear6_destroy(ctx);
@@ -362,14 +349,16 @@ int main(int argc, char* argv[]) {
     pos.add("command", 1).add("subargs", -1);
 
     po::variables_map vm;
+    std::vector<std::string> all_unrec;
     try {
-        po::store(po::command_line_parser(argc, argv)
-                      .options(global_opts)
-                      .positional(pos)
-                      .allow_unregistered()
-                      .run(),
-                  vm);
+        auto parsed = po::command_line_parser(argc, argv)
+                          .options(global_opts)
+                          .positional(pos)
+                          .allow_unregistered()
+                          .run();
+        po::store(parsed, vm);
         po::notify(vm);
+        all_unrec = po::collect_unrecognized(parsed.options, po::include_positional);
     } catch (const po::error& e) {
         std::cerr << "Error: " << e.what() << "\n\n"
                   << "Usage: ear6-cli [options] <command> [args]\n\n"
@@ -401,7 +390,7 @@ int main(int argc, char* argv[]) {
         system_hint = SystemHint::Auto;
     }
 
-    if (!vm.count("command")) {
+    if (all_unrec.empty()) {
         std::cout << "Usage: ear6-cli [options] <command> [args]\n\n"
                   << global_opts << "\n"
                   << "Commands:\n"
@@ -411,11 +400,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    const std::string& cmd = vm["command"].as<std::string>();
-    std::vector<std::string> subargs;
-    if (vm.count("subargs")) {
-        subargs = vm["subargs"].as<std::vector<std::string>>();
-    }
+    const std::string& cmd = all_unrec[0];
+    std::vector<std::string> subargs(all_unrec.begin() + 1, all_unrec.end());
 
     if (cmd == "screenshot") {
         return dispatch_screenshot(subargs, system_hint);

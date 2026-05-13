@@ -91,6 +91,16 @@ extern "C" int ear6_step(Ear6* ctx) {
     }
 }
 
+extern "C" int ear6_nes_set_palette(Ear6* ctx, const uint32_t palette[64]) {
+    if (!ctx || !ctx->system || ctx->system_type != EAR6_SYSTEM_NES) return -1;
+    try {
+        static_cast<ear6::NesSystem*>(ctx->system.get())->set_palette(palette);
+        return 0;
+    } catch (...) {
+        return -2;
+    }
+}
+
 extern "C" int ear6_test(void) {
     return 42;
 }

@@ -1,4 +1,5 @@
 #include <ear6/ear6.h>
+#include <ear6/nes.h>
 #include <emscripten.h>
 
 extern "C" {
@@ -36,6 +37,27 @@ int ear6_web_get_frame_width(Ear6* ctx) {
 EMSCRIPTEN_KEEPALIVE
 int ear6_web_get_frame_height(Ear6* ctx) {
     return ear6_get_frame_height(ctx);
+}
+
+
+EMSCRIPTEN_KEEPALIVE
+void ear6_web_nes_set_button_state(Ear6* ctx, int button, int pressed) {
+    ear6_nes_set_button_state(ctx, static_cast<Ear6NesButton>(button), pressed);
+}
+
+EMSCRIPTEN_KEEPALIVE
+void ear6_web_nes_clear_input(Ear6* ctx) {
+    ear6_nes_clear_input(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+const int16_t* ear6_web_get_audiobuffer(Ear6* ctx) {
+    return ear6_get_audiobuffer(ctx);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_get_audio_num_samples(Ear6* ctx) {
+    return ear6_get_audio_num_samples(ctx);
 }
 
 }

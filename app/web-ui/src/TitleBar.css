@@ -1,0 +1,79 @@
+.title-bar {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--bg-body);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.title-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.title-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: background 200ms;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.title-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+
+.title-center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.system-leds {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.led {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #333;
+}
+
+.led.on {
+  background: #e63946;
+  box-shadow: 0 0 3px #e63946;
+}
+
+.led-running.blink {
+  background: #2ec4b6;
+  box-shadow: 0 0 3px #2ec4b6;
+  animation: led-blink 1s step-end infinite;
+}
+
+@keyframes led-blink {
+  50% { opacity: 0.2; }
+}
+
+.title-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.deco-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  opacity: 0.3;
+}

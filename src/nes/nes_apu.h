@@ -18,7 +18,8 @@ public:
     void get_memory_ranges(MemoryRanges& ranges) override {
         ranges.add_handler(MemoryOperation::Read, 0x4000, 0x4013);
         ranges.add_handler(MemoryOperation::Read, 0x4015);
-        ranges.add_handler(MemoryOperation::Write, 0x4000, 0x4017);
+        ranges.add_handler(MemoryOperation::Write, 0x4000, 0x4015);
+        ranges.add_handler(MemoryOperation::Write, 0x4017);
     }
 
     uint8_t read_ram(uint16_t addr) override;

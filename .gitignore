@@ -4,3 +4,7 @@ build-web/
 
 app/web-ui/node_modules/
 app/web-ui/public/ear6/
+
+mesen2/
+*.NES
+*.nes

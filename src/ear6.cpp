@@ -1,4 +1,5 @@
 #include <ear6/ear6.h>
+#include <ear6/nes.h>
 
 #include "system.h"
 #include "system_test.h"
@@ -98,6 +99,26 @@ extern "C" int ear6_nes_set_palette(Ear6* ctx, const uint32_t palette[64]) {
         return 0;
     } catch (...) {
         return -2;
+    }
+}
+
+extern "C" int ear6_nes_set_button_state(Ear6* ctx, Ear6NesButton button, int pressed) {
+    if (!ctx || !ctx->system || ctx->system_type != EAR6_SYSTEM_NES) return -1;
+    try {
+        auto* nes = static_cast<ear6::NesSystem*>(ctx->system.get());
+        nes->get_console()->set_button_state(0, static_cast<int>(button), pressed != 0);
+        return 0;
+    } catch (...) {
+        return -2;
+    }
+}
+
+extern "C" void ear6_nes_clear_input(Ear6* ctx) {
+    if (!ctx || !ctx->system || ctx->system_type != EAR6_SYSTEM_NES) return;
+    try {
+        auto* nes = static_cast<ear6::NesSystem*>(ctx->system.get());
+        nes->get_console()->clear_input();
+    } catch (...) {
     }
 }
 

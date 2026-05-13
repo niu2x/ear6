@@ -2,6 +2,7 @@
 
 #include "system.h"
 #include "system_test.h"
+#include "nes/nes_system.h"
 
 #include <memory>
 #include <stdexcept>
@@ -20,6 +21,7 @@ static std::unique_ptr<ear6::System> create_system(Ear6SystemType type) {
         case EAR6_SYSTEM_TEST:
             return std::make_unique<ear6::TestSystem>();
         case EAR6_SYSTEM_NES:
+            return std::make_unique<ear6::NesSystem>();
         case EAR6_SYSTEM_FLASH:
             throw std::runtime_error("system not implemented");
     }

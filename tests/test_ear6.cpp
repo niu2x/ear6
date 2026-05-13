@@ -8,11 +8,32 @@ TEST(Ear6Create, TestSystemSuccess) {
     ear6_destroy(ctx);
 }
 
-TEST(Ear6Create, UnimplementedSystemReturnsNull) {
+TEST(Ear6Create, NesSystemWorks) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
-    EXPECT_EQ(ctx, nullptr);
+    ASSERT_NE(ctx, nullptr);
 
-    ctx = ear6_create(EAR6_SYSTEM_FLASH);
+    uint8_t rom[16 + 0x4000];
+    memset(rom, 0, sizeof(rom));
+    rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;
+    rom[4] = 1; rom[5] = 0;
+    rom[16] = 0x4C; rom[17] = 0x00; rom[18] = 0x80;
+
+    int r = ear6_load(ctx, rom, sizeof(rom));
+    ASSERT_EQ(r, 0);
+
+    int step = ear6_step(ctx);
+    EXPECT_EQ(step, 0);
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(ear6_get_frame_width(ctx), 256);
+    EXPECT_EQ(ear6_get_frame_height(ctx), 240);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6Create, FlashSystemNotImplemented) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_FLASH);
     EXPECT_EQ(ctx, nullptr);
 }
 

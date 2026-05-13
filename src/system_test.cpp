@@ -1,10 +1,14 @@
 #include "system_test.h"
 
+#include <cmath>
+
 namespace ear6 {
+
+static constexpr double PI = 3.14159265358979323846;
 
 TestSystem::TestSystem()
     : framebuffer_(WIDTH * HEIGHT * 4, 0) {
-    generate_mosaic();
+    generate_wave();
 }
 
 int TestSystem::load(const void* data, int size) {
@@ -14,7 +18,8 @@ int TestSystem::load(const void* data, int size) {
 }
 
 int TestSystem::step() {
-    generate_mosaic();
+    ++tick_;
+    generate_wave();
     return 0;
 }
 
@@ -38,32 +43,26 @@ int TestSystem::get_audio_num_samples() const {
     return 0;
 }
 
-void TestSystem::generate_mosaic() {
-    static constexpr uint8_t colors[][4] = {
-        {255,   0,   0, 255},
-        {  0, 255,   0, 255},
-        {  0,   0, 255, 255},
-        {255, 255,   0, 255},
-        {  0, 255, 255, 255},
-        {255,   0, 255, 255},
-        {255, 128,   0, 255},
-        {128,   0, 255, 255},
-    };
-    static constexpr int BLOCK = 16;
-    static constexpr int NUM_COLORS = 8;
+void TestSystem::generate_wave() {
+    double t = tick_ * 0.05;
+    for (int y = 0; y < HEIGHT; ++y) {
+        for (int x = 0; x < WIDTH; ++x) {
+            double fx = x / static_cast<double>(WIDTH);
+            double fy = y / static_cast<double>(HEIGHT);
 
-    for (int by = 0; by < HEIGHT; by += BLOCK) {
-        for (int bx = 0; bx < WIDTH; bx += BLOCK) {
-            int ci = ((bx / BLOCK) + (by / BLOCK)) % NUM_COLORS;
-            for (int y = by; y < by + BLOCK && y < HEIGHT; ++y) {
-                for (int x = bx; x < bx + BLOCK && x < WIDTH; ++x) {
-                    int idx = (y * WIDTH + x) * 4;
-                    framebuffer_[idx + 0] = colors[ci][0];
-                    framebuffer_[idx + 1] = colors[ci][1];
-                    framebuffer_[idx + 2] = colors[ci][2];
-                    framebuffer_[idx + 3] = colors[ci][3];
-                }
-            }
+            double wave1 = std::sin(fx * 6.0 * PI + t * 1.3);
+            double wave2 = std::sin(fy * 4.0 * PI + t * 0.9);
+            double wave3 = std::sin((fx + fy) * 5.0 * PI - t * 1.1);
+
+            double r = 0.5 + 0.5 * wave1;
+            double g = 0.5 + 0.5 * wave2;
+            double b = 0.5 + 0.5 * wave3;
+
+            int idx = (y * WIDTH + x) * 4;
+            framebuffer_[idx + 0] = static_cast<uint8_t>(r * 255.0);
+            framebuffer_[idx + 1] = static_cast<uint8_t>(g * 255.0);
+            framebuffer_[idx + 2] = static_cast<uint8_t>(b * 255.0);
+            framebuffer_[idx + 3] = 255;
         }
     }
 }

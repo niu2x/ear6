@@ -21,11 +21,12 @@ public:
     int get_audio_num_samples() const override;
 
 private:
-    void generate_mosaic();
+    void generate_wave();
 
     static constexpr int WIDTH = 256;
     static constexpr int HEIGHT = 240;
 
+    int tick_ = 0;
     std::vector<uint8_t> framebuffer_;
 };
 

@@ -1,0 +1,738 @@
+#include "nes_console.h"
+#include "nes_memory_manager.h"
+#include "nes_ppu.h"
+#include <cstring>
+#include "nes_cpu.h"
+
+namespace ear6::nes {
+
+NesCpu::NesCpu(NesConsole* console) {
+    console_ = console;
+    memory_manager_ = console->get_memory_manager();
+
+    Func opTable[256] = {
+        &NesCpu::op_brk, &NesCpu::ora_op,    &NesCpu::op_hlt, &NesCpu::op_slo,  &NesCpu::op_nop,  &NesCpu::ora_op,    &NesCpu::op_asl_mem, &NesCpu::op_slo,
+        &NesCpu::op_php, &NesCpu::ora_op,    &NesCpu::op_asl_acc,&NesCpu::op_aac,&NesCpu::op_nop,  &NesCpu::ora_op,    &NesCpu::op_asl_mem, &NesCpu::op_slo,
+        &NesCpu::op_bpl, &NesCpu::ora_op,    &NesCpu::op_hlt, &NesCpu::op_slo,  &NesCpu::op_nop,  &NesCpu::ora_op,    &NesCpu::op_asl_mem, &NesCpu::op_slo,
+        &NesCpu::op_clc, &NesCpu::ora_op,    &NesCpu::op_nop, &NesCpu::op_slo,  &NesCpu::op_nop,  &NesCpu::ora_op,    &NesCpu::op_asl_mem, &NesCpu::op_slo,
+        &NesCpu::op_jsr, &NesCpu::and_op,    &NesCpu::op_hlt, &NesCpu::op_rla,  &NesCpu::op_bit,  &NesCpu::and_op,    &NesCpu::op_rol_mem, &NesCpu::op_rla,
+        &NesCpu::op_plp, &NesCpu::and_op,    &NesCpu::op_rol_acc,&NesCpu::op_aac,&NesCpu::op_bit,  &NesCpu::and_op,    &NesCpu::op_rol_mem, &NesCpu::op_rla,
+        &NesCpu::op_bmi, &NesCpu::and_op,    &NesCpu::op_hlt, &NesCpu::op_rla,  &NesCpu::op_nop,  &NesCpu::and_op,    &NesCpu::op_rol_mem, &NesCpu::op_rla,
+        &NesCpu::op_sec, &NesCpu::and_op,    &NesCpu::op_nop, &NesCpu::op_rla,  &NesCpu::op_nop,  &NesCpu::and_op,    &NesCpu::op_rol_mem, &NesCpu::op_rla,
+        &NesCpu::op_rti, &NesCpu::eor_op,    &NesCpu::op_hlt, &NesCpu::op_sre,  &NesCpu::op_nop,  &NesCpu::eor_op,    &NesCpu::op_lsr_mem, &NesCpu::op_sre,
+        &NesCpu::op_pha, &NesCpu::eor_op,    &NesCpu::op_lsr_acc,&NesCpu::op_asr,&NesCpu::op_jmp_abs,&NesCpu::eor_op,  &NesCpu::op_lsr_mem, &NesCpu::op_sre,
+        &NesCpu::op_bvc, &NesCpu::eor_op,    &NesCpu::op_hlt, &NesCpu::op_sre,  &NesCpu::op_nop,  &NesCpu::eor_op,    &NesCpu::op_lsr_mem, &NesCpu::op_sre,
+        &NesCpu::op_cli, &NesCpu::eor_op,    &NesCpu::op_nop, &NesCpu::op_sre,  &NesCpu::op_nop,  &NesCpu::eor_op,    &NesCpu::op_lsr_mem, &NesCpu::op_sre,
+        &NesCpu::op_rts, &NesCpu::adc_op,    &NesCpu::op_hlt, &NesCpu::op_rra,  &NesCpu::op_nop,  &NesCpu::adc_op,    &NesCpu::op_ror_mem, &NesCpu::op_rra,
+        &NesCpu::op_pla, &NesCpu::adc_op,    &NesCpu::op_ror_acc,&NesCpu::op_arr,&NesCpu::op_jmp_ind,&NesCpu::adc_op,  &NesCpu::op_ror_mem, &NesCpu::op_rra,
+        &NesCpu::op_bvs, &NesCpu::adc_op,    &NesCpu::op_hlt, &NesCpu::op_rra,  &NesCpu::op_nop,  &NesCpu::adc_op,    &NesCpu::op_ror_mem, &NesCpu::op_rra,
+        &NesCpu::op_sei, &NesCpu::adc_op,    &NesCpu::op_nop, &NesCpu::op_rra,  &NesCpu::op_nop,  &NesCpu::adc_op,    &NesCpu::op_ror_mem, &NesCpu::op_rra,
+        &NesCpu::op_nop, &NesCpu::op_sta,    &NesCpu::op_nop, &NesCpu::op_sax,  &NesCpu::op_sty,  &NesCpu::op_sta,    &NesCpu::op_stx,     &NesCpu::op_sax,
+        &NesCpu::op_dey, &NesCpu::op_nop,    &NesCpu::op_txa, &NesCpu::op_ane,  &NesCpu::op_sty,  &NesCpu::op_sta,    &NesCpu::op_stx,     &NesCpu::op_sax,
+        &NesCpu::op_bcc, &NesCpu::op_sta,    &NesCpu::op_hlt, &NesCpu::op_shaz, &NesCpu::op_sty,  &NesCpu::op_sta,    &NesCpu::op_stx,     &NesCpu::op_sax,
+        &NesCpu::op_tya, &NesCpu::op_sta,    &NesCpu::op_txs, &NesCpu::op_tas,  &NesCpu::op_shy,  &NesCpu::op_sta,    &NesCpu::op_shx,     &NesCpu::op_shaa,
+        &NesCpu::op_ldy, &NesCpu::op_lda,    &NesCpu::op_ldx, &NesCpu::op_lax,  &NesCpu::op_ldy,  &NesCpu::op_lda,    &NesCpu::op_ldx,     &NesCpu::op_lax,
+        &NesCpu::op_tay, &NesCpu::op_lda,    &NesCpu::op_tax, &NesCpu::op_atx,  &NesCpu::op_ldy,  &NesCpu::op_lda,    &NesCpu::op_ldx,     &NesCpu::op_lax,
+        &NesCpu::op_bcs, &NesCpu::op_lda,    &NesCpu::op_hlt, &NesCpu::op_lax,  &NesCpu::op_ldy,  &NesCpu::op_lda,    &NesCpu::op_ldx,     &NesCpu::op_lax,
+        &NesCpu::op_clv, &NesCpu::op_lda,    &NesCpu::op_tsx, &NesCpu::op_las,  &NesCpu::op_ldy,  &NesCpu::op_lda,    &NesCpu::op_ldx,     &NesCpu::op_lax,
+        &NesCpu::cpy, &NesCpu::cpa,       &NesCpu::op_nop, &NesCpu::op_dcp,  &NesCpu::cpy,  &NesCpu::cpa,       &NesCpu::dec_op,     &NesCpu::op_dcp,
+        &NesCpu::op_iny, &NesCpu::cpa,       &NesCpu::op_dex, &NesCpu::op_axs,  &NesCpu::cpy,  &NesCpu::cpa,       &NesCpu::dec_op,     &NesCpu::op_dcp,
+        &NesCpu::op_bne, &NesCpu::cpa,       &NesCpu::op_hlt, &NesCpu::op_dcp,  &NesCpu::op_nop,  &NesCpu::cpa,       &NesCpu::dec_op,     &NesCpu::op_dcp,
+        &NesCpu::op_cld, &NesCpu::cpa,       &NesCpu::op_nop, &NesCpu::op_dcp,  &NesCpu::op_nop,  &NesCpu::cpa,       &NesCpu::dec_op,     &NesCpu::op_dcp,
+        &NesCpu::cpx, &NesCpu::sbc_op,    &NesCpu::op_nop, &NesCpu::op_isb,  &NesCpu::cpx,  &NesCpu::sbc_op,    &NesCpu::inc_op,     &NesCpu::op_isb,
+        &NesCpu::op_inx, &NesCpu::sbc_op,    &NesCpu::op_nop, &NesCpu::sbc_op,  &NesCpu::cpx,  &NesCpu::sbc_op,    &NesCpu::inc_op,     &NesCpu::op_isb,
+        &NesCpu::op_beq, &NesCpu::sbc_op,    &NesCpu::op_hlt, &NesCpu::op_isb,  &NesCpu::op_nop,  &NesCpu::sbc_op,    &NesCpu::inc_op,     &NesCpu::op_isb,
+        &NesCpu::op_sed, &NesCpu::sbc_op,    &NesCpu::op_nop, &NesCpu::op_isb,  &NesCpu::op_nop,  &NesCpu::sbc_op,    &NesCpu::inc_op,     &NesCpu::op_isb,
+    };
+
+    NesAddrMode addrMode[256] = {
+        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::Other,NesAddrMode::IndX,  NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Ind,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndYW,  NesAddrMode::None, NesAddrMode::Other,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroY,NesAddrMode::ZeroY,
+        NesAddrMode::Imp, NesAddrMode::AbsYW,  NesAddrMode::Imp,  NesAddrMode::Other,  NesAddrMode::Other,NesAddrMode::AbsXW,NesAddrMode::Other,NesAddrMode::Other,
+        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndY,   NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroY,NesAddrMode::ZeroY,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsY,   NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsY, NesAddrMode::AbsY,
+        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
+        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
+        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
+        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+    };
+
+    memcpy(op_table_, opTable, sizeof(opTable));
+    memcpy(addr_mode_, addrMode, sizeof(addrMode));
+
+}
+
+void NesCpu::reset(bool soft_reset) {
+    (void)soft_reset;
+    state_.nmi_flag = false;
+    state_.irq_flag = 0;
+    sprite_dma_transfer_ = false;
+    sprite_dma_offset_ = 0;
+    need_halt_ = false;
+    dmc_dma_running_ = false;
+    abort_dmc_dma_ = false;
+    cpu_write_ = false;
+
+    state_.pc = memory_manager_->read(ResetVector) | (memory_manager_->read(ResetVector + 1) << 8);
+
+    state_.a = 0;
+    state_.sp = 0xFD;
+    state_.x = 0;
+    state_.y = 0;
+    state_.ps = PSFlags::INTERRUPT;
+    run_irq_ = false;
+    prev_run_irq_ = false;
+    need_nmi_ = false;
+    prev_need_nmi_ = false;
+    prev_nmi_flag_ = false;
+
+    state_.cycle_count = (uint64_t)-1;
+    master_clock_ = 0;
+    master_clock_ += 12; // NTSC: 12 master clocks per CPU cycle
+
+    // 8 dummy cycles after reset
+    for (int i = 0; i < 8; i++) {
+        start_cpu_cycle(true);
+        end_cpu_cycle(true);
+    }
+}
+
+void NesCpu::start_cpu_cycle(bool for_read) {
+    master_clock_ += for_read ? (start_clock_count_ - 1) : (start_clock_count_ + 1);
+    state_.cycle_count++;
+    console_->get_ppu()->run(master_clock_ - ppu_offset_);
+    console_->process_cpu_clock();
+}
+
+void NesCpu::end_cpu_cycle(bool for_read) {
+    master_clock_ += for_read ? (end_clock_count_ + 1) : (end_clock_count_ - 1);
+    console_->get_ppu()->run(master_clock_ - ppu_offset_);
+
+    prev_need_nmi_ = need_nmi_;
+    if (!prev_nmi_flag_ && state_.nmi_flag) {
+        need_nmi_ = true;
+    }
+    prev_nmi_flag_ = state_.nmi_flag;
+
+    prev_run_irq_ = run_irq_;
+    run_irq_ = ((state_.irq_flag & irq_mask_) > 0 && !check_flag(PSFlags::INTERRUPT));
+}
+
+uint8_t NesCpu::get_op_code() {
+    uint8_t op = memory_read(state_.pc);
+    state_.pc++;
+    return op;
+}
+
+void NesCpu::dummy_read() {
+    memory_read(state_.pc);
+}
+
+uint8_t NesCpu::read_byte() {
+    uint8_t v = memory_read(state_.pc);
+    state_.pc++;
+    return v;
+}
+
+uint16_t NesCpu::read_word() {
+    uint8_t lo = read_byte();
+    uint8_t hi = read_byte();
+    return (hi << 8) | lo;
+}
+
+uint16_t NesCpu::fetch_operand() {
+    switch (inst_addr_mode_) {
+        case NesAddrMode::Acc:
+        case NesAddrMode::Imp: dummy_read(); return 0;
+        case NesAddrMode::Imm:
+        case NesAddrMode::Rel: return get_immediate();
+        case NesAddrMode::Zero: return get_zero_addr();
+        case NesAddrMode::ZeroX: return get_zero_x_addr();
+        case NesAddrMode::ZeroY: return get_zero_y_addr();
+        case NesAddrMode::Ind: return get_ind_addr();
+        case NesAddrMode::IndX: return get_ind_x_addr();
+        case NesAddrMode::IndY: return get_ind_y_addr(false);
+        case NesAddrMode::IndYW: return get_ind_y_addr(true);
+        case NesAddrMode::Abs: return get_abs_addr();
+        case NesAddrMode::AbsX: return get_abs_x_addr(false);
+        case NesAddrMode::AbsXW: return get_abs_x_addr(true);
+        case NesAddrMode::AbsY: return get_abs_y_addr(false);
+        case NesAddrMode::AbsYW: return get_abs_y_addr(true);
+        case NesAddrMode::Other: return 0;
+        default: return 0;
+    }
+}
+
+uint8_t NesCpu::memory_read(uint16_t addr) {
+    process_pending_dma(addr);
+    start_cpu_cycle(true);
+    uint8_t v = memory_manager_->read(addr);
+    end_cpu_cycle(true);
+    return v;
+}
+
+void NesCpu::memory_write(uint16_t addr, uint8_t value) {
+    cpu_write_ = true;
+    start_cpu_cycle(false);
+    memory_manager_->write(addr, value);
+    end_cpu_cycle(false);
+    cpu_write_ = false;
+}
+
+uint16_t NesCpu::memory_read_word(uint16_t addr) {
+    uint8_t lo = memory_read(addr);
+    uint8_t hi = memory_read(addr + 1);
+    return lo | (hi << 8);
+}
+
+void NesCpu::set_register(uint8_t& reg, uint8_t value) {
+    clear_flags(PSFlags::ZERO | PSFlags::NEGATIVE);
+    set_zn_flags(value);
+    reg = value;
+}
+
+void NesCpu::set_zn_flags(uint8_t value) {
+    if (value == 0) set_flags(PSFlags::ZERO);
+    else if (value & 0x80) set_flags(PSFlags::NEGATIVE);
+}
+
+void NesCpu::push(uint8_t value) {
+    memory_write(0x100 + state_.sp, value);
+    state_.sp--;
+}
+
+void NesCpu::push_word(uint16_t value) {
+    push((uint8_t)(value >> 8));
+    push((uint8_t)value);
+}
+
+uint8_t NesCpu::pop() {
+    state_.sp++;
+    return memory_read(0x100 + state_.sp);
+}
+
+uint16_t NesCpu::pop_word() {
+    uint8_t lo = pop();
+    uint8_t hi = pop();
+    return lo | (hi << 8);
+}
+
+uint8_t NesCpu::get_operand_value() {
+    if (inst_addr_mode_ >= NesAddrMode::Zero) {
+        return memory_read(operand_);
+    } else {
+        return (uint8_t)operand_;
+    }
+}
+
+void NesCpu::exec() {
+    uint8_t opcode = get_op_code();
+    inst_addr_mode_ = addr_mode_[opcode];
+    operand_ = fetch_operand();
+    (this->*op_table_[opcode])();
+
+    if (prev_run_irq_ || prev_need_nmi_) {
+        irq();
+    }
+}
+
+void NesCpu::irq() {
+    dummy_read();
+    dummy_read();
+    push_word(state_.pc);
+
+    if (need_nmi_) {
+        need_nmi_ = false;
+        push(ps() | PSFlags::RESERVED);
+        set_flags(PSFlags::INTERRUPT);
+        set_pc(memory_read_word(NMIVector));
+    } else {
+        push(ps() | PSFlags::RESERVED);
+        set_flags(PSFlags::INTERRUPT);
+        set_pc(memory_read_word(IRQVector));
+    }
+}
+
+void NesCpu::process_pending_dma(uint16_t read_address) {
+    if (!need_halt_) return;
+    (void)read_address;
+
+    need_halt_ = false;
+
+    start_cpu_cycle(true);
+    end_cpu_cycle(true);
+
+    uint16_t sprite_counter = 0;
+    uint8_t sprite_read_addr = 0;
+    uint8_t read_value = 0;
+
+    while (dmc_dma_running_ || sprite_dma_transfer_) {
+        bool get_cycle = (state_.cycle_count & 0x01) == 0;
+        if (get_cycle) {
+            if (dmc_dma_running_ && !need_halt_ && !need_dummy_read_) {
+                start_cpu_cycle(true);
+                is_dmc_dma_read_ = true;
+                read_value = memory_manager_->read(read_address);
+                is_dmc_dma_read_ = false;
+                end_cpu_cycle(true);
+                dmc_dma_running_ = false;
+                abort_dmc_dma_ = false;
+            } else if (sprite_dma_transfer_) {
+                start_cpu_cycle(true);
+                read_value = memory_manager_->read(sprite_dma_offset_ * 0x100 + sprite_read_addr);
+                end_cpu_cycle(true);
+                sprite_read_addr++;
+                sprite_counter++;
+            } else {
+                start_cpu_cycle(true);
+                memory_manager_->read(read_address);
+                end_cpu_cycle(true);
+            }
+        } else {
+            if (sprite_dma_transfer_ && (sprite_counter & 0x01)) {
+                start_cpu_cycle(true);
+                memory_manager_->write(0x2004, read_value);
+                end_cpu_cycle(true);
+                sprite_counter++;
+                if (sprite_counter == 0x200) {
+                    sprite_dma_transfer_ = false;
+                }
+            } else {
+                start_cpu_cycle(true);
+                memory_manager_->read(read_address);
+                end_cpu_cycle(true);
+            }
+        }
+    }
+}
+
+void NesCpu::run_dma_transfer(uint8_t offset_value) {
+    sprite_dma_transfer_ = true;
+    sprite_dma_offset_ = offset_value;
+    need_halt_ = true;
+}
+
+void NesCpu::start_dmc_transfer() {
+    dmc_dma_running_ = true;
+    need_dummy_read_ = true;
+    need_halt_ = true;
+}
+
+void NesCpu::stop_dmc_transfer() {
+    if (dmc_dma_running_) {
+        if (need_halt_) {
+            dmc_dma_running_ = false;
+            need_dummy_read_ = false;
+            need_halt_ = false;
+        } else {
+            abort_dmc_dma_ = true;
+        }
+    }
+}
+
+// Addressing mode helpers
+uint16_t NesCpu::get_ind_addr() { return read_word(); }
+uint8_t NesCpu::get_immediate() { return read_byte(); }
+uint8_t NesCpu::get_zero_addr() { return read_byte(); }
+uint8_t NesCpu::get_zero_x_addr() {
+    uint8_t v = read_byte();
+    memory_read(v); // dummy read
+    return v + x();
+}
+uint8_t NesCpu::get_zero_y_addr() {
+    uint8_t v = read_byte();
+    memory_read(v);
+    return v + y();
+}
+uint16_t NesCpu::get_abs_addr() { return read_word(); }
+uint16_t NesCpu::get_abs_x_addr(bool dr) {
+    uint16_t base = read_word();
+    bool crossed = check_page_crossed(base, x());
+    if (crossed || dr) {
+        memory_read(base + x() - (crossed ? 0x100 : 0));
+    }
+    return base + x();
+}
+uint16_t NesCpu::get_abs_y_addr(bool dr) {
+    uint16_t base = read_word();
+    bool crossed = check_page_crossed(base, y());
+    if (crossed || dr) {
+        memory_read(base + y() - (crossed ? 0x100 : 0));
+    }
+    return base + y();
+}
+uint16_t NesCpu::get_ind() {
+    uint16_t addr = operand_;
+    if ((addr & 0xFF) == 0xFF) {
+        uint8_t lo = memory_read(addr);
+        uint8_t hi = memory_read(addr - 0xFF);
+        return lo | (hi << 8);
+    } else {
+        return memory_read_word(addr);
+    }
+}
+uint16_t NesCpu::get_ind_x_addr() {
+    uint8_t zero = read_byte();
+    memory_read(zero);
+    zero += x();
+    if (zero == 0xFF) {
+        uint8_t lo = memory_read(0xFF);
+        uint8_t hi = memory_read(0x00);
+        return lo | (hi << 8);
+    }
+    return memory_read_word(zero);
+}
+uint16_t NesCpu::get_ind_y_addr(bool dr) {
+    uint8_t zero = read_byte();
+    uint16_t addr;
+    if (zero == 0xFF) {
+        uint8_t lo = memory_read(0xFF);
+        uint8_t hi = memory_read(0x00);
+        addr = lo | (hi << 8);
+    } else {
+        addr = memory_read_word(zero);
+    }
+    bool crossed = check_page_crossed(addr, y());
+    if (crossed || dr) {
+        memory_read(addr + y() - (crossed ? 0x100 : 0));
+    }
+    return addr + y();
+}
+
+// ALU operations
+void NesCpu::and_op() { set_a(a() & get_operand_value()); }
+void NesCpu::eor_op() { set_a(a() ^ get_operand_value()); }
+void NesCpu::ora_op() { set_a(a() | get_operand_value()); }
+
+void NesCpu::add(uint8_t v) {
+    uint16_t result = (uint16_t)a() + (uint16_t)v + (check_flag(PSFlags::CARRY) ? 1 : 0);
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::OVERFLOW_FLAG | PSFlags::ZERO);
+    set_zn_flags((uint8_t)result);
+    if (~(a() ^ v) & (a() ^ result) & 0x80) set_flags(PSFlags::OVERFLOW_FLAG);
+    if (result > 0xFF) set_flags(PSFlags::CARRY);
+    set_a((uint8_t)result);
+}
+
+void NesCpu::adc_op() { add(get_operand_value()); }
+void NesCpu::sbc_op() { add(get_operand_value() ^ 0xFF); }
+
+void NesCpu::cmp(uint8_t r, uint8_t v) {
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::ZERO);
+    auto result = r - v;
+    if (r >= v) set_flags(PSFlags::CARRY);
+    if (r == v) set_flags(PSFlags::ZERO);
+    if (result & 0x80) set_flags(PSFlags::NEGATIVE);
+}
+
+void NesCpu::cpa() { cmp(a(), get_operand_value()); }
+void NesCpu::cpx() { cmp(x(), get_operand_value()); }
+void NesCpu::cpy() { cmp(y(), get_operand_value()); }
+
+void NesCpu::inc_op() {
+    uint16_t addr = operand_;
+    clear_flags(PSFlags::NEGATIVE | PSFlags::ZERO);
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    v++;
+    set_zn_flags(v);
+    memory_write(addr, v);
+}
+
+void NesCpu::dec_op() {
+    uint16_t addr = operand_;
+    clear_flags(PSFlags::NEGATIVE | PSFlags::ZERO);
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    v--;
+    set_zn_flags(v);
+    memory_write(addr, v);
+}
+
+uint8_t NesCpu::asl(uint8_t v) {
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::ZERO);
+    if (v & 0x80) set_flags(PSFlags::CARRY);
+    uint8_t r = v << 1;
+    set_zn_flags(r);
+    return r;
+}
+
+uint8_t NesCpu::lsr(uint8_t v) {
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::ZERO);
+    if (v & 0x01) set_flags(PSFlags::CARRY);
+    uint8_t r = v >> 1;
+    set_zn_flags(r);
+    return r;
+}
+
+uint8_t NesCpu::rol(uint8_t v) {
+    bool carry = check_flag(PSFlags::CARRY);
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::ZERO);
+    if (v & 0x80) set_flags(PSFlags::CARRY);
+    uint8_t r = (v << 1) | (carry ? 0x01 : 0x00);
+    set_zn_flags(r);
+    return r;
+}
+
+uint8_t NesCpu::ror(uint8_t v) {
+    bool carry = check_flag(PSFlags::CARRY);
+    clear_flags(PSFlags::CARRY | PSFlags::NEGATIVE | PSFlags::ZERO);
+    if (v & 0x01) set_flags(PSFlags::CARRY);
+    uint8_t r = (v >> 1) | (carry ? 0x80 : 0x00);
+    set_zn_flags(r);
+    return r;
+}
+
+void NesCpu::asl_addr() {
+    uint16_t addr = operand_;
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    memory_write(addr, asl(v));
+}
+
+void NesCpu::lsr_addr() {
+    uint16_t addr = operand_;
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    memory_write(addr, lsr(v));
+}
+
+void NesCpu::rol_addr() {
+    uint16_t addr = operand_;
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    memory_write(addr, rol(v));
+}
+
+void NesCpu::ror_addr() {
+    uint16_t addr = operand_;
+    uint8_t v = memory_read(addr);
+    memory_write(addr, v);
+    memory_write(addr, ror(v));
+}
+
+void NesCpu::branch_relative(bool branch) {
+    int8_t offset = (int8_t)(operand_ & 0xFF);
+    if (branch) {
+        if (run_irq_ && !prev_run_irq_) run_irq_ = false;
+        dummy_read();
+        if (check_page_crossed(pc(), offset)) dummy_read();
+        set_pc(pc() + offset);
+    }
+}
+
+void NesCpu::op_brk() {
+    push_word(pc() + 1);
+    uint8_t flags = ps() | PSFlags::BREAK | PSFlags::RESERVED;
+    if (need_nmi_) {
+        need_nmi_ = false;
+        push(flags);
+        set_flags(PSFlags::INTERRUPT);
+        set_pc(memory_read_word(NMIVector));
+    } else {
+        push(flags);
+        set_flags(PSFlags::INTERRUPT);
+        set_pc(memory_read_word(IRQVector));
+    }
+    prev_need_nmi_ = false;
+}
+
+void NesCpu::op_nop() { get_operand_value(); }
+void NesCpu::op_hlt() { state_.pc -= 1; prev_run_irq_ = false; prev_need_nmi_ = false; }
+
+void NesCpu::op_bit() {
+    uint8_t v = get_operand_value();
+    clear_flags(PSFlags::ZERO | PSFlags::OVERFLOW_FLAG | PSFlags::NEGATIVE);
+    if ((a() & v) == 0) set_flags(PSFlags::ZERO);
+    if (v & 0x40) set_flags(PSFlags::OVERFLOW_FLAG);
+    if (v & 0x80) set_flags(PSFlags::NEGATIVE);
+}
+
+void NesCpu::op_pha() { push(a()); }
+void NesCpu::op_php() { push(ps() | PSFlags::BREAK | PSFlags::RESERVED); }
+void NesCpu::op_pla() { dummy_read(); set_a(pop()); }
+void NesCpu::op_plp() { dummy_read(); set_ps(pop()); }
+void NesCpu::op_jsr() {
+    uint8_t lo = read_byte();
+    dummy_read();
+    push_word(pc());
+    uint16_t addr = (read_byte() << 8) | lo;
+    jmp(addr);
+}
+void NesCpu::op_rts() {
+    dummy_read();
+    uint16_t addr = pop_word();
+    dummy_read();
+    set_pc(addr + 1);
+}
+void NesCpu::op_rti() {
+    dummy_read();
+    set_ps(pop());
+    set_pc(pop_word());
+}
+
+// Unofficial opcodes
+void NesCpu::op_slo() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    uint8_t sv = asl(v);
+    set_a(a() | sv);
+    memory_write(operand_, sv);
+}
+void NesCpu::op_sre() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    uint8_t sv = lsr(v);
+    set_a(a() ^ sv);
+    memory_write(operand_, sv);
+}
+void NesCpu::op_rla() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    uint8_t sv = rol(v);
+    set_a(a() & sv);
+    memory_write(operand_, sv);
+}
+void NesCpu::op_rra() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    uint8_t sv = ror(v);
+    add(sv);
+    memory_write(operand_, sv);
+}
+void NesCpu::op_sax() { memory_write(operand_, a() & x()); }
+void NesCpu::op_lax() {
+    uint8_t v = get_operand_value();
+    set_x(v);
+    set_a(v);
+}
+void NesCpu::op_dcp() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    v--;
+    cmp(a(), v);
+    memory_write(operand_, v);
+}
+void NesCpu::op_isb() {
+    uint8_t v = get_operand_value();
+    memory_write(operand_, v);
+    v++;
+    add(v ^ 0xFF);
+    memory_write(operand_, v);
+}
+void NesCpu::op_aac() {
+    set_a(a() & get_operand_value());
+    clear_flags(PSFlags::CARRY);
+    if (check_flag(PSFlags::NEGATIVE)) set_flags(PSFlags::CARRY);
+}
+void NesCpu::op_asr() {
+    clear_flags(PSFlags::CARRY);
+    set_a(a() & get_operand_value());
+    if (a() & 0x01) set_flags(PSFlags::CARRY);
+    set_a(a() >> 1);
+}
+void NesCpu::op_arr() {
+    set_a(((a() & get_operand_value()) >> 1) | (check_flag(PSFlags::CARRY) ? 0x80 : 0x00));
+    clear_flags(PSFlags::CARRY | PSFlags::OVERFLOW_FLAG);
+    if (a() & 0x40) set_flags(PSFlags::CARRY);
+    if ((check_flag(PSFlags::CARRY) ? 1 : 0) ^ ((a() >> 5) & 1)) set_flags(PSFlags::OVERFLOW_FLAG);
+}
+void NesCpu::op_atx() {
+    uint8_t v = get_operand_value();
+    set_a(v);
+    set_x(a());
+    set_a(a());
+}
+void NesCpu::op_axs() {
+    uint8_t ov = get_operand_value();
+    uint8_t v = (a() & x()) - ov;
+    clear_flags(PSFlags::CARRY);
+    if ((a() & x()) >= ov) set_flags(PSFlags::CARRY);
+    set_x(v);
+}
+void NesCpu::op_shy() {
+    uint16_t base = read_word();
+    bool crossed = check_page_crossed(base, x());
+    memory_read(base + x() - (crossed ? 0x100 : 0));
+    uint16_t addr = base + x();
+    uint8_t ah = addr >> 8;
+    uint8_t al = addr & 0xFF;
+    if (crossed) ah &= y();
+    memory_write((ah << 8) | al, y() & ((base >> 8) + 1));
+}
+void NesCpu::op_shx() {
+    uint16_t base = read_word();
+    bool crossed = check_page_crossed(base, y());
+    memory_read(base + y() - (crossed ? 0x100 : 0));
+    uint16_t addr = base + y();
+    uint8_t ah = addr >> 8;
+    uint8_t al = addr & 0xFF;
+    if (crossed) ah &= x();
+    memory_write((ah << 8) | al, x() & ((base >> 8) + 1));
+}
+void NesCpu::op_shaa() {
+    uint16_t base = read_word();
+    bool crossed = check_page_crossed(base, y());
+    memory_read(base + y() - (crossed ? 0x100 : 0));
+    uint16_t addr = base + y();
+    uint8_t ah = addr >> 8;
+    uint8_t al = addr & 0xFF;
+    if (crossed) ah &= (x() & a());
+    memory_write((ah << 8) | al, (x() & a()) & ((base >> 8) + 1));
+}
+void NesCpu::op_shaz() {
+    uint8_t zero = read_byte();
+    uint16_t base_addr;
+    if (zero == 0xFF) {
+        uint8_t lo = memory_read(0xFF);
+        uint8_t hi = memory_read(0x00);
+        base_addr = lo | (hi << 8);
+    } else {
+        base_addr = memory_read_word(zero);
+    }
+    bool crossed = check_page_crossed(base_addr, y());
+    memory_read(base_addr + y() - (crossed ? 0x100 : 0));
+    uint16_t addr = base_addr + y();
+    uint8_t ah = addr >> 8;
+    uint8_t al = addr & 0xFF;
+    if (crossed) ah &= (x() & a());
+    memory_write((ah << 8) | al, (x() & a()) & ((base_addr >> 8) + 1));
+}
+void NesCpu::op_tas() {
+    op_shaa();
+    set_sp(x() & a());
+}
+void NesCpu::op_ane() {
+    uint8_t imm = get_operand_value();
+    set_a((a() | 0xEE) & x() & imm);
+}
+void NesCpu::op_las() {
+    uint8_t v = get_operand_value();
+    set_a(v & sp());
+    set_x(a());
+    set_sp(a());
+}
+
+} // namespace ear6::nes

@@ -32,6 +32,66 @@ cmake --build build --target ear6   # rebuild catches compile errors
 - `app/web/` — HTML5/WASM app (Emscripten)
 - `cmake/` — CMake modules and package config
 
+## NES Core (Mesen2 Migration Complete)
+
+The NES implementation has been migrated from Mesen2 with all critical bugs fixed:
+
+- **Cycle-interleaved model**: PPU advances per CPU memory access via `StartCpuCycle`/`EndCpuCycle`
+- **`$2006` 3-cycle delay**: VRAM address update deferred by 3 PPU cycles with scroll glitch
+- **`$2007` write masking**: VRAM writes ignored during visible scanlines when rendering is on
+- **Palette mirroring**: Bidirectional `$00/$10`, `$04/$14`, `$08/$18`, `$0C/$1C` pairs
+- **Transparent pixel backdrop**: pixel=0 always reads `palette_ram[0]`
+- **Mapper page tables**: 256-entry `chr_pages_[]` / `prg_pages_[]` 
+- **CPU dispatch table**: `NesMemoryManager` with 65536-entry handler tables
+- **Sprite evaluation**: Cycle-accurate OAM evaluation with overflow/sprite-0-hit
+
+### Architecture
+
+```
+NesConsole
+├── NesMemoryManager        — 65536-entry dispatch table (O(1) address routing)
+├── NesCpu                  — 6502 CPU with cycle-interleaved PPU clocking
+├── NesPpu                  — Cycle-accurate PPU (Mesen2 Exec/ProcessScanlineImpl/UpdateState)
+├── NesApu                  — APU (basic)
+├── NesControlManager       — Controller input ($4016/$4017)
+└── BaseMapper              — 256-entry PRG/CHR page tables
+    └── Mapper000 (NROM)    — NROM mapper (more to come)
+```
+
+## Critical Bugs Fixed & Lessons Learned
+
+### Bug 1: CPU `fetch_operand()` double-fetch (Wrong PC)
+
+**Symptom**: Every instruction that used `fetch_operand()` in its implementation body would re-fetch operands, advancing PC twice. Branches jumped to wrong addresses.
+
+**Root cause**: `exec()` already calls `fetch_operand()` and stores result in `operand_`. But opcode implementations like `op_sta()`, `op_stx()`, `inc_op()`, `dec_op()`, `asl_addr()`, `branch_relative()` called `fetch_operand()` a second time. In Mesen2 these use `GetOperand()` which returns `_operand`.
+
+**Fix**: All instruction bodies must use `operand_` (the pre-fetched value), NEVER call `fetch_operand()` again.
+
+### Bug 2: `set_ppu_memory_mapping`/`set_cpu_memory_mapping` overload ambiguity
+
+**Symptom**: Nametable writes silently failed on Clang (macOS). Background tiles were all 0.
+
+**Root cause**: Two overloads — `(uint16_t, uint16_t, uint16_t page_number, ChrMemoryType, int8_t)` and `(uint16_t, uint16_t, uint8_t* source, uint32_t, uint32_t, int8_t)` — have 5 vs 6 params. With `enum class ChrMemoryType`, `int`→`scoped enum` is disallowed by the standard, so GCC correctly picks the pointer version. However, **Clang may differ** — when calling with 5 args and a pointer at arg3, Clang's overload resolution can unexpectedly pick the page-number version, reinterpreting the pointer as a `uint16_t` page number and `NAMETABLE_SIZE` (0x400) as `access_type` → `NoAccess`.
+
+**Fix**: Pointer-based overloads renamed to `set_ppu_memory_mapping_ptr` / `set_cpu_memory_mapping_ptr` to eliminate ambiguity. **Never overload a function with `(ptr, int, int)` vs `(int, int, int)` — C++ may silently pick the wrong one, especially on Clang.**
+
+### Bug 3: NROM PRG mapping (select_prg_page_4x too coarse)
+
+**Symptom**: 32KB PRG mapped incorrectly; CPU ran from open bus.
+
+**Root cause**: `select_prg_page_4x()` uses slots based on `get_prg_page_size()`. For 16KB page size, slot arithmetic wraps past 0xFFFF, corrupting the page table.
+
+**Fix**: NROM maps directly via `set_cpu_memory_mapping(0x8000, 0xBFFF, 0)` and `(0xC000, 0xFFFF, 1)` — no multi-slot helpers for 16KB pages.
+
+### Bug 4: Include ordering + namespace leak
+
+**Symptom**: C++ standard library headers pulled into `ear6::nes::std` namespace, causing compilation errors.
+
+**Root cause**: When a `.h` file opens `namespace ear6::nes {`, subsequent `#include` directives in the `.cpp` are inside the namespace. Headers that include `<memory>`, `<vector>` etc. before their own namespace block will have those system includes nested.
+
+**Fix**: In `.cpp` files, always include ALL headers that have system includes (before their namespace) FIRST, then include any header that opens a namespace LAST. Better yet: NEVER include system headers from within an existing namespace.
+
 ## Notes for AI Agent
 
 - Do not use backticks in git commit messages — bash interprets them as command substitution. Use single quotes instead.

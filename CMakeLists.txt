@@ -11,7 +11,7 @@ message(STATUS "Build for ${CMAKE_SYSTEM_NAME}")
 
 # ==================== 构建选项 ====================
 
-option(EAR6_BUILD_DESKTOP "Build desktop app (Linux/macOS)" ON)
+option(EAR6_BUILD_DESKTOP "Build desktop app (Windows/macOS/Linux, requires Qt6)" ON)
 option(EAR6_BUILD_WEB "Build web app (requires Emscripten)" OFF)
 
 # ==================== 依赖查找 ====================
@@ -36,6 +36,16 @@ endif()
 add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/ear6.cpp
     src/system_test.cpp
+    src/nes/ines_loader.cpp
+    src/nes/mapper_factory.cpp
+    src/nes/mapper_000.cpp
+    src/nes/base_mapper.cpp
+    src/nes/nes_memory_manager.cpp
+    src/nes/nes_cpu.cpp
+    src/nes/nes_ppu.cpp
+    src/nes/nes_apu.cpp
+    src/nes/nes_control_manager.cpp
+    src/nes/nes_console.cpp
 )
 
 target_include_directories(ear6 PUBLIC
@@ -56,8 +66,21 @@ generate_export_header(ear6 EXPORT_MACRO_NAME EAR6_API EXPORT_FILE_NAME ear6/exp
 
 # ==================== 应用构建 ====================
 
+add_subdirectory(app/cli)
+
 if(EAR6_BUILD_DESKTOP)
     add_subdirectory(app/desktop)
+endif()
+
+# ==================== 测试构建 ====================
+
+if(EAR6_BUILD_TESTS)
+    enable_testing()
+    find_package(GTest REQUIRED)
+    add_executable(ear6-test tests/test_ear6.cpp)
+    target_include_directories(ear6-test PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
+    target_link_libraries(ear6-test PRIVATE ear6 GTest::GTest GTest::Main)
+    add_test(NAME ear6-test COMMAND ear6-test)
 endif()
 
 if(EAR6_BUILD_WEB)

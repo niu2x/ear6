@@ -23,7 +23,8 @@ typedef void (*Ear6AudioCallback)(const int16_t* data, int num_samples, void* us
 EAR6_API Ear6* ear6_create(Ear6SystemType system);
 EAR6_API void ear6_destroy(Ear6* ctx);
 
-EAR6_API int ear6_load(Ear6* ctx, const void* data, int size);
+EAR6_API int ear6_load(Ear6* ctx, const char* path);
+EAR6_API int ear6_load_data(Ear6* ctx, const void* data, int size, const char* name_hint);
 
 EAR6_API void ear6_set_frame_callback(Ear6* ctx, Ear6FrameCallback cb, void* user_data);
 EAR6_API void ear6_set_audio_callback(Ear6* ctx, Ear6AudioCallback cb, void* user_data);

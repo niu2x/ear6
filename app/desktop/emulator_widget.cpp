@@ -13,7 +13,7 @@ EmulatorWidget::EmulatorWidget(Ear6SystemType system, QWidget* parent)
         return;
     }
 
-    ear6_load(ctx_, nullptr, 0);
+    ear6_load(ctx_, nullptr);
 
     timer_ = new QTimer(this);
     timer_->setInterval(TIMER_INTERVAL_MS);
@@ -49,7 +49,7 @@ void EmulatorWidget::reset(Ear6SystemType system) {
     }
     ctx_ = ear6_create(system);
     if (ctx_) {
-        ear6_load(ctx_, nullptr, 0);
+        ear6_load(ctx_, nullptr);
     }
     frame_image_ = QImage();
     update();

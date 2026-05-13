@@ -10,7 +10,7 @@ WEB_PUBLIC    = $(WEB_UI_DIR)/public/ear6
 NPROC         := $(shell sysctl -n hw.ncpu 2>/dev/null || nproc)
 JOB           := $(shell echo $$(($(NPROC) > 2 ? $(NPROC) - 1 : 1)))
 
-.PHONY: ear6 ear6-web serve clean
+.PHONY: ear6 ear6-web test serve clean
 
 ear6:
 	cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Release \
@@ -28,6 +28,14 @@ endif
 		-DEAR6_BUILD_DESKTOP=OFF \
 		-DEAR6_BUILD_WEB=ON
 	cmake --build $(BUILD_DIR_WEB) -j $(JOB)
+
+test:
+	cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Debug \
+		-DEAR6_BUILD_DESKTOP=OFF \
+		-DEAR6_BUILD_WEB=OFF \
+		-DEAR6_BUILD_TESTS=ON
+	cmake --build $(BUILD_DIR) -j $(JOB)
+	./$(BUILD_DIR)/ear6-test
 
 serve: ear6-web
 	@mkdir -p $(WEB_PUBLIC)

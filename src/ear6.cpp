@@ -5,8 +5,10 @@
 #include "system_test.h"
 #include "nes/nes_system.h"
 
+#include <cstdio>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 struct Ear6 {
     Ear6SystemType system_type;
@@ -44,10 +46,31 @@ extern "C" void ear6_destroy(Ear6* ctx) {
     delete ctx;
 }
 
-extern "C" int ear6_load(Ear6* ctx, const void* data, int size) {
+extern "C" int ear6_load(Ear6* ctx, const char* path) {
+    if (!ctx || !ctx->system || !path) return -1;
+    try {
+        FILE* f = std::fopen(path, "rb");
+        if (!f) return -3;
+        std::fseek(f, 0, SEEK_END);
+        long sz = std::ftell(f);
+        if (sz < 0) { std::fclose(f); return -3; }
+        std::vector<uint8_t> buf(static_cast<size_t>(sz));
+        std::rewind(f);
+        if (std::fread(buf.data(), 1, buf.size(), f) != buf.size()) {
+            std::fclose(f);
+            return -3;
+        }
+        std::fclose(f);
+        return ctx->system->load_data(buf.data(), static_cast<int>(sz), path);
+    } catch (...) {
+        return -2;
+    }
+}
+
+extern "C" int ear6_load_data(Ear6* ctx, const void* data, int size, const char* name_hint) {
     if (!ctx || !ctx->system) return -1;
     try {
-        return ctx->system->load(data, size);
+        return ctx->system->load_data(data, size, name_hint);
     } catch (...) {
         return -2;
     }

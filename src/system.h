@@ -9,6 +9,12 @@ public:
     virtual ~System() = default;
 
     virtual int load(const void* data, int size) = 0;
+
+    virtual int load_data(const void* data, int size, const char* name_hint) {
+        (void)name_hint;
+        return load(data, size);
+    }
+
     virtual int step() = 0;
 
     virtual const uint8_t* get_framebuffer() const = 0;

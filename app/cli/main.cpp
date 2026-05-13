@@ -1,9 +1,15 @@
 #include <ear6/ear6.h>
 
+#include <boost/program_options.hpp>
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
+#include <string>
 #include <vector>
+
+namespace po = boost::program_options;
 
 // -----------------------------------------------------------------------
 // Helpers
@@ -80,11 +86,11 @@ static const char* system_hint_name(SystemHint h) {
     return "unknown";
 }
 
-static SystemHint parse_system_hint(const char* s) {
-    if (strcmp(s, "nes") == 0 || strcmp(s, "NES") == 0) return SystemHint::Nes;
-    if (strcmp(s, "flash") == 0 || strcmp(s, "FLASH") == 0) return SystemHint::Flash;
-    if (strcmp(s, "test") == 0 || strcmp(s, "TEST") == 0) return SystemHint::Test;
-    if (strcmp(s, "auto") == 0 || strcmp(s, "AUTO") == 0) return SystemHint::Auto;
+static SystemHint parse_system_hint(const std::string& s) {
+    if (s == "nes" || s == "NES") return SystemHint::Nes;
+    if (s == "flash" || s == "FLASH") return SystemHint::Flash;
+    if (s == "test" || s == "TEST") return SystemHint::Test;
+    if (s == "auto" || s == "AUTO") return SystemHint::Auto;
     return SystemHint::Auto;
 }
 
@@ -255,82 +261,88 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
 }
 
 // -----------------------------------------------------------------------
-// Help
+// Subcommand dispatch using boost::program_options
 // -----------------------------------------------------------------------
 
-static void print_global_usage(const char* prog) {
-    printf("Usage: %s [options] <command> [args]\n", prog);
-    printf("\nGlobal options:\n");
-    printf("  --system <type>  System type (auto, nes, flash, test; default: auto)\n");
-    printf("  -h, --help       Show this help\n");
-    printf("\nCommands:\n");
-    printf("  screenshot   Run emulation and save a PPM screenshot\n");
-    printf("  info         Display ROM file information\n");
-    printf("\nUse '%s <command> --help' for command-specific help.\n", prog);
-}
+static int dispatch_screenshot(const std::vector<std::string>& args,
+                               SystemHint system_hint) {
+    po::options_description desc("screenshot options");
+    desc.add_options()
+        ("help,h", "Show this help")
+        ("frames,f", po::value<int>()->default_value(60), "Number of frames to run")
+        ("output,o", po::value<std::string>()->default_value("out.ppm"), "Output PPM screenshot")
+        ("verbose,v", po::bool_switch(), "Print frame info")
+        ("rom", po::value<std::string>(), "ROM file path");
 
-static void print_screenshot_usage(const char* prog) {
-    printf("Usage: %s screenshot [options] <rom>\n", prog);
-    printf("Options:\n");
-    printf("  -f <frames>   Number of frames to run (default: 60)\n");
-    printf("  -o <file.ppm> Output PPM screenshot (default: out.ppm)\n");
-    printf("  -v            Verbose: print frame info\n");
-    printf("  -h, --help    Show this help\n");
-}
+    po::positional_options_description pos;
+    pos.add("rom", 1);
 
-static void print_info_usage(const char* prog) {
-    printf("Usage: %s info [options] <rom>\n", prog);
-    printf("Options:\n");
-    printf("  -h, --help    Show this help\n");
-}
-
-// -----------------------------------------------------------------------
-// Subcommand dispatch
-// -----------------------------------------------------------------------
-
-static int dispatch_screenshot(int argc, char** argv, SystemHint system_hint) {
-    const char* rom_path = nullptr;
-    int frames = 60;
-    const char* output = "out.ppm";
-    bool verbose = false;
-
-    for (int i = 0; i < argc; ++i) {
-        if ((strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)) {
-            print_screenshot_usage("ear6-cli");
-            return 0;
-        } else if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
-            frames = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
-            output = argv[++i];
-        } else if (strcmp(argv[i], "-v") == 0) {
-            verbose = true;
-        } else if (argv[i][0] != '-') {
-            rom_path = argv[i];
-        }
-    }
-
-    if (!rom_path) {
-        print_screenshot_usage("ear6-cli");
+    po::variables_map vm;
+    try {
+        po::store(po::command_line_parser(args)
+                      .options(desc)
+                      .positional(pos)
+                      .run(),
+                  vm);
+        po::notify(vm);
+    } catch (const po::error& e) {
+        std::cerr << "Error: " << e.what() << "\n\n" << desc << std::endl;
         return 1;
     }
 
-    return cmd_screenshot(rom_path, frames, output, verbose, system_hint);
-}
-
-static int dispatch_info(int argc, char** argv, SystemHint system_hint) {
-    for (int i = 0; i < argc; ++i) {
-        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-            print_info_usage("ear6-cli");
-            return 0;
-        }
+    if (vm.count("help")) {
+        std::cout << "Usage: ear6-cli screenshot [options] <rom>\n\n" << desc << std::endl;
+        return 0;
     }
 
-    if (argc < 1 || argv[0][0] == '-') {
-        print_info_usage("ear6-cli");
+    if (!vm.count("rom")) {
+        std::cerr << "Error: ROM file is required\n\n" << desc << std::endl;
         return 1;
     }
 
-    return cmd_info(argv[0], system_hint);
+    return cmd_screenshot(
+        vm["rom"].as<std::string>().c_str(),
+        vm["frames"].as<int>(),
+        vm["output"].as<std::string>().c_str(),
+        vm["verbose"].as<bool>(),
+        system_hint
+    );
+}
+
+static int dispatch_info(const std::vector<std::string>& args,
+                         SystemHint system_hint) {
+    po::options_description desc("info options");
+    desc.add_options()
+        ("help,h", "Show this help")
+        ("rom", po::value<std::string>(), "ROM file path");
+
+    po::positional_options_description pos;
+    pos.add("rom", 1);
+
+    po::variables_map vm;
+    try {
+        po::store(po::command_line_parser(args)
+                      .options(desc)
+                      .positional(pos)
+                      .run(),
+                  vm);
+        po::notify(vm);
+    } catch (const po::error& e) {
+        std::cerr << "Error: " << e.what() << "\n\n" << desc << std::endl;
+        return 1;
+    }
+
+    if (vm.count("help")) {
+        std::cout << "Usage: ear6-cli info [options] <rom>\n\n" << desc << std::endl;
+        return 0;
+    }
+
+    if (!vm.count("rom")) {
+        std::cerr << "Error: ROM file is required\n\n" << desc << std::endl;
+        return 1;
+    }
+
+    return cmd_info(vm["rom"].as<std::string>().c_str(), system_hint);
 }
 
 // -----------------------------------------------------------------------
@@ -338,46 +350,86 @@ static int dispatch_info(int argc, char** argv, SystemHint system_hint) {
 // -----------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
-    SystemHint global_system = SystemHint::Auto;
+    po::options_description global_opts("Global options");
+    global_opts.add_options()
+        ("help,h", "Show this help")
+        ("system", po::value<std::string>()->default_value("auto"),
+         "System type (auto, nes, flash, test)")
+        ("command", po::value<std::string>(), "Subcommand")
+        ("subargs", po::value<std::vector<std::string>>(), "Subcommand arguments");
 
-    // Consume global options (must come before subcommand)
-    int pos = 1;
-    while (pos < argc) {
-        if (strcmp(argv[pos], "--system") == 0 && pos + 1 < argc) {
-            global_system = parse_system_hint(argv[pos + 1]);
-            if (global_system == SystemHint::Auto
-                && strcmp(argv[pos + 1], "auto") != 0
-                && strcmp(argv[pos + 1], "AUTO") != 0) {
-                fprintf(stderr, "Warning: unknown system type '%s', using auto-detect\n",
-                        argv[pos + 1]);
-                global_system = SystemHint::Auto;
-            }
-            pos += 2;
-        } else if (strcmp(argv[pos], "-h") == 0 || strcmp(argv[pos], "--help") == 0) {
-            print_global_usage(argv[0]);
-            return 0;
-        } else {
-            break;
-        }
-    }
+    po::positional_options_description pos;
+    pos.add("command", 1).add("subargs", -1);
 
-    int remaining = argc - pos;
-    char** args = argv + pos;
-
-    if (remaining == 0) {
-        print_global_usage(argv[0]);
+    po::variables_map vm;
+    try {
+        po::store(po::command_line_parser(argc, argv)
+                      .options(global_opts)
+                      .positional(pos)
+                      .allow_unregistered()
+                      .run(),
+                  vm);
+        po::notify(vm);
+    } catch (const po::error& e) {
+        std::cerr << "Error: " << e.what() << "\n\n"
+                  << "Usage: ear6-cli [options] <command> [args]\n\n"
+                  << global_opts << "\n"
+                  << "Commands:\n"
+                  << "  screenshot   Run emulation and save a PPM screenshot\n"
+                  << "  info         Display ROM file information\n"
+                  << std::endl;
         return 1;
     }
 
-    // Check for known subcommands
-    if (strcmp(args[0], "screenshot") == 0) {
-        return dispatch_screenshot(remaining - 1, args + 1, global_system);
-    }
-    if (strcmp(args[0], "info") == 0) {
-        return dispatch_info(remaining - 1, args + 1, global_system);
+    if (vm.count("help")) {
+        std::cout << "Usage: ear6-cli [options] <command> [args]\n\n"
+                  << global_opts << "\n"
+                  << "Commands:\n"
+                  << "  screenshot   Run emulation and save a PPM screenshot\n"
+                  << "  info         Display ROM file information\n\n"
+                  << "Use 'ear6-cli <command> --help' for command-specific help.\n"
+                  << std::endl;
+        return 0;
     }
 
-    fprintf(stderr, "Unknown command: %s\n", args[0]);
-    print_global_usage(argv[0]);
+    SystemHint system_hint = parse_system_hint(vm["system"].as<std::string>());
+    const std::string& sys_val = vm["system"].as<std::string>();
+    if (system_hint == SystemHint::Auto
+        && sys_val != "auto" && sys_val != "AUTO") {
+        std::cerr << "Warning: unknown system type '" << sys_val
+                  << "', using auto-detect\n";
+        system_hint = SystemHint::Auto;
+    }
+
+    if (!vm.count("command")) {
+        std::cout << "Usage: ear6-cli [options] <command> [args]\n\n"
+                  << global_opts << "\n"
+                  << "Commands:\n"
+                  << "  screenshot   Run emulation and save a PPM screenshot\n"
+                  << "  info         Display ROM file information\n"
+                  << std::endl;
+        return 1;
+    }
+
+    const std::string& cmd = vm["command"].as<std::string>();
+    std::vector<std::string> subargs;
+    if (vm.count("subargs")) {
+        subargs = vm["subargs"].as<std::vector<std::string>>();
+    }
+
+    if (cmd == "screenshot") {
+        return dispatch_screenshot(subargs, system_hint);
+    }
+    if (cmd == "info") {
+        return dispatch_info(subargs, system_hint);
+    }
+
+    std::cerr << "Unknown command: " << cmd << "\n\n"
+              << "Usage: ear6-cli [options] <command> [args]\n\n"
+              << global_opts << "\n"
+              << "Commands:\n"
+              << "  screenshot   Run emulation and save a PPM screenshot\n"
+              << "  info         Display ROM file information\n"
+              << std::endl;
     return 1;
 }

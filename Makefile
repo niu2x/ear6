@@ -27,9 +27,10 @@ endif
 	cmake --build $(BUILD_DIR_WEB) -j $(JOB)
 
 serve: ear6-web
+	@mkdir -p $(WEB_PUBLIC)
 	cp $(BUILD_DIR_WEB)/app/web/ear6-web.js $(WEB_PUBLIC)/
 	cp $(BUILD_DIR_WEB)/app/web/ear6-web.wasm $(WEB_PUBLIC)/
-	cd $(WEB_UI_DIR) && npm run dev
+	cd $(WEB_UI_DIR) && npm i && npm run dev
 
 clean:
 	rm -rf $(BUILD_DIR) $(BUILD_DIR_WEB)

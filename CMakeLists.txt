@@ -66,7 +66,9 @@ generate_export_header(ear6 EXPORT_MACRO_NAME EAR6_API EXPORT_FILE_NAME ear6/exp
 
 # ==================== 应用构建 ====================
 
-add_subdirectory(app/cli)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    add_subdirectory(app/cli)
+endif()
 
 if(EAR6_BUILD_DESKTOP)
     add_subdirectory(app/desktop)

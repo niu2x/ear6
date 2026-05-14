@@ -83,6 +83,10 @@ void BaseMapper::set_cpu_memory_mapping(uint16_t start, uint16_t end, int16_t pa
 
 void BaseMapper::select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType type) {
     uint16_t page_size = get_prg_page_size();
+    if (prg_size_ > 0) {
+        uint16_t max_page = prg_size_ / page_size;
+        page %= max_page;
+    }
     uint16_t start = 0x8000 + slot * page_size;
     uint16_t end = start + page_size - 1;
     set_cpu_memory_mapping(start, end, page, type);
@@ -149,6 +153,9 @@ void BaseMapper::select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType 
 
 uint8_t BaseMapper::read_vram(uint16_t addr) {
     addr &= 0x3FFF;
+    if (has_vram_address_hook()) {
+        notify_vram_address_change(addr);
+    }
     if (chr_memory_access_[addr >> 8] & READ) {
         return chr_pages_[addr >> 8][(uint8_t)addr];
     }
@@ -157,6 +164,9 @@ uint8_t BaseMapper::read_vram(uint16_t addr) {
 
 void BaseMapper::write_vram(uint16_t addr, uint8_t value) {
     addr &= 0x3FFF;
+    if (has_vram_address_hook()) {
+        notify_vram_address_change(addr);
+    }
     if (chr_memory_access_[addr >> 8] & WRITE) {
         chr_pages_[addr >> 8][(uint8_t)addr] = value;
     }

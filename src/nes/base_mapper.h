@@ -25,6 +25,8 @@ public:
     virtual void reset(bool) {}
     virtual void process_cpu_clock() {}
     virtual bool has_cpu_clock_hook() { return false; }
+    virtual bool has_vram_address_hook() { return false; }
+    virtual void notify_vram_address_change(uint16_t addr) { (void)addr; }
 
     // CPU memory
     uint8_t read_ram(uint16_t addr) override;

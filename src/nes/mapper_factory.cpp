@@ -3,6 +3,7 @@
 #include "mapper_001.h"
 #include "mapper_002.h"
 #include "mapper_003.h"
+#include "mapper_004.h"
 #include "mapper_007.h"
 #include <cstdio>
 
@@ -19,6 +20,8 @@ BaseMapper* MapperFactory::create(int mapper_number) {
             return new Mapper002();
         case 3:
             return new Mapper003();
+        case 4:
+            return new Mapper004();
         case 7:
             return new Mapper007();
         default:

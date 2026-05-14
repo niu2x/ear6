@@ -2,6 +2,7 @@
 #include "nes_cpu.h"
 #include "nes_ppu.h"
 #include "nes_apu.h"
+#include "nes_sound_mixer.h"
 #include "nes_memory_manager.h"
 #include "nes_control_manager.h"
 #include "base_mapper.h"
@@ -12,7 +13,8 @@
 
 namespace ear6::nes {
 
-NesConsole::NesConsole() {
+NesConsole::NesConsole()
+    : sound_mixer_(std::make_unique<NesSoundMixer>()) {
     init_components();
 }
 
@@ -52,7 +54,7 @@ int NesConsole::load_rom(const void* data, int size) {
     memory_manager_.reset(new NesMemoryManager(this, mapper_.get()));
     cpu_.reset(new NesCpu(this));
     ppu_.reset(new NesPpu(this));
-    apu_.reset(new NesApu(this));
+    apu_.reset(new NesApu(this, sound_mixer_.get()));
     control_manager_.reset(new NesControlManager(this));
 
     // Register IO devices in order
@@ -110,6 +112,12 @@ int NesConsole::get_audio_num_samples() const {
         return apu_->get_samples();
     }
     return 0;
+}
+
+void NesConsole::consume_audio(size_t stereo_samples) {
+    if (apu_) {
+        apu_->consume_audio(stereo_samples);
+    }
 }
 
 void NesConsole::set_button_state(int port, int button, bool pressed) {

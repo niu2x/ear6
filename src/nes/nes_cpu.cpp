@@ -1,6 +1,7 @@
 #include "nes_console.h"
 #include "nes_memory_manager.h"
 #include "nes_ppu.h"
+#include "nes_apu.h"
 #include <cstring>
 #include "nes_cpu.h"
 
@@ -295,7 +296,9 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
             if (dmc_dma_running_ && !need_halt_ && !need_dummy_read_) {
                 start_cpu_cycle(true);
                 is_dmc_dma_read_ = true;
-                read_value = memory_manager_->read(read_address);
+                uint16_t dmc_addr = console_->get_apu()->get_dmc_read_address();
+                read_value = memory_manager_->read(dmc_addr);
+                console_->get_apu()->set_dmc_read_buffer(read_value);
                 is_dmc_dma_read_ = false;
                 end_cpu_cycle(true);
                 dmc_dma_running_ = false;

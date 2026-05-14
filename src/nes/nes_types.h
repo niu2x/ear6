@@ -5,6 +5,32 @@
 
 namespace ear6::nes {
 
+constexpr uint32_t CPU_CLOCK_RATE_NTSC = 1789773;
+constexpr uint32_t APU_SAMPLE_RATE = 96000;
+
+enum class AudioChannel {
+    Square1 = 0,
+    Square2 = 1,
+    Triangle = 2,
+    Noise = 3,
+    DMC = 4,
+    FDS = 5,
+    MMC5 = 6,
+    VRC6 = 7,
+    VRC7 = 8,
+    Namco163 = 9,
+    Sunsoft5B = 10,
+    MAX_CHANNELS = 11
+};
+
+namespace IRQSource {
+    constexpr uint8_t External = 0x01;
+    constexpr uint8_t FrameCounter = 0x02;
+    constexpr uint8_t DMC = 0x04;
+    constexpr uint8_t FdsDisk = 0x08;
+    constexpr uint8_t Epsm = 0x10;
+}
+
 enum class MemoryOperation {
     Read = 1,
     Write = 2,

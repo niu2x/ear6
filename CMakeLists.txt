@@ -36,6 +36,7 @@ endif()
 add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/ear6.cpp
     src/system_test.cpp
+    src/blip_buf.c
     src/nes/ines_loader.cpp
     src/nes/mapper_factory.cpp
     src/nes/mapper_000.cpp
@@ -44,6 +45,13 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/nes_cpu.cpp
     src/nes/nes_ppu.cpp
     src/nes/nes_apu.cpp
+    src/nes/nes_sound_mixer.cpp
+    src/nes/square_channel.cpp
+    src/nes/triangle_channel.cpp
+    src/nes/noise_channel.cpp
+    src/nes/delta_modulation_channel.cpp
+    src/nes/apu_length_counter.cpp
+    src/nes/apu_frame_counter.cpp
     src/nes/nes_control_manager.cpp
     src/nes/nes_console.cpp
     src/nes/nes_system.cpp

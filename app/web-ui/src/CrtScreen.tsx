@@ -2,6 +2,8 @@ import { useRef, useEffect } from 'react'
 import type { Ear6Module } from './types'
 import './CrtScreen.css'
 
+const AUDIO_SAMPLE_RATE = 96000
+
 interface CrtScreenProps {
   modRef: React.RefObject<Ear6Module | null>
   activeCtxRef: React.RefObject<number>
@@ -11,6 +13,36 @@ interface CrtScreenProps {
   flashAnim: boolean
   wakeAnim: boolean
   onFps: (fps: number) => void
+}
+
+function createAudioContext(): AudioContext | null {
+  try {
+    const ctx = new AudioContext({ sampleRate: AUDIO_SAMPLE_RATE })
+    return ctx
+  } catch {
+    return null
+  }
+}
+
+function scheduleAudio(
+  audioCtx: AudioContext,
+  samples: Int16Array,
+  nextTimeRef: { current: number },
+) {
+  if (samples.length === 0) return
+  const buffer = audioCtx.createBuffer(1, samples.length, AUDIO_SAMPLE_RATE)
+  const channel = buffer.getChannelData(0)
+  for (let i = 0; i < samples.length; i++) {
+    channel[i] = samples[i] / 32768.0
+  }
+  const source = audioCtx.createBufferSource()
+  source.buffer = buffer
+  source.connect(audioCtx.destination)
+  let t = nextTimeRef.current
+  const now = audioCtx.currentTime
+  if (t < now) t = now
+  source.start(t)
+  nextTimeRef.current = t + buffer.duration
 }
 
 export function CrtScreen({
@@ -27,6 +59,10 @@ export function CrtScreen({
   const containerRef = useRef<HTMLDivElement>(null)
   const onFpsRef = useRef(onFps)
   onFpsRef.current = onFps
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const nextAudioTimeRef = useRef<number>(0)
+  const audioStartedRef = useRef(false)
+
   const animClass = [
     isTransitioning && 'transitioning',
     flashAnim && 'flash',
@@ -49,6 +85,28 @@ export function CrtScreen({
       if (mod && activeCtx) {
         if (isRunningRef.current) {
           mod._ear6_web_step(activeCtx)
+
+          if (!audioCtxRef.current) {
+            audioCtxRef.current = createAudioContext()
+          }
+          const audioCtx = audioCtxRef.current
+          if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume()
+          }
+
+          if (audioCtx) {
+            const numSamples = mod._ear6_web_get_audio_num_samples(activeCtx)
+            if (numSamples > 0) {
+              const ptr = mod._ear6_web_get_audiobuffer(activeCtx)
+              if (ptr) {
+                const samples = new Int16Array(mod.HEAPU8.buffer, ptr, numSamples)
+                scheduleAudio(audioCtx, samples, nextAudioTimeRef)
+                if (!audioStartedRef.current) {
+                  audioStartedRef.current = true
+                }
+              }
+            }
+          }
         }
 
         const fbPtr = mod._ear6_web_get_framebuffer(activeCtx)
@@ -87,7 +145,13 @@ export function CrtScreen({
     }
 
     frameId = requestAnimationFrame(render)
-    return () => cancelAnimationFrame(frameId)
+    return () => {
+      cancelAnimationFrame(frameId)
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close()
+        audioCtxRef.current = null
+      }
+    }
   }, [modRef, activeCtxRef, isRunningRef])
 
   return (

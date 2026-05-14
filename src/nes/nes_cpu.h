@@ -31,6 +31,7 @@ public:
     void clear_nmi_flag() { state_.nmi_flag = false; }
     void set_irq_source(uint8_t source) { state_.irq_flag |= source; }
     void clear_irq_source(uint8_t source) { state_.irq_flag &= ~source; }
+    bool has_irq_source(uint8_t source) const { return (state_.irq_flag & source) != 0; }
 
     uint64_t get_cycle_count() const { return state_.cycle_count; }
     NesCpuState& get_state() { return state_; }
@@ -61,7 +62,7 @@ private:
 
     bool cpu_write_ = false;
 
-    uint8_t irq_mask_ = 0;
+    uint8_t irq_mask_ = 0xFF;
 
     NesCpuState state_;
     NesConsole* console_ = nullptr;

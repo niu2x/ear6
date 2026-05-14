@@ -13,6 +13,7 @@ class NesApu;
 class NesMemoryManager;
 class NesControlManager;
 class BaseMapper;
+class NesSoundMixer;
 
 class NesConsole {
 public:
@@ -34,6 +35,7 @@ public:
     BaseMapper* get_mapper() { return mapper_.get(); }
     NesMemoryManager* get_memory_manager() { return memory_manager_.get(); }
     NesControlManager* get_control_manager() { return control_manager_.get(); }
+    NesSoundMixer* get_sound_mixer() { return sound_mixer_.get(); }
 
     void process_cpu_clock();
 
@@ -45,6 +47,7 @@ public:
     // Audio
     const int16_t* get_audiobuffer() const;
     int get_audio_num_samples() const;
+    void consume_audio(size_t stereo_samples);
 
     // Input
     void set_button_state(int port, int button, bool pressed);
@@ -56,6 +59,7 @@ private:
     std::unique_ptr<NesCpu> cpu_;
     std::unique_ptr<NesPpu> ppu_;
     std::unique_ptr<NesApu> apu_;
+    std::unique_ptr<NesSoundMixer> sound_mixer_;
     std::unique_ptr<NesMemoryManager> memory_manager_;
     std::unique_ptr<NesControlManager> control_manager_;
     std::unique_ptr<BaseMapper> mapper_;

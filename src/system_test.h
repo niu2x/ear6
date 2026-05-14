@@ -19,6 +19,7 @@ public:
 
     const int16_t* get_audiobuffer() const override;
     int get_audio_num_samples() const override;
+    void consume_audio(size_t stereo_samples) override { (void)stereo_samples; }
 
 private:
     void generate_wave();

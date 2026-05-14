@@ -7,6 +7,6 @@ DIR="${1:-.}"
 find "$DIR" -type f -iname '*.nes' -print0 | while IFS= read -r -d '' f; do
   out="${f%.*}.ppm"
   echo "$(basename "$f") -> ${out##*/}"
-  timeout 3 "$CLI" screenshot "$f" -o "$out" -f 600 &>/dev/null || echo "  FAIL/TIMEOUT"
+  timeout 2 "$CLI" screenshot "$f" -o "$out" -f 120 &>/dev/null || echo "  FAIL/TIMEOUT"
 done
 echo "DONE"

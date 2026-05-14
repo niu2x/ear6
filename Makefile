@@ -13,7 +13,7 @@ JOB           := $(shell echo $$(($(NPROC) > 2 ? $(NPROC) - 1 : 1)))
 .PHONY: ear6 ear6-web test serve clean
 
 ear6:
-	cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Release \
+	cmake -B $(BUILD_DIR) -S . -DCMAKE_BUILD_TYPE=Debug \
 		-DEAR6_BUILD_DESKTOP=ON \
 		-DEAR6_BUILD_WEB=OFF
 	cmake --build $(BUILD_DIR) -j $(JOB)
@@ -23,7 +23,7 @@ ifndef EMSCRIPTEN_CMAKE_TOOLCHAIN
 	$(error EMSCRIPTEN_CMAKE_TOOLCHAIN is not set. Define it in .env)
 endif
 	cmake -B $(BUILD_DIR_WEB) -S . \
-		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_TOOLCHAIN_FILE=$(EMSCRIPTEN_CMAKE_TOOLCHAIN) \
 		-DEAR6_BUILD_DESKTOP=OFF \
 		-DEAR6_BUILD_WEB=ON

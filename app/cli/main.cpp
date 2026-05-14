@@ -224,8 +224,17 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
     }
 
     for (int i = 0; i < frames; ++i) {
+        // Press Start at frame 30, release at frame 35
+        if (i == 30) {
+            ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
+            if (verbose) printf("[%d/%d] press Start\n", i, frames);
+        } else if (i == 35) {
+            ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
+            if (verbose) printf("[%d/%d] release Start\n", i, frames);
+        }
+
         ear6_step(ctx);
-        if (verbose && (i % 60 == 0)) {
+        if (verbose && (i % 60 == 0 || i == frames - 1)) {
             printf("[%d/%d] frame %d\n", i, frames, i);
         }
     }

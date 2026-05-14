@@ -26,8 +26,11 @@ jobs:
         with:
           version: 3.1.73
 
-      - name: Install cmake
-        run: sudo apt-get update && sudo apt-get install -y cmake
+      - name: Ensure system cmake takes precedence
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake
+          echo "/usr/bin" >> $GITHUB_PATH
+          cmake --version
 
       - name: Build ear6-web
         run: make ear6-web

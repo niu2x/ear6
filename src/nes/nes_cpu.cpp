@@ -291,6 +291,17 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
     uint8_t read_value = 0;
 
     while (dmc_dma_running_ || sprite_dma_transfer_) {
+        if (abort_dmc_dma_) {
+            dmc_dma_running_ = false;
+            abort_dmc_dma_ = false;
+            need_dummy_read_ = false;
+            need_halt_ = false;
+        } else if (need_halt_) {
+            need_halt_ = false;
+        } else if (need_dummy_read_) {
+            need_dummy_read_ = false;
+        }
+
         bool get_cycle = (state_.cycle_count & 0x01) == 0;
         if (get_cycle) {
             if (dmc_dma_running_ && !need_halt_ && !need_dummy_read_) {

@@ -23,7 +23,8 @@ void Mapper000::init(const RomInfo& info,
         set_cpu_memory_mapping(0xC000, 0xFFFF, 1, PrgMemoryType::PRG_ROM);
     } else {
         // 16KB PRG: page 0 mirrored at $8000 and $C000
-        set_cpu_memory_mapping(0x8000, 0xFFFF, 0, PrgMemoryType::PRG_ROM);
+        set_cpu_memory_mapping(0x8000, 0xBFFF, 0, PrgMemoryType::PRG_ROM);
+        set_cpu_memory_mapping(0xC000, 0xFFFF, 0, PrgMemoryType::PRG_ROM);
     }
 
     if (chr_is_ram_) {

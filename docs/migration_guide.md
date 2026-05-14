@@ -766,3 +766,22 @@ CPU 的每次 `memory_read`/`memory_write` 内部都需要调用 `console_->get_
 # 用 xxd 检查输出颜色
 xxd /tmp/test.ppm | head -20
 ```
+
+## 20. 迁移教训与反思
+
+### 2026-05-14：两次漏细节的教训
+
+**Bug：NROM 16KB PRG 越界**。Mesen2 NROM 用 `SelectPrgPage(0,0)` + `SelectPrgPage(1,1)`，
+`SelectPrgPage` 内部以 `page % max_page` 做自动 wrap。ear6 直接写
+`set_cpu_memory_mapping(0x8000, 0xFFFF, 0)` 一段覆盖 32KB，`source_offset`
+在 $C000-$FFFF 段突破 16KB ROM 边界读到垃圾。**对照只看接口、没追到内部实现**。
+
+**Bug：DMA 死循环**。Mesen2 的 `processCycle` lambda 在每轮 DMA 循环开头清
+`_needHalt`/`_needDummyRead`，保证 DMC 重新请求后 `need_halt_` 能被清掉、
+DMC 能被服务。ear6 抄了 while 框架但漏了这 5 行，`need_halt_` 永远无人清，
+DMC 永远不服务→死循环。**漏看了过程性逻辑**。
+
+教训：**"看起来差不多"就是差很多**。迁移时必须逐行对照 Mesen2 源码，
+对每一个局部变量、每一个 flag 的读写生命周期都要理解，不能凭印象抄框架。
+遇到条件分支多、状态机复杂的函数（`process_pending_dma`、`update_state`），
+应该把 Mesen2 源码和 ear6 代码并排打开，逐行核验。

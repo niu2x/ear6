@@ -79,42 +79,61 @@ export function CrtScreen({
     let frameId = 0
     let frameCount = 0
     let lastFpsTime = 0
+    let lastStepTime = 0
+    const TARGET_FRAME_MS = 1000 / 60
+    const MAX_CATCHUP_STEPS = 3
 
     function render(time: number) {
+      if (lastStepTime === 0) {
+        lastStepTime = time
+      }
+
       const mod = modRef.current
       const activeCtx = activeCtxRef.current
 
       if (mod && activeCtx) {
         if (isRunningRef.current) {
-          mod._ear6_web_step(activeCtx)
+          let steps = 0
+          while (time - lastStepTime >= TARGET_FRAME_MS && steps < MAX_CATCHUP_STEPS) {
+            lastStepTime += TARGET_FRAME_MS
+            steps++
 
-          if (!audioCtxRef.current) {
-            audioCtxRef.current = createAudioContext()
-          }
-          const audioCtx = audioCtxRef.current
-          if (audioCtx && audioCtx.state === 'suspended') {
-            audioCtx.resume()
-          }
+            mod._ear6_web_step(activeCtx)
 
-          if (audioCtx) {
-            const numSamples = mod._ear6_web_get_audio_num_samples(activeCtx)
-            if (numSamples > 0) {
-              const ptr = mod._ear6_web_get_audiobuffer(activeCtx)
-              if (ptr) {
-                const samples = new Int16Array(mod.HEAPU8.buffer, ptr, numSamples)
-                // Compute effective sample rate from actual data
-                const s = audioStatsRef.current
-                s.totalSamples += numSamples
-                s.totalFrames++
-                s.rate = Math.round(s.totalSamples * 60 / s.totalFrames)
-                scheduleAudio(audioCtx, samples, nextAudioTimeRef, s.rate)
-                if (!audioStartedRef.current) {
-                  audioStartedRef.current = true
+            if (!audioCtxRef.current) {
+              audioCtxRef.current = createAudioContext()
+            }
+            const audioCtx = audioCtxRef.current
+            if (audioCtx && audioCtx.state === 'suspended') {
+              audioCtx.resume()
+            }
+
+            if (audioCtx) {
+              const numSamples = mod._ear6_web_get_audio_num_samples(activeCtx)
+              if (numSamples > 0) {
+                const ptr = mod._ear6_web_get_audiobuffer(activeCtx)
+                if (ptr) {
+                  const samples = new Int16Array(mod.HEAPU8.buffer, ptr, numSamples)
+                  const s = audioStatsRef.current
+                  s.totalSamples += numSamples
+                  s.totalFrames++
+                  s.rate = Math.round(s.totalSamples * 60 / s.totalFrames)
+                  scheduleAudio(audioCtx, samples, nextAudioTimeRef, s.rate)
+                  if (!audioStartedRef.current) {
+                    audioStartedRef.current = true
+                  }
                 }
               }
+              mod._ear6_web_consume_audio(activeCtx)
             }
-            mod._ear6_web_consume_audio(activeCtx)
+
+            frameCount++
           }
+          if (steps >= MAX_CATCHUP_STEPS) {
+            lastStepTime = time
+          }
+        } else {
+          lastStepTime = time
         }
 
         const fbPtr = mod._ear6_web_get_framebuffer(activeCtx)
@@ -142,7 +161,6 @@ export function CrtScreen({
         }
       }
 
-      frameCount++
       if (time - lastFpsTime >= 1000) {
         onFpsRef.current(frameCount)
         frameCount = 0

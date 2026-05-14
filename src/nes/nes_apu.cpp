@@ -174,29 +174,53 @@ void NesApu::end_frame() {
     current_cycle_ = 0;
     previous_cycle_ = 0;
 
-    // Copy generated samples into the output buffer (replaces previous frame)
+    // Accumulate samples (pushed as one frame by push_frame)
     size_t count = mixer_->get_sample_count();
     if (count > 0) {
-        audio_buffer_.resize(count * 2);
-        memcpy(audio_buffer_.data(), mixer_->get_output_buffer(), count * 2 * sizeof(int16_t));
+        size_t old_size = frame_accumulator_.size();
+        frame_accumulator_.resize(old_size + count * 2);
+        memcpy(frame_accumulator_.data() + old_size, mixer_->get_output_buffer(), count * 2 * sizeof(int16_t));
         mixer_->consume_samples(count);
+    }
+}
+
+void NesApu::push_frame() {
+    if (frame_accumulator_.empty()) {
+        return;
+    }
+
+    AudioFrame& frame = audio_ring_[write_index_];
+    frame.data.swap(frame_accumulator_);
+    frame_accumulator_.clear();
+    frame.samples = frame.data.size() / 2;
+
+    write_index_ = (write_index_ + 1) % MAX_AUDIO_FRAMES;
+    if (available_frames_ < MAX_AUDIO_FRAMES) {
+        available_frames_++;
     } else {
-        audio_buffer_.clear();
+        read_index_ = (read_index_ + 1) % MAX_AUDIO_FRAMES;
     }
 }
 
 const int16_t* NesApu::get_buffer() const {
-    if (!audio_buffer_.empty()) return audio_buffer_.data();
+    if (available_frames_ > 0) {
+        return audio_ring_[read_index_].data.data();
+    }
     return nullptr;
 }
 
 int NesApu::get_samples() const {
-    return (int)audio_buffer_.size() / 2;
+    if (available_frames_ > 0) {
+        return (int)audio_ring_[read_index_].samples;
+    }
+    return 0;
 }
 
-void NesApu::consume_audio(size_t stereo_samples) {
-    (void)stereo_samples;
-    // No-op for single-frame buffer
+void NesApu::consume_audio() {
+    if (available_frames_ > 0) {
+        read_index_ = (read_index_ + 1) % MAX_AUDIO_FRAMES;
+        available_frames_--;
+    }
 }
 
 void NesApu::reset(bool soft_reset) {
@@ -210,7 +234,14 @@ void NesApu::reset(bool soft_reset) {
     dmc_->reset(soft_reset);
     frame_counter_->reset(soft_reset);
 
-    audio_buffer_.clear();
+    for (auto& frame : audio_ring_) {
+        frame.data.clear();
+        frame.samples = 0;
+    }
+    frame_accumulator_.clear();
+    write_index_ = 0;
+    read_index_ = 0;
+    available_frames_ = 0;
 }
 
 uint16_t NesApu::get_dmc_read_address() {

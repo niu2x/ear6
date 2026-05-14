@@ -28,9 +28,10 @@ function scheduleAudio(
   audioCtx: AudioContext,
   samples: Int16Array,
   nextTimeRef: { current: number },
+  sampleRate: number,
 ) {
   if (samples.length === 0) return
-  const buffer = audioCtx.createBuffer(1, samples.length, AUDIO_SAMPLE_RATE)
+  const buffer = audioCtx.createBuffer(1, samples.length, sampleRate)
   const channel = buffer.getChannelData(0)
   for (let i = 0; i < samples.length; i++) {
     channel[i] = samples[i] / 32768.0
@@ -62,6 +63,7 @@ export function CrtScreen({
   const audioCtxRef = useRef<AudioContext | null>(null)
   const nextAudioTimeRef = useRef<number>(0)
   const audioStartedRef = useRef(false)
+  const audioStatsRef = useRef({ totalSamples: 0, totalFrames: 0, rate: AUDIO_SAMPLE_RATE })
 
   const animClass = [
     isTransitioning && 'transitioning',
@@ -100,12 +102,18 @@ export function CrtScreen({
               const ptr = mod._ear6_web_get_audiobuffer(activeCtx)
               if (ptr) {
                 const samples = new Int16Array(mod.HEAPU8.buffer, ptr, numSamples)
-                scheduleAudio(audioCtx, samples, nextAudioTimeRef)
+                // Compute effective sample rate from actual data
+                const s = audioStatsRef.current
+                s.totalSamples += numSamples
+                s.totalFrames++
+                s.rate = Math.round(s.totalSamples * 60 / s.totalFrames)
+                scheduleAudio(audioCtx, samples, nextAudioTimeRef, s.rate)
                 if (!audioStartedRef.current) {
                   audioStartedRef.current = true
                 }
               }
             }
+            mod._ear6_web_consume_audio(activeCtx)
           }
         }
 

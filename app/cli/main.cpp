@@ -1,10 +1,12 @@
 #include <ear6/ear6.h>
+#include <ear6/nes.h>
 
 #include <boost/program_options.hpp>
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -248,6 +250,205 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
 }
 
 // -----------------------------------------------------------------------
+// WAV file writer
+// -----------------------------------------------------------------------
+
+struct AudioWriter {
+    FILE* file = nullptr;
+    long total_samples = 0; // total stereo pairs written
+    int total_frames = 0;
+
+    bool open(const char* path) {
+        file = fopen(path, "wb");
+        if (!file) return false;
+
+        uint8_t header[44] = {};
+        fwrite(header, 1, 44, file);
+        return true;
+    }
+
+    void write(const int16_t* samples, int count) {
+        if (!file || !samples || count <= 0) return;
+        fwrite(samples, sizeof(int16_t), (size_t)count * 2, file);
+        total_samples += count;
+    }
+
+    void close() {
+        if (!file) return;
+
+        // Compute effective sample rate from actual audio generated
+        uint32_t data_size = (uint32_t)(sizeof(int16_t) * 2 * total_samples);
+        uint32_t file_size = data_size + 36;
+        uint32_t sample_rate = (total_frames > 0)
+            ? (uint32_t)((double)total_samples * 60.0 / (double)total_frames)
+            : 44100;
+        uint16_t channels = 2;
+        uint16_t bits_per_sample = 16;
+        uint32_t byte_rate = sample_rate * channels * bits_per_sample / 8;
+        uint16_t block_align = (uint16_t)(channels * bits_per_sample / 8);
+
+        fseek(file, 0, SEEK_SET);
+
+        uint8_t header[44];
+        memcpy(header, "RIFF", 4);
+        memcpy(header + 4, &file_size, 4);
+        memcpy(header + 8, "WAVE", 4);
+        memcpy(header + 12, "fmt ", 4);
+        uint32_t fmt_size = 16;
+        memcpy(header + 16, &fmt_size, 4);
+        uint16_t audio_fmt = 1;
+        memcpy(header + 20, &audio_fmt, 2);
+        memcpy(header + 22, &channels, 2);
+        memcpy(header + 24, &sample_rate, 4);
+        memcpy(header + 28, &byte_rate, 4);
+        memcpy(header + 32, &block_align, 2);
+        memcpy(header + 34, &bits_per_sample, 2);
+        memcpy(header + 36, "data", 4);
+        memcpy(header + 40, &data_size, 4);
+
+        fwrite(header, 1, 44, file);
+        fclose(file);
+        file = nullptr;
+
+        printf("Audio: %ld stereo samples, %d frames, %u Hz\n",
+               total_samples, total_frames, sample_rate);
+    }
+};
+
+// Audio callback
+struct RecordContext {
+    AudioWriter* writer = nullptr;
+};
+
+static void on_audio(const int16_t* data, int num_samples, void* user_data) {
+    auto* ctx = static_cast<RecordContext*>(user_data);
+    ctx->writer->write(data, num_samples);
+}
+
+// -----------------------------------------------------------------------
+// Subcommand: record
+// -----------------------------------------------------------------------
+
+static int cmd_record(const char* rom_path, int frames, const char* output,
+                      bool verbose, SystemHint system_hint) {
+    std::vector<uint8_t> rom;
+    if (!load_file(rom_path, rom)) return 1;
+
+    SystemHint detected = detect_system(rom.data(), (int)rom.size(), system_hint);
+    if (!is_known(detected)) {
+        fprintf(stderr, "Error: cannot determine system type for '%s'\n", rom_path);
+        fprintf(stderr, "Use --system <type> to specify (nes, flash, test)\n");
+        return 1;
+    }
+
+    Ear6* ctx = ear6_create(to_ear6_type(detected));
+    if (!ctx) {
+        fprintf(stderr, "Error: ear6_create failed\n");
+        return 1;
+    }
+
+    int rc = ear6_load_data(ctx, rom.data(), (int)rom.size(), rom_path);
+    if (rc != 0) {
+        fprintf(stderr, "Error: ear6_load failed (%d)\n", rc);
+        ear6_destroy(ctx);
+        return 1;
+    }
+
+    AudioWriter writer;
+    if (!writer.open(output)) {
+        fprintf(stderr, "Error: cannot write '%s'\n", output);
+        ear6_destroy(ctx);
+        return 1;
+    }
+
+    writer.total_frames = frames;
+
+    RecordContext record_ctx;
+    record_ctx.writer = &writer;
+    ear6_set_audio_callback(ctx, on_audio, &record_ctx);
+
+    if (verbose) {
+        printf("ROM: %s  system: %s  frames: %d  output: %s\n",
+               rom_path, system_hint_name(detected), frames, output);
+    }
+
+    for (int i = 0; i < frames; ++i) {
+        // Press Start 3 times, each for 10 frames, 60 frames apart
+        if (i < 3 * 60) {
+            int block = i / 60;
+            int offset = i - block * 60;
+            if (offset == 0) {
+                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
+                if (verbose) printf("[%d/%d] press Start\n", i, frames);
+            } else if (offset == 10) {
+                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
+                if (verbose) printf("[%d/%d] release Start\n", i, frames);
+            }
+        }
+
+        ear6_step(ctx);
+
+        if (verbose && (i % 60 == 0 || i == frames - 1)) {
+            printf("[%d/%d] frame %d\n", i, frames, i);
+        }
+    }
+
+    ear6_set_audio_callback(ctx, nullptr, nullptr);
+
+    writer.close();
+    printf("Written %ld stereo samples to %s\n", writer.total_samples, output);
+    printf("Play with: ffplay -f wav %s\n", output);
+
+    ear6_destroy(ctx);
+    return 0;
+}
+
+static int dispatch_record(const std::vector<std::string>& args,
+                           SystemHint system_hint) {
+    po::options_description desc("record options");
+    desc.add_options()
+        ("help,h", "Show this help")
+        ("frames,f", po::value<int>()->default_value(600), "Number of frames to run")
+        ("output,o", po::value<std::string>()->default_value("out.wav"), "Output WAV file")
+        ("verbose,v", po::bool_switch(), "Print frame info")
+        ("rom", po::value<std::string>(), "ROM file path");
+
+    po::positional_options_description pos;
+    pos.add("rom", 1);
+
+    po::variables_map vm;
+    try {
+        po::store(po::command_line_parser(args)
+                      .options(desc)
+                      .positional(pos)
+                      .run(),
+                  vm);
+        po::notify(vm);
+    } catch (const po::error& e) {
+        std::cerr << "Error: " << e.what() << "\n\n" << desc << std::endl;
+        return 1;
+    }
+
+    if (vm.count("help")) {
+        std::cout << "Usage: ear6-cli record [options] <rom>\n\n" << desc << std::endl;
+        return 0;
+    }
+
+    if (!vm.count("rom")) {
+        std::cerr << "Error: ROM file is required\n\n" << desc << std::endl;
+        return 1;
+    }
+
+    return cmd_record(
+        vm["rom"].as<std::string>().c_str(),
+        vm["frames"].as<int>(),
+        vm["output"].as<std::string>().c_str(),
+        vm["verbose"].as<bool>(),
+        system_hint
+    );
+}
+
+// -----------------------------------------------------------------------
 // Subcommand dispatch using boost::program_options
 // -----------------------------------------------------------------------
 
@@ -366,6 +567,7 @@ int main(int argc, char* argv[]) {
                   << "Commands:\n"
                   << "  screenshot   Run emulation and save a PPM screenshot\n"
                   << "  info         Display ROM file information\n"
+                  << "  record       Run emulation and record audio to WAV\n"
                   << std::endl;
         return 1;
     }
@@ -375,7 +577,8 @@ int main(int argc, char* argv[]) {
                   << global_opts << "\n"
                   << "Commands:\n"
                   << "  screenshot   Run emulation and save a PPM screenshot\n"
-                  << "  info         Display ROM file information\n\n"
+                  << "  info         Display ROM file information\n"
+                  << "  record       Run emulation and record audio to WAV\n\n"
                   << "Use 'ear6-cli <command> --help' for command-specific help.\n"
                   << std::endl;
         return 0;
@@ -396,6 +599,7 @@ int main(int argc, char* argv[]) {
                   << "Commands:\n"
                   << "  screenshot   Run emulation and save a PPM screenshot\n"
                   << "  info         Display ROM file information\n"
+                  << "  record       Run emulation and record audio to WAV\n"
                   << std::endl;
         return 1;
     }
@@ -409,6 +613,9 @@ int main(int argc, char* argv[]) {
     if (cmd == "info") {
         return dispatch_info(subargs, system_hint);
     }
+    if (cmd == "record") {
+        return dispatch_record(subargs, system_hint);
+    }
 
     std::cerr << "Unknown command: " << cmd << "\n\n"
               << "Usage: ear6-cli [options] <command> [args]\n\n"
@@ -416,6 +623,7 @@ int main(int argc, char* argv[]) {
               << "Commands:\n"
               << "  screenshot   Run emulation and save a PPM screenshot\n"
               << "  info         Display ROM file information\n"
+              << "  record       Run emulation and record audio to WAV\n"
               << std::endl;
     return 1;
 }

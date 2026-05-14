@@ -29,8 +29,8 @@ public:
         return console_->get_audio_num_samples();
     }
 
-    void consume_audio(size_t stereo_samples) override {
-        console_->consume_audio(stereo_samples);
+    void consume_audio() override {
+        console_->consume_audio();
     }
 
     void set_palette(const uint32_t* palette);

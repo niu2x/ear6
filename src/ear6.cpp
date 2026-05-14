@@ -107,6 +107,7 @@ extern "C" int ear6_step(Ear6* ctx) {
                     ctx->system->get_audio_num_samples(),
                     ctx->audio_user_data
                 );
+                ctx->system->consume_audio();
             }
         }
         return result;
@@ -172,4 +173,9 @@ extern "C" const int16_t* ear6_get_audiobuffer(Ear6* ctx) {
 extern "C" int ear6_get_audio_num_samples(Ear6* ctx) {
     if (!ctx || !ctx->system) return 0;
     return ctx->system->get_audio_num_samples();
+}
+
+extern "C" void ear6_consume_audio(Ear6* ctx) {
+    if (!ctx || !ctx->system) return;
+    ctx->system->consume_audio();
 }

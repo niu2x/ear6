@@ -47,7 +47,7 @@ public:
     // Audio
     const int16_t* get_audiobuffer() const;
     int get_audio_num_samples() const;
-    void consume_audio(size_t stereo_samples);
+    void consume_audio();
 
     // Input
     void set_button_state(int port, int button, bool pressed);

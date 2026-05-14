@@ -28,6 +28,7 @@ public:
     void process_cpu_clock();
     void run();
     void end_frame();
+    void push_frame();
 
     void frame_counter_tick(FrameType type);
     void set_need_to_run() { need_to_run_ = true; }
@@ -35,10 +36,10 @@ public:
     void set_apu_status(bool active) { apu_enabled_ = active; }
     bool is_apu_enabled() { return apu_enabled_; }
 
-    // Single-frame audio buffer (overwritten each frame)
+    // Audio ring buffer (8 frames)
     const int16_t* get_buffer() const;
     int get_samples() const;
-    void consume_audio(size_t stereo_samples);
+    void consume_audio();
 
     SquareChannel* get_square1() { return square1_.get(); }
     SquareChannel* get_square2() { return square2_.get(); }
@@ -68,8 +69,20 @@ private:
     NesConsole* console_ = nullptr;
     NesSoundMixer* mixer_ = nullptr;
 
-    // Single frame's audio: stereo interleaved int16
-    std::vector<int16_t> audio_buffer_;
+    static constexpr size_t MAX_AUDIO_FRAMES = 8;
+
+    struct AudioFrame {
+        std::vector<int16_t> data;
+        size_t samples = 0;
+    };
+
+    AudioFrame audio_ring_[MAX_AUDIO_FRAMES];
+    size_t write_index_ = 0;
+    size_t read_index_ = 0;
+    size_t available_frames_ = 0;
+
+    // Accumulator: multiple end_frame() calls per video frame → one batch
+    std::vector<int16_t> frame_accumulator_;
 };
 
 } // namespace ear6::nes

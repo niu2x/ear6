@@ -26,6 +26,7 @@ export interface Ear6Module {
   _ear6_web_nes_clear_input(ctx: number): void
   _ear6_web_get_audiobuffer(ctx: number): number
   _ear6_web_get_audio_num_samples(ctx: number): number
+  _ear6_web_consume_audio(ctx: number): void
   _malloc(size: number): number
   _free(ptr: number): void
 }

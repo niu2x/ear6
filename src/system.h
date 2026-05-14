@@ -24,7 +24,7 @@ public:
 
     virtual const int16_t* get_audiobuffer() const = 0;
     virtual int get_audio_num_samples() const = 0;
-    virtual void consume_audio(size_t stereo_samples) = 0;
+    virtual void consume_audio() = 0;
 };
 
 } // namespace ear6

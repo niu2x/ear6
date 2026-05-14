@@ -65,6 +65,11 @@ int ear6_web_get_audio_num_samples(Ear6* ctx) {
     return ear6_get_audio_num_samples(ctx);
 }
 
+EMSCRIPTEN_KEEPALIVE
+void ear6_web_consume_audio(Ear6* ctx) {
+    ear6_consume_audio(ctx);
+}
+
 }
 
 int main() {

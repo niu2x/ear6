@@ -36,6 +36,7 @@ EAR6_API int ear6_get_frame_width(Ear6* ctx);
 EAR6_API int ear6_get_frame_height(Ear6* ctx);
 EAR6_API const int16_t* ear6_get_audiobuffer(Ear6* ctx);
 EAR6_API int ear6_get_audio_num_samples(Ear6* ctx);
+EAR6_API void ear6_consume_audio(Ear6* ctx);
 
 EAR6_API int ear6_test(void);
 

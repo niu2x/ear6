@@ -81,6 +81,7 @@ void NesConsole::run_frame() {
         cpu_->exec();
     }
     apu_->end_frame();
+    apu_->push_frame();
 }
 
 void NesConsole::process_cpu_clock() {
@@ -114,9 +115,9 @@ int NesConsole::get_audio_num_samples() const {
     return 0;
 }
 
-void NesConsole::consume_audio(size_t stereo_samples) {
+void NesConsole::consume_audio() {
     if (apu_) {
-        apu_->consume_audio(stereo_samples);
+        apu_->consume_audio();
     }
 }
 

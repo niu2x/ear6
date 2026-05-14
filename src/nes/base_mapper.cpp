@@ -40,6 +40,8 @@ void BaseMapper::write_ram(uint16_t addr, uint8_t value) {
     if (is_write_register_addr_[addr]) {
         if (has_bus_conflicts_) value &= prg_pages_[addr >> 8][(uint8_t)addr];
         write_register(addr, value);
+    } else if (prg_memory_access_[addr >> 8] & WRITE) {
+        prg_pages_[addr >> 8][(uint8_t)addr] = value;
     }
 }
 

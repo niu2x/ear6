@@ -70,6 +70,7 @@ void Mapper004::write_register(uint16_t addr, uint8_t value) {
             current_register_ = value & 0x07;
             chr_mode_ = (value >> 7) & 1;
             prg_mode_ = (value >> 6) & 1;
+            update_state();
             break;
 
         case 0x8001:
@@ -112,22 +113,13 @@ void Mapper004::write_register(uint16_t addr, uint8_t value) {
 }
 
 void Mapper004::update_state() {
-    bool has_wram = (rom_info_.has_battery) || true;
-
-    if (has_wram) {
-        MemoryAccessType access;
-        if (wram_enabled_) {
-            access = (wram_enabled_ && !wram_write_protected_) ? READ_WRITE : READ;
-        } else {
-            access = NO_ACCESS;
-        }
-        set_cpu_memory_mapping(0x6000, 0x7FFF, work_ram_.data(), 0, 0x2000, access);
+    MemoryAccessType access;
+    if (wram_enabled_) {
+        access = !wram_write_protected_ ? READ_WRITE : READ;
     } else {
-        for (uint16_t i = 0x60; i <= 0x7F; i++) {
-            prg_pages_[i] = nullptr;
-            prg_memory_access_[i] = NO_ACCESS;
-        }
+        access = NO_ACCESS;
     }
+    set_cpu_memory_mapping(0x6000, 0x7FFF, work_ram_.data(), 0, 0x2000, access);
 
     update_prg_mapping();
     update_chr_mapping();

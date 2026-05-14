@@ -121,6 +121,7 @@ Fix when adding `SubMapperID` support: add field to `RomInfo`, parse from iNES 2
 
 ## Notes for AI Agent
 
+- **NEVER auto-commit.** Only commit when the user explicitly asks with `/commit` or says "commit". All changes should remain unstaged/untracked until the user requests a commit.
 - Do not use backticks in git commit messages — bash interprets them as command substitution. Use single quotes instead.
 - Exported API must be pure C (`extern "C"`), not C++. Internal implementation can use C++.
 - C++ exceptions must never cross the `extern "C"` boundary. Every C API entry point must catch all exceptions and convert them to error codes (0 = success, non-zero = error).

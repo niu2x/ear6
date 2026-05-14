@@ -769,7 +769,12 @@ xxd /tmp/test.ppm | head -20
 
 ## 20. 迁移教训与反思
 
-### 2026-05-14：两次漏细节的教训
+### 2026-05-14：三次漏细节的教训
+
+**Bug：uint16_t 回绕死循环**。`add_register_range(0x8000, 0xFFFF, WRITE)` 用
+`uint16_t i` 做循环变量，`i++` 到 0xFFFF 后回绕到 0x0000，`i <= 0xFFFF` 永远为真。
+加载 mapper 1 的 ROM 时卡在初始化阶段。**C++ 无符号整型回绕是经典陷阱，
+但凡看一眼 Mesen2 的参数类型（`int32_t start, int32_t end`）就能避免**。
 
 **Bug：NROM 16KB PRG 越界**。Mesen2 NROM 用 `SelectPrgPage(0,0)` + `SelectPrgPage(1,1)`，
 `SelectPrgPage` 内部以 `page % max_page` 做自动 wrap。ear6 直接写

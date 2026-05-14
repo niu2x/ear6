@@ -51,7 +51,7 @@ void BaseMapper::write_register(uint16_t addr, uint8_t value) {
 }
 
 void BaseMapper::add_register_range(uint16_t start, uint16_t end, MemoryOperation operation) {
-    for (uint16_t i = start; i <= end; i++) {
+    for (uint32_t i = start; i <= end; i++) {
         if (operation == MemoryOperation::READ || operation == MemoryOperation::ANY)
             is_read_register_addr_[i] = true;
         if (operation == MemoryOperation::WRITE || operation == MemoryOperation::ANY)

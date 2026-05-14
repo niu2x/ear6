@@ -129,6 +129,10 @@ void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* s
 
 void BaseMapper::select_chr_page(uint16_t slot, uint16_t page, ChrMemoryType type) {
     uint16_t page_size = get_chr_page_size();
+    if (chr_rom_size_ > 0) {
+        uint16_t max_page = chr_rom_size_ / page_size;
+        if (max_page > 0) page %= max_page;
+    }
     uint16_t start = slot * page_size;
     uint16_t end = start + page_size - 1;
     set_ppu_memory_mapping(start, end, page, type);

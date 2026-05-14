@@ -18,6 +18,11 @@ void Mapper001::init(const RomInfo& info,
     // Allocate 8KB WRAM
     work_ram_.resize(0x2000, 0);
 
+    // Allocate CHR RAM if no CHR ROM
+    if (chr_rom_size_ == 0) {
+        chr_rom_.resize(0x2000, 0);
+    }
+
     // Register $8000-$FFFF for MMC1 register writes
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 

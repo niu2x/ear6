@@ -21,19 +21,23 @@ void Mapper001::init(const RomInfo& info,
     // Allocate CHR RAM if no CHR ROM
     if (chr_rom_size_ == 0) {
         chr_rom_.resize(0x2000, 0);
+        chr_rom_size_ = 0x2000;
     }
 
     // Register $8000-$FFFF for MMC1 register writes
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 
-    // Initialize registers with power-on defaults:
-    // bit 2,3 of $8000 set: 16KB PRG mode, $8000 swappable
-    process_register_write(0x8000, 0xFF | 0x0C);
-    process_register_write(0xA000, 0xFF);
-    process_register_write(0xC000, 0xFF);
-    process_register_write(0xE000, 0x00);
-
-    last_chr_reg_ = 0xA000;
+    // MMC1 power-on defaults: prg_mode=1, slot_select=1 so the last bank
+    // is at $C000 (reset vector must be accessible). CHR regs = 0 with
+    // chr_mode=0 (8KB CHR mode, both pattern tables in one continuous bank).
+    // Mirroring defaults to SCREEN_A_ONLY (the game will reconfigure it).
+    chr_mode_ = false;
+    prg_mode_ = true;
+    slot_select_ = true;
+    chr_reg0_ = 0;
+    chr_reg1_ = 0;
+    prg_reg_ = 0;
+    wram_disable_ = false;
 
     update_state();
 }

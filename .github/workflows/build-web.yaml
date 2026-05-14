@@ -26,6 +26,9 @@ jobs:
         with:
           version: 3.1.73
 
+      - name: Install cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake
+
       - name: Build ear6-web
         run: make ear6-web
         env:

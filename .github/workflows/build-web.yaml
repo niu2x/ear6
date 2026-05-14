@@ -1,0 +1,53 @@
+name: Build Web (WASM)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.73
+
+      - name: Build ear6-web
+        run: make ear6-web
+        env:
+          EMSCRIPTEN_CMAKE_TOOLCHAIN: ${{ env.EMSDK }}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
+
+      - name: Prepare Pages artifacts
+        run: |
+          mkdir -p _site/wasm
+          cp build-web/app/web/ear6-web.js _site/wasm/
+          cp build-web/app/web/ear6-web.wasm _site/wasm/
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <meta charset="utf-8">
+          <title>Ear6</title>
+          <h1>Ear6 Web Build</h1>
+          <p><a href="wasm/ear6-web.js">ear6-web.js</a></p>
+          <p><a href="wasm/ear6-web.wasm">ear6-web.wasm</a></p>
+          EOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -109,6 +109,16 @@ All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their 
 
 系统特有的行为（如 NES 调色板配置、Flash 版本设置）必须放在对应的系统专用头文件（`nes.h`、`flash.h`）中，不得在 `ear6.h` 中添加系统相关的 API。
 
+## Known Limitations
+
+### RomInfo lacks SubMapperID field
+
+`src/nes/nes_types.h:RomInfo` has no `SubMapperID` field. This means:
+- **Mapper 002** (UNROM): Cannot detect submapper 2 variants that have bus conflicts (`HasBusConflicts()`)
+- Other mappers may also depend on submapper info for variant behavior
+
+Fix when adding `SubMapperID` support: add field to `RomInfo`, parse from iNES 2.0 header byte 15, and update affected mappers.
+
 ## Notes for AI Agent
 
 - Do not use backticks in git commit messages — bash interprets them as command substitution. Use single quotes instead.

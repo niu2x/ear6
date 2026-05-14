@@ -1,4 +1,4 @@
-name: Build Web (WASM)
+name: Deploy Web to GitHub Pages
 
 on:
   workflow_dispatch:
@@ -32,27 +32,36 @@ jobs:
           echo "/usr/bin" >> $GITHUB_PATH
           cmake --version
 
-      - name: Build ear6-web
+      - name: Build ear6-web (WASM)
         run: make ear6-web
         env:
           EMSCRIPTEN_CMAKE_TOOLCHAIN: ${{ env.EMSDK }}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
 
-      - name: Prepare Pages artifacts
+      - name: Copy WASM to web-ui public
         run: |
-          mkdir -p _site/wasm
-          cp build-web/app/web/ear6-web.js _site/wasm/
-          cp build-web/app/web/ear6-web.wasm _site/wasm/
-          cat > _site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <meta charset="utf-8">
-          <title>Ear6</title>
-          <h1>Ear6 Web Build</h1>
-          <p><a href="wasm/ear6-web.js">ear6-web.js</a></p>
-          <p><a href="wasm/ear6-web.wasm">ear6-web.wasm</a></p>
-          EOF
+          mkdir -p app/web-ui/public/ear6
+          cp build-web/app/web/ear6-web.js app/web-ui/public/ear6/
+          cp build-web/app/web/ear6-web.wasm app/web-ui/public/ear6/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/web-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: app/web-ui
+
+      - name: Build web-ui (Vite)
+        run: npm run build -- --base=/ear6/
+        working-directory: app/web-ui
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/web-ui/dist
 
       - name: Deploy to GitHub Pages
         id: deployment

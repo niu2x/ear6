@@ -20,17 +20,17 @@ void BaseMapper::initialize(NesConsole* console) {
 }
 
 void BaseMapper::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Read, 0x4020, 0xFFFF);
-    ranges.add_handler(MemoryOperation::Write, 0x4020, 0xFFFF);
-    ranges.add_handler(MemoryOperation::Read, 0x6000, 0x7FFF);
-    ranges.add_handler(MemoryOperation::Write, 0x6000, 0x7FFF);
+    ranges.add_handler(MemoryOperation::READ, 0x4020, 0xFFFF);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4020, 0xFFFF);
+    ranges.add_handler(MemoryOperation::READ, 0x6000, 0x7FFF);
+    ranges.add_handler(MemoryOperation::WRITE, 0x6000, 0x7FFF);
 }
 
 uint8_t BaseMapper::read_ram(uint16_t addr) {
     if (allow_register_read() && is_read_register_addr_[addr]) {
         return read_register(addr);
     }
-    if (prg_memory_access_[addr >> 8] & Read) {
+    if (prg_memory_access_[addr >> 8] & READ) {
         return prg_pages_[addr >> 8][(uint8_t)addr];
     }
     return console_->get_memory_manager()->get_open_bus();
@@ -50,9 +50,9 @@ void BaseMapper::write_register(uint16_t addr, uint8_t value) {
 
 void BaseMapper::add_register_range(uint16_t start, uint16_t end, MemoryOperation operation) {
     for (uint16_t i = start; i <= end; i++) {
-        if (operation == MemoryOperation::Read || operation == MemoryOperation::Any)
+        if (operation == MemoryOperation::READ || operation == MemoryOperation::ANY)
             is_read_register_addr_[i] = true;
-        if (operation == MemoryOperation::Write || operation == MemoryOperation::Any)
+        if (operation == MemoryOperation::WRITE || operation == MemoryOperation::ANY)
             is_write_register_addr_[i] = true;
     }
 }
@@ -64,7 +64,7 @@ void BaseMapper::set_cpu_memory_mapping(uint16_t start, uint16_t end, uint8_t* s
     end >>= 8;
     for (uint16_t i = start; i <= end; i++) {
         prg_pages_[i] = source + source_offset;
-        prg_memory_access_[i] = (access_type < 0) ? ReadWrite : static_cast<MemoryAccessType>(access_type);
+        prg_memory_access_[i] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
         source_offset += 0x100;
     }
     (void)source_size;
@@ -115,8 +115,8 @@ void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* s
     end >>= 8;
     for (uint16_t i = start; i <= end; i++) {
         chr_pages_[i] = source + source_offset;
-        chr_memory_access_[i] = (access_type < 0) ? ReadWrite : static_cast<MemoryAccessType>(access_type);
-        chr_memory_type_[i] = ChrMemoryType::ChrRom;
+        chr_memory_access_[i] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
+        chr_memory_type_[i] = ChrMemoryType::CHR_ROM;
         source_offset += 0x100;
     }
 }
@@ -147,7 +147,7 @@ void BaseMapper::select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType 
 
 uint8_t BaseMapper::read_vram(uint16_t addr) {
     addr &= 0x3FFF;
-    if (chr_memory_access_[addr >> 8] & Read) {
+    if (chr_memory_access_[addr >> 8] & READ) {
         return chr_pages_[addr >> 8][(uint8_t)addr];
     }
     return addr;
@@ -155,7 +155,7 @@ uint8_t BaseMapper::read_vram(uint16_t addr) {
 
 void BaseMapper::write_vram(uint16_t addr, uint8_t value) {
     addr &= 0x3FFF;
-    if (chr_memory_access_[addr >> 8] & Write) {
+    if (chr_memory_access_[addr >> 8] & WRITE) {
         chr_pages_[addr >> 8][(uint8_t)addr] = value;
     }
 }
@@ -177,31 +177,31 @@ void BaseMapper::set_nametable(uint8_t index, uint8_t nametable_index) {
 void BaseMapper::set_mirroring_type(MirroringType type) {
     mirroring_type_ = type;
     switch (type) {
-        case MirroringType::Vertical:
+        case MirroringType::VERTICAL:
             set_nametable(0, 0);
             set_nametable(1, 1);
             set_nametable(2, 0);
             set_nametable(3, 1);
             break;
-        case MirroringType::Horizontal:
+        case MirroringType::HORIZONTAL:
             set_nametable(0, 0);
             set_nametable(1, 0);
             set_nametable(2, 1);
             set_nametable(3, 1);
             break;
-        case MirroringType::ScreenAOnly:
+        case MirroringType::SCREEN_A_ONLY:
             set_nametable(0, 0);
             set_nametable(1, 0);
             set_nametable(2, 0);
             set_nametable(3, 0);
             break;
-        case MirroringType::ScreenBOnly:
+        case MirroringType::SCREEN_B_ONLY:
             set_nametable(0, 1);
             set_nametable(1, 1);
             set_nametable(2, 1);
             set_nametable(3, 1);
             break;
-        case MirroringType::FourScreens:
+        case MirroringType::FOUR_SCREENS:
             set_nametable(0, 0);
             set_nametable(1, 1);
             set_nametable(2, 2);

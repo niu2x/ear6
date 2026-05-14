@@ -32,7 +32,7 @@ public:
 
     bool irq_pending(uint32_t cycles_to_run);
     bool need_to_run();
-    bool get_status();
+    bool is_active();
     void set_enabled(bool enabled);
     void process_clock();
     void start_dmc_transfer();

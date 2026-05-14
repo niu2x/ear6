@@ -24,7 +24,7 @@ public:
     void reset_envelope() { start_ = true; }
 
     uint32_t get_volume() {
-        if (length_counter.get_status()) {
+        if (length_counter.is_active()) {
             if (constant_volume_) return volume_;
             return counter_;
         }

@@ -28,7 +28,7 @@ void NoiseChannel::reset(bool soft_reset) {
 }
 
 void NoiseChannel::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Write, 0x400C, 0x400F);
+    ranges.add_handler(MemoryOperation::WRITE, 0x400C, 0x400F);
 }
 
 void NoiseChannel::write_ram(uint16_t addr, uint8_t value) {

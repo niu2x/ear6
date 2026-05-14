@@ -16,8 +16,8 @@ NesApu::NesApu(NesConsole* console, NesSoundMixer* mixer) {
     apu_enabled_ = true;
     need_to_run_ = false;
 
-    square1_.reset(new SquareChannel(AudioChannel::Square1, console, true));
-    square2_.reset(new SquareChannel(AudioChannel::Square2, console, false));
+    square1_.reset(new SquareChannel(AudioChannel::SQUARE1, console, true));
+    square2_.reset(new SquareChannel(AudioChannel::SQUARE2, console, false));
     triangle_.reset(new TriangleChannel(console));
     noise_.reset(new NoiseChannel(console));
     dmc_.reset(new DeltaModulationChannel(console));
@@ -41,11 +41,11 @@ NesApu::NesApu(NesConsole* console, NesSoundMixer* mixer) {
 NesApu::~NesApu() = default;
 
 void NesApu::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Write, 0x4000, 0x4013);
-    ranges.add_handler(MemoryOperation::Read, 0x4015);
-    ranges.add_handler(MemoryOperation::Write, 0x4015);
-    ranges.add_handler(MemoryOperation::Write, 0x4017);
-    ranges.add_handler(MemoryOperation::Read, 0x4018, 0x401A);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4000, 0x4013);
+    ranges.add_handler(MemoryOperation::READ, 0x4015);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4015);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4017);
+    ranges.add_handler(MemoryOperation::READ, 0x4018, 0x401A);
 }
 
 void NesApu::frame_counter_tick(FrameType type) {
@@ -54,7 +54,7 @@ void NesApu::frame_counter_tick(FrameType type) {
     triangle_->tick_linear_counter();
     noise_->tick_envelope();
 
-    if (type == FrameType::HalfFrame) {
+    if (type == FrameType::HALF_FRAME) {
         square1_->tick_length_counter();
         square2_->tick_length_counter();
         triangle_->tick_length_counter();
@@ -71,16 +71,16 @@ uint8_t NesApu::read_ram(uint16_t addr) {
     switch (addr) {
         case 0x4015: {
             uint8_t status = 0;
-            status |= square1_->get_status() ? 0x01 : 0x00;
-            status |= square2_->get_status() ? 0x02 : 0x00;
-            status |= triangle_->get_status() ? 0x04 : 0x00;
-            status |= noise_->get_status() ? 0x08 : 0x00;
-            status |= dmc_->get_status() ? 0x10 : 0x00;
+            status |= square1_->is_active() ? 0x01 : 0x00;
+            status |= square2_->is_active() ? 0x02 : 0x00;
+            status |= triangle_->is_active() ? 0x04 : 0x00;
+            status |= noise_->is_active() ? 0x08 : 0x00;
+            status |= dmc_->is_active() ? 0x10 : 0x00;
             status |= frame_counter_->get_irq_flag() ? 0x40 : 0x00;
             status |= console_->get_cpu()->has_irq_source(IRQSource::DMC) ? 0x80 : 0x00;
             status |= 0x20;
 
-            console_->get_cpu()->clear_irq_source(IRQSource::FrameCounter);
+            console_->get_cpu()->clear_irq_source(IRQSource::FRAME_COUNTER);
 
             return status;
         }

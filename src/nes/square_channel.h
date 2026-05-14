@@ -61,7 +61,7 @@ public:
     void reload_length_counter() { envelope_.length_counter.reload_counter(); }
     void end_frame() { timer_.end_frame(); }
     void set_enabled(bool enabled) { envelope_.length_counter.set_enabled(enabled); }
-    bool get_status() { return envelope_.length_counter.get_status(); }
+    bool is_active() { return envelope_.length_counter.is_active(); }
     uint8_t get_output() { return (uint8_t)timer_.get_last_output(); }
 
 private:
@@ -105,7 +105,7 @@ private:
     NesConsole* console_ = nullptr;
     ApuEnvelope envelope_;
     ApuTimer timer_;
-    AudioChannel channel_ = AudioChannel::Square1;
+    AudioChannel channel_ = AudioChannel::SQUARE1;
     bool is_channel1_ = false;
     uint8_t duty_ = 0;
     uint8_t duty_pos_ = 0;

@@ -110,12 +110,12 @@ bool DeltaModulationChannel::irq_pending(uint32_t cycles_to_run) {
     return false;
 }
 
-bool DeltaModulationChannel::get_status() {
+bool DeltaModulationChannel::is_active() {
     return bytes_remaining_ > 0;
 }
 
 void DeltaModulationChannel::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Write, 0x4010, 0x4013);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4010, 0x4013);
 }
 
 void DeltaModulationChannel::write_ram(uint16_t addr, uint8_t value) {

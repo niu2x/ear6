@@ -11,9 +11,9 @@ class NesConsole;
 class NesApu;
 
 enum class FrameType {
-    None = 0,
-    QuarterFrame = 1,
-    HalfFrame = 2,
+    NONE = 0,
+    QUARTER_FRAME = 1,
+    HALF_FRAME = 2,
 };
 
 class ApuFrameCounter : public INesMemoryHandler {
@@ -27,8 +27,8 @@ public:
         {8313, 16627, 24939, 33253, 41565, 41566}
     };
     static constexpr FrameType FRAME_TYPE[2][6] = {
-        {FrameType::QuarterFrame, FrameType::HalfFrame, FrameType::QuarterFrame, FrameType::None, FrameType::HalfFrame, FrameType::None},
-        {FrameType::QuarterFrame, FrameType::HalfFrame, FrameType::QuarterFrame, FrameType::None, FrameType::HalfFrame, FrameType::None}
+        {FrameType::QUARTER_FRAME, FrameType::HALF_FRAME, FrameType::QUARTER_FRAME, FrameType::NONE, FrameType::HALF_FRAME, FrameType::NONE},
+        {FrameType::QUARTER_FRAME, FrameType::HALF_FRAME, FrameType::QUARTER_FRAME, FrameType::NONE, FrameType::HALF_FRAME, FrameType::NONE}
     };
 
     ApuFrameCounter(NesConsole* console);

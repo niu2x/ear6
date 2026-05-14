@@ -40,9 +40,9 @@ NesPpu::~NesPpu() {
 }
 
 void NesPpu::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Read, 0x2000, 0x3FFF);
-    ranges.add_handler(MemoryOperation::Write, 0x2000, 0x3FFF);
-    ranges.add_handler(MemoryOperation::Write, 0x4014);
+    ranges.add_handler(MemoryOperation::READ, 0x2000, 0x3FFF);
+    ranges.add_handler(MemoryOperation::WRITE, 0x2000, 0x3FFF);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4014);
 }
 
 void NesPpu::reset(bool soft_reset) {

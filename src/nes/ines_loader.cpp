@@ -15,9 +15,9 @@ RomInfo INesLoader::parse_header(const uint8_t* data) {
     info.mapper_number = (data[6] >> 4) | (data[7] & 0xF0);
     info.has_battery = (data[6] & 0x02) != 0;
     info.has_trainer = (data[6] & 0x04) != 0;
-    info.mirroring = (data[6] & 0x01) ? MirroringType::Vertical : MirroringType::Horizontal;
+    info.mirroring = (data[6] & 0x01) ? MirroringType::VERTICAL : MirroringType::HORIZONTAL;
     if (data[6] & 0x08) {
-        info.mirroring = MirroringType::FourScreens;
+        info.mirroring = MirroringType::FOUR_SCREENS;
     }
     return info;
 }

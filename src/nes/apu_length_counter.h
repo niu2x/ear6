@@ -21,7 +21,7 @@ public:
     void initialize_length_counter(bool halt_flag);
     void load_length_counter(uint8_t value);
 
-    bool get_status() const { return counter_ > 0; }
+    bool is_active() const { return counter_ > 0; }
     bool is_halted() const { return halt_; }
 
     void reload_counter() {
@@ -52,7 +52,7 @@ public:
     void reset(bool soft_reset) {
         if (soft_reset) {
             enabled_ = false;
-            if (channel_ != AudioChannel::Triangle) {
+            if (channel_ != AudioChannel::TRIANGLE) {
                 halt_ = false;
                 counter_ = 0;
                 new_halt_value_ = false;
@@ -71,7 +71,7 @@ public:
 
 private:
     NesApu* apu_ = nullptr;
-    AudioChannel channel_ = AudioChannel::Square1;
+    AudioChannel channel_ = AudioChannel::SQUARE1;
     bool new_halt_value_ = false;
     bool enabled_ = false;
     bool halt_ = false;

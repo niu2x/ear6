@@ -32,24 +32,24 @@ public:
     void get_memory_ranges(MemoryRanges& ranges) override;
 
     // PRG page management
-    void select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PrgRom);
-    void select_prg_page_2x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PrgRom);
-    void select_prg_page_4x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PrgRom);
+    void select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
+    void select_prg_page_2x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
+    void select_prg_page_4x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
     void set_cpu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
                                     uint32_t source_offset, uint32_t source_size,
                                     int8_t access_type = -1);
     void set_cpu_memory_mapping(uint16_t start, uint16_t end, int16_t page_number,
-                                PrgMemoryType type = PrgMemoryType::PrgRom,
+                                PrgMemoryType type = PrgMemoryType::PRG_ROM,
                                 int8_t access_type = -1);
 
     // CHR/PPU page management
-    void select_chr_page(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::Default);
-    void select_chr_page_2x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::Default);
-    void select_chr_page_4x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::Default);
-    void select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::Default);
+    void select_chr_page(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
+    void select_chr_page_2x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
+    void select_chr_page_4x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
+    void select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
 
     void set_ppu_memory_mapping(uint16_t start, uint16_t end, uint16_t page_number,
-                                ChrMemoryType type = ChrMemoryType::Default,
+                                ChrMemoryType type = ChrMemoryType::DEFAULT,
                                 int8_t access_type = -1);
     void set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
                                     uint32_t source_offset, uint32_t source_size,
@@ -70,7 +70,7 @@ public:
 protected:
     NesConsole* console_ = nullptr;
     RomInfo rom_info_ = {};
-    MirroringType mirroring_type_ = MirroringType::Horizontal;
+    MirroringType mirroring_type_ = MirroringType::HORIZONTAL;
 
     // PRG data
     std::vector<uint8_t> prg_rom_;
@@ -101,7 +101,7 @@ protected:
     virtual uint16_t register_end_address() { return 0xFFFF; }
     virtual bool allow_register_read() { return false; }
 
-    void add_register_range(uint16_t start, uint16_t end, MemoryOperation operation = MemoryOperation::Any);
+    void add_register_range(uint16_t start, uint16_t end, MemoryOperation operation = MemoryOperation::ANY);
 };
 
 } // namespace ear6::nes

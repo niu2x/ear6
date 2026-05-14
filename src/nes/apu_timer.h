@@ -54,7 +54,7 @@ private:
     uint16_t timer_ = 0;
     uint16_t period_ = 0;
     int8_t last_output_ = 0;
-    AudioChannel channel_ = AudioChannel::Square1;
+    AudioChannel channel_ = AudioChannel::SQUARE1;
     NesSoundMixer* mixer_ = nullptr;
 };
 

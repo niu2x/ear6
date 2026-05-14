@@ -9,62 +9,62 @@ constexpr uint32_t CPU_CLOCK_RATE_NTSC = 1789773;
 constexpr uint32_t APU_SAMPLE_RATE = 96000;
 
 enum class AudioChannel {
-    Square1 = 0,
-    Square2 = 1,
-    Triangle = 2,
-    Noise = 3,
+    SQUARE1 = 0,
+    SQUARE2 = 1,
+    TRIANGLE = 2,
+    NOISE = 3,
     DMC = 4,
     FDS = 5,
     MMC5 = 6,
     VRC6 = 7,
     VRC7 = 8,
-    Namco163 = 9,
-    Sunsoft5B = 10,
+    NAMCO163 = 9,
+    SUNSOFT5B = 10,
     MAX_CHANNELS = 11
 };
 
 namespace IRQSource {
-    constexpr uint8_t External = 0x01;
-    constexpr uint8_t FrameCounter = 0x02;
+    constexpr uint8_t EXTERNAL = 0x01;
+    constexpr uint8_t FRAME_COUNTER = 0x02;
     constexpr uint8_t DMC = 0x04;
-    constexpr uint8_t FdsDisk = 0x08;
-    constexpr uint8_t Epsm = 0x10;
+    constexpr uint8_t FDS_DISK = 0x08;
+    constexpr uint8_t EPSM = 0x10;
 }
 
 enum class MemoryOperation {
-    Read = 1,
-    Write = 2,
-    Any = 3
+    READ = 1,
+    WRITE = 2,
+    ANY = 3
 };
 
 enum class MirroringType {
-    Horizontal,
-    Vertical,
-    ScreenAOnly,
-    ScreenBOnly,
-    FourScreens
+    HORIZONTAL,
+    VERTICAL,
+    SCREEN_A_ONLY,
+    SCREEN_B_ONLY,
+    FOUR_SCREENS
 };
 
 enum MemoryAccessType {
-    NoAccess = 0x00,
-    Read = 0x01,
-    Write = 0x02,
-    ReadWrite = 0x03
+    NO_ACCESS = 0x00,
+    READ = 0x01,
+    WRITE = 0x02,
+    READ_WRITE = 0x03
 };
 
 enum class ChrMemoryType {
-    Default,
-    ChrRom,
-    ChrRam,
-    NametableRam,
-    MapperRam
+    DEFAULT,
+    CHR_ROM,
+    CHR_RAM,
+    NAMETABLE_RAM,
+    MAPPER_RAM
 };
 
 enum class PrgMemoryType {
-    PrgRom,
-    SaveRam,
-    WorkRam,
-    MapperRam
+    PRG_ROM,
+    SAVE_RAM,
+    WORK_RAM,
+    MAPPER_RAM
 };
 
 struct PPUStatusFlags {
@@ -152,7 +152,7 @@ struct RomInfo {
     int prg_banks = 0;
     int chr_banks = 0;
     bool has_battery = false;
-    MirroringType mirroring = MirroringType::Horizontal;
+    MirroringType mirroring = MirroringType::HORIZONTAL;
     bool has_trainer = false;
 };
 

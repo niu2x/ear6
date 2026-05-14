@@ -6,7 +6,7 @@ namespace ear6::nes {
 
 void TriangleChannel::run(uint32_t target_cycle) {
     while (timer_.run(target_cycle)) {
-        if (length_counter_.get_status() && linear_counter_ > 0) {
+        if (length_counter_.is_active() && linear_counter_ > 0) {
             sequence_position_ = (sequence_position_ + 1) & 0x1F;
             timer_.add_output(SEQUENCE[sequence_position_]);
         }
@@ -24,7 +24,7 @@ void TriangleChannel::reset(bool soft_reset) {
 }
 
 void TriangleChannel::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Write, 0x4008, 0x400B);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4008, 0x400B);
 }
 
 void TriangleChannel::write_ram(uint16_t addr, uint8_t value) {

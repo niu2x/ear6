@@ -31,7 +31,7 @@ void ApuFrameCounter::set_region(uint32_t) {
 }
 
 void ApuFrameCounter::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Write, 0x4017);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4017);
 }
 
 void ApuFrameCounter::write_ram(uint16_t addr, uint8_t value) {
@@ -46,7 +46,7 @@ void ApuFrameCounter::write_ram(uint16_t addr, uint8_t value) {
 
     inhibit_irq_ = (value & 0x40) == 0x40;
     if (inhibit_irq_) {
-        console_->get_cpu()->clear_irq_source(IRQSource::FrameCounter);
+        console_->get_cpu()->clear_irq_source(IRQSource::FRAME_COUNTER);
         irq_flag_ = false;
         irq_flag_clear_clock_ = 0;
     }
@@ -60,7 +60,7 @@ uint32_t ApuFrameCounter::run(int32_t& cycles_to_run) {
             irq_flag_ = true;
             irq_flag_clear_clock_ = 0;
             if (!inhibit_irq_) {
-                console_->get_cpu()->set_irq_source(IRQSource::FrameCounter);
+                console_->get_cpu()->set_irq_source(IRQSource::FRAME_COUNTER);
             } else if (current_step_ == 5) {
                 irq_flag_ = false;
                 irq_flag_clear_clock_ = 0;
@@ -68,7 +68,7 @@ uint32_t ApuFrameCounter::run(int32_t& cycles_to_run) {
         }
 
         FrameType type = FRAME_TYPE[step_mode_][current_step_];
-        if (type != FrameType::None && !block_frame_counter_tick_) {
+        if (type != FrameType::NONE && !block_frame_counter_tick_) {
             if (apu_) apu_->frame_counter_tick(type);
             block_frame_counter_tick_ = 2;
         }
@@ -102,7 +102,7 @@ uint32_t ApuFrameCounter::run(int32_t& cycles_to_run) {
             new_value_ = -1;
 
             if (step_mode_ && !block_frame_counter_tick_) {
-                if (apu_) apu_->frame_counter_tick(FrameType::HalfFrame);
+                if (apu_) apu_->frame_counter_tick(FrameType::HALF_FRAME);
                 block_frame_counter_tick_ = 2;
             }
         }

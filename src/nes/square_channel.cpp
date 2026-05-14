@@ -6,9 +6,9 @@ namespace ear6::nes {
 
 void SquareChannel::get_memory_ranges(MemoryRanges& ranges) {
     if (is_channel1_)
-        ranges.add_handler(MemoryOperation::Write, 0x4000, 0x4003);
+        ranges.add_handler(MemoryOperation::WRITE, 0x4000, 0x4003);
     else
-        ranges.add_handler(MemoryOperation::Write, 0x4004, 0x4007);
+        ranges.add_handler(MemoryOperation::WRITE, 0x4004, 0x4007);
 }
 
 void SquareChannel::write_ram(uint16_t addr, uint8_t value) {

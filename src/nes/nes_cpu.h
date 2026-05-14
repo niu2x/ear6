@@ -9,18 +9,18 @@ class NesConsole;
 class NesMemoryManager;
 
 enum class NesAddrMode {
-    None, Acc, Imp, Imm, Rel,
-    Zero, Abs, ZeroX, ZeroY,
-    Ind, IndX, IndY, IndYW,
-    AbsX, AbsXW, AbsY, AbsYW,
-    Other
+    NONE, ACC, IMP, IMM, REL,
+    ZERO, ABS, ZERO_X, ZERO_Y,
+    IND, IND_X, IND_Y, IND_YW,
+    ABS_X, ABS_XW, ABS_Y, ABS_YW,
+    OTHER
 };
 
 class NesCpu {
 public:
-    static constexpr uint16_t NMIVector = 0xFFFA;
-    static constexpr uint16_t ResetVector = 0xFFFC;
-    static constexpr uint16_t IRQVector = 0xFFFE;
+    static constexpr uint16_t NMI_VECTOR = 0xFFFA;
+    static constexpr uint16_t RESET_VECTOR = 0xFFFC;
+    static constexpr uint16_t IRQ_VECTOR = 0xFFFE;
 
     NesCpu(NesConsole* console);
     ~NesCpu() = default;
@@ -51,7 +51,7 @@ private:
 
     Func op_table_[256];
     NesAddrMode addr_mode_[256];
-    NesAddrMode inst_addr_mode_ = NesAddrMode::None;
+    NesAddrMode inst_addr_mode_ = NesAddrMode::NONE;
 
     bool need_halt_ = false;
     bool sprite_dma_transfer_ = false;

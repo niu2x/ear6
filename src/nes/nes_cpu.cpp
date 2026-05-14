@@ -47,38 +47,38 @@ NesCpu::NesCpu(NesConsole* console) {
     };
 
     NesAddrMode addrMode[256] = {
-        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
-        NesAddrMode::Other,NesAddrMode::IndX,  NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
-        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
-        NesAddrMode::Imp, NesAddrMode::IndX,   NesAddrMode::None, NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Acc,  NesAddrMode::Imm,    NesAddrMode::Ind,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
-        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndYW,  NesAddrMode::None, NesAddrMode::Other,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroY,NesAddrMode::ZeroY,
-        NesAddrMode::Imp, NesAddrMode::AbsYW,  NesAddrMode::Imp,  NesAddrMode::Other,  NesAddrMode::Other,NesAddrMode::AbsXW,NesAddrMode::Other,NesAddrMode::Other,
-        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndY,   NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroY,NesAddrMode::ZeroY,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsY,   NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsY, NesAddrMode::AbsY,
-        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
-        NesAddrMode::Imm, NesAddrMode::IndX,   NesAddrMode::Imm,  NesAddrMode::IndX,   NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero, NesAddrMode::Zero,
-        NesAddrMode::Imp, NesAddrMode::Imm,    NesAddrMode::Imp,  NesAddrMode::Imm,    NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,  NesAddrMode::Abs,
-        NesAddrMode::Rel, NesAddrMode::IndY,   NesAddrMode::None, NesAddrMode::IndYW,  NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,NesAddrMode::ZeroX,
-        NesAddrMode::Imp, NesAddrMode::AbsY,   NesAddrMode::Imp,  NesAddrMode::AbsYW,  NesAddrMode::AbsX, NesAddrMode::AbsX, NesAddrMode::AbsXW,NesAddrMode::AbsXW,
+        NesAddrMode::IMP, NesAddrMode::IND_X,   NesAddrMode::NONE, NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::ACC,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
+        NesAddrMode::OTHER,NesAddrMode::IND_X,  NesAddrMode::NONE, NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::ACC,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
+        NesAddrMode::IMP, NesAddrMode::IND_X,   NesAddrMode::NONE, NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::ACC,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
+        NesAddrMode::IMP, NesAddrMode::IND_X,   NesAddrMode::NONE, NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::ACC,  NesAddrMode::IMM,    NesAddrMode::IND,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
+        NesAddrMode::IMM, NesAddrMode::IND_X,   NesAddrMode::IMM,  NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::IMP,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_YW,  NesAddrMode::NONE, NesAddrMode::OTHER,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_Y,NesAddrMode::ZERO_Y,
+        NesAddrMode::IMP, NesAddrMode::ABS_YW,  NesAddrMode::IMP,  NesAddrMode::OTHER,  NesAddrMode::OTHER,NesAddrMode::ABS_XW,NesAddrMode::OTHER,NesAddrMode::OTHER,
+        NesAddrMode::IMM, NesAddrMode::IND_X,   NesAddrMode::IMM,  NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::IMP,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_Y,   NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_Y,NesAddrMode::ZERO_Y,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_Y,   NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_Y, NesAddrMode::ABS_Y,
+        NesAddrMode::IMM, NesAddrMode::IND_X,   NesAddrMode::IMM,  NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::IMP,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
+        NesAddrMode::IMM, NesAddrMode::IND_X,   NesAddrMode::IMM,  NesAddrMode::IND_X,   NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO, NesAddrMode::ZERO,
+        NesAddrMode::IMP, NesAddrMode::IMM,    NesAddrMode::IMP,  NesAddrMode::IMM,    NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,  NesAddrMode::ABS,
+        NesAddrMode::REL, NesAddrMode::IND_Y,   NesAddrMode::NONE, NesAddrMode::IND_YW,  NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,NesAddrMode::ZERO_X,
+        NesAddrMode::IMP, NesAddrMode::ABS_Y,   NesAddrMode::IMP,  NesAddrMode::ABS_YW,  NesAddrMode::ABS_X, NesAddrMode::ABS_X, NesAddrMode::ABS_XW,NesAddrMode::ABS_XW,
     };
 
     memcpy(op_table_, opTable, sizeof(opTable));
@@ -97,7 +97,7 @@ void NesCpu::reset(bool soft_reset) {
     abort_dmc_dma_ = false;
     cpu_write_ = false;
 
-    state_.pc = memory_manager_->read(ResetVector) | (memory_manager_->read(ResetVector + 1) << 8);
+    state_.pc = memory_manager_->read(RESET_VECTOR) | (memory_manager_->read(RESET_VECTOR + 1) << 8);
 
     state_.a = 0;
     state_.sp = 0xFD;
@@ -166,23 +166,23 @@ uint16_t NesCpu::read_word() {
 
 uint16_t NesCpu::fetch_operand() {
     switch (inst_addr_mode_) {
-        case NesAddrMode::Acc:
-        case NesAddrMode::Imp: dummy_read(); return 0;
-        case NesAddrMode::Imm:
-        case NesAddrMode::Rel: return get_immediate();
-        case NesAddrMode::Zero: return get_zero_addr();
-        case NesAddrMode::ZeroX: return get_zero_x_addr();
-        case NesAddrMode::ZeroY: return get_zero_y_addr();
-        case NesAddrMode::Ind: return get_ind_addr();
-        case NesAddrMode::IndX: return get_ind_x_addr();
-        case NesAddrMode::IndY: return get_ind_y_addr(false);
-        case NesAddrMode::IndYW: return get_ind_y_addr(true);
-        case NesAddrMode::Abs: return get_abs_addr();
-        case NesAddrMode::AbsX: return get_abs_x_addr(false);
-        case NesAddrMode::AbsXW: return get_abs_x_addr(true);
-        case NesAddrMode::AbsY: return get_abs_y_addr(false);
-        case NesAddrMode::AbsYW: return get_abs_y_addr(true);
-        case NesAddrMode::Other: return 0;
+        case NesAddrMode::ACC:
+        case NesAddrMode::IMP: dummy_read(); return 0;
+        case NesAddrMode::IMM:
+        case NesAddrMode::REL: return get_immediate();
+        case NesAddrMode::ZERO: return get_zero_addr();
+        case NesAddrMode::ZERO_X: return get_zero_x_addr();
+        case NesAddrMode::ZERO_Y: return get_zero_y_addr();
+        case NesAddrMode::IND: return get_ind_addr();
+        case NesAddrMode::IND_X: return get_ind_x_addr();
+        case NesAddrMode::IND_Y: return get_ind_y_addr(false);
+        case NesAddrMode::IND_YW: return get_ind_y_addr(true);
+        case NesAddrMode::ABS: return get_abs_addr();
+        case NesAddrMode::ABS_X: return get_abs_x_addr(false);
+        case NesAddrMode::ABS_XW: return get_abs_x_addr(true);
+        case NesAddrMode::ABS_Y: return get_abs_y_addr(false);
+        case NesAddrMode::ABS_YW: return get_abs_y_addr(true);
+        case NesAddrMode::OTHER: return 0;
         default: return 0;
     }
 }
@@ -242,7 +242,7 @@ uint16_t NesCpu::pop_word() {
 }
 
 uint8_t NesCpu::get_operand_value() {
-    if (inst_addr_mode_ >= NesAddrMode::Zero) {
+    if (inst_addr_mode_ >= NesAddrMode::ZERO) {
         return memory_read(operand_);
     } else {
         return (uint8_t)operand_;
@@ -269,11 +269,11 @@ void NesCpu::irq() {
         need_nmi_ = false;
         push(ps() | PSFlags::RESERVED);
         set_flags(PSFlags::INTERRUPT);
-        set_pc(memory_read_word(NMIVector));
+        set_pc(memory_read_word(NMI_VECTOR));
     } else {
         push(ps() | PSFlags::RESERVED);
         set_flags(PSFlags::INTERRUPT);
-        set_pc(memory_read_word(IRQVector));
+        set_pc(memory_read_word(IRQ_VECTOR));
     }
 }
 
@@ -553,11 +553,11 @@ void NesCpu::op_brk() {
         need_nmi_ = false;
         push(flags);
         set_flags(PSFlags::INTERRUPT);
-        set_pc(memory_read_word(NMIVector));
+        set_pc(memory_read_word(NMI_VECTOR));
     } else {
         push(flags);
         set_flags(PSFlags::INTERRUPT);
-        set_pc(memory_read_word(IRQVector));
+        set_pc(memory_read_word(IRQ_VECTOR));
     }
     prev_need_nmi_ = false;
 }

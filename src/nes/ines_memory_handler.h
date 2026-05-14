@@ -20,12 +20,12 @@ public:
 
     void add_handler(MemoryOperation operation, uint16_t start, uint16_t end = 0) {
         if (end == 0) end = start;
-        if (operation == MemoryOperation::Read || operation == MemoryOperation::Any) {
+        if (operation == MemoryOperation::READ || operation == MemoryOperation::ANY) {
             for (uint32_t i = start; i <= end; i++) {
                 ram_read_addresses_.push_back((uint16_t)i);
             }
         }
-        if (operation == MemoryOperation::Write || operation == MemoryOperation::Any) {
+        if (operation == MemoryOperation::WRITE || operation == MemoryOperation::ANY) {
             for (uint32_t i = start; i <= end; i++) {
                 ram_write_addresses_.push_back((uint16_t)i);
             }
@@ -65,7 +65,7 @@ public:
     void set_internal_ram(uint8_t* ram) { internal_ram_ = ram; }
     void get_memory_ranges(MemoryRanges& ranges) override {
         ranges.set_allow_override();
-        ranges.add_handler(MemoryOperation::Any, 0, 0x1FFF);
+        ranges.add_handler(MemoryOperation::ANY, 0, 0x1FFF);
     }
     uint8_t read_ram(uint16_t addr) override { return internal_ram_[addr & Mask]; }
     void write_ram(uint16_t addr, uint8_t value) override { internal_ram_[addr & Mask] = value; }

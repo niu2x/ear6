@@ -13,8 +13,8 @@ public:
         (void)console_;
     }
     void get_memory_ranges(MemoryRanges& ranges) override {
-        ranges.add_handler(MemoryOperation::Read, 0x4016, 0x4017);
-        ranges.add_handler(MemoryOperation::Write, 0x4016);
+        ranges.add_handler(MemoryOperation::READ, 0x4016, 0x4017);
+        ranges.add_handler(MemoryOperation::WRITE, 0x4016);
     }
     uint8_t read_ram(uint16_t addr) override;
     void write_ram(uint16_t addr, uint8_t value) override;

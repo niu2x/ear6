@@ -19,11 +19,11 @@ public:
     };
 
     NoiseChannel(NesConsole* console)
-        : envelope_(AudioChannel::Noise, console), timer_() {
+        : envelope_(AudioChannel::NOISE, console), timer_() {
         console_ = console;
     }
 
-    void set_mixer(NesSoundMixer* mixer) { timer_.set_mixer(AudioChannel::Noise, mixer); }
+    void set_mixer(NesSoundMixer* mixer) { timer_.set_mixer(AudioChannel::NOISE, mixer); }
     void set_apu(NesApu* apu) { envelope_.set_apu(apu); }
 
     void run(uint32_t target_cycle);
@@ -37,7 +37,7 @@ public:
     void reload_length_counter() { envelope_.length_counter.reload_counter(); }
     void end_frame() { timer_.end_frame(); }
     void set_enabled(bool enabled) { envelope_.length_counter.set_enabled(enabled); }
-    bool get_status() { return envelope_.length_counter.get_status(); }
+    bool is_active() { return envelope_.length_counter.is_active(); }
     uint8_t get_output() { return (uint8_t)timer_.get_last_output(); }
 
 private:

@@ -38,11 +38,11 @@ void NesSoundMixer::add_delta(AudioChannel channel, uint32_t time, int16_t delta
 }
 
 int16_t NesSoundMixer::get_output_volume() {
-    double square_output = (double)current_output_[(int)AudioChannel::Square1] +
-                           (double)current_output_[(int)AudioChannel::Square2];
+    double square_output = (double)current_output_[(int)AudioChannel::SQUARE1] +
+                           (double)current_output_[(int)AudioChannel::SQUARE2];
     double tnd_output = (double)current_output_[(int)AudioChannel::DMC] +
-                        2.7516713261 * (double)current_output_[(int)AudioChannel::Triangle] +
-                        1.8493587125 * (double)current_output_[(int)AudioChannel::Noise];
+                        2.7516713261 * (double)current_output_[(int)AudioChannel::TRIANGLE] +
+                        1.8493587125 * (double)current_output_[(int)AudioChannel::NOISE];
 
     double square_volume = (95.88 * 5000.0) / (8128.0 / std::max(square_output, 0.0001) + 100.0);
     double tnd_volume = (159.79 * 5000.0) / (22638.0 / std::max(tnd_output, 0.0001) + 100.0);

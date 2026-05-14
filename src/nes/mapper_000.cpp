@@ -19,11 +19,11 @@ void Mapper000::init(const RomInfo& info,
 
     if (prg_size_ >= 0x8000) {
         // 32KB PRG: page 0 at $8000, page 1 at $C000
-        set_cpu_memory_mapping(0x8000, 0xBFFF, 0, PrgMemoryType::PrgRom);
-        set_cpu_memory_mapping(0xC000, 0xFFFF, 1, PrgMemoryType::PrgRom);
+        set_cpu_memory_mapping(0x8000, 0xBFFF, 0, PrgMemoryType::PRG_ROM);
+        set_cpu_memory_mapping(0xC000, 0xFFFF, 1, PrgMemoryType::PRG_ROM);
     } else {
         // 16KB PRG: page 0 mirrored at $8000 and $C000
-        set_cpu_memory_mapping(0x8000, 0xFFFF, 0, PrgMemoryType::PrgRom);
+        set_cpu_memory_mapping(0x8000, 0xFFFF, 0, PrgMemoryType::PRG_ROM);
     }
 
     if (chr_is_ram_) {
@@ -32,10 +32,10 @@ void Mapper000::init(const RomInfo& info,
         uint8_t* source = chr_rom_.data();
         for (int i = 0; i < 8; i++) {
             chr_pages_[i] = source + i * 0x400;
-            chr_memory_access_[i] = ReadWrite;
-            chr_memory_type_[i] = ChrMemoryType::ChrRam;
+            chr_memory_access_[i] = READ_WRITE;
+            chr_memory_type_[i] = ChrMemoryType::CHR_RAM;
         }
-        set_ppu_memory_mapping(0x0000, 0x1FFF, source, 0, 0x2000, ReadWrite);
+        set_ppu_memory_mapping(0x0000, 0x1FFF, source, 0, 0x2000, READ_WRITE);
     } else {
         select_chr_page_8x(0, 0);
     }
@@ -49,15 +49,15 @@ void Mapper000::reset(bool soft_reset) {
 }
 
 void Mapper000::get_memory_ranges(MemoryRanges& ranges) {
-    ranges.add_handler(MemoryOperation::Read, 0x4020, 0xFFFF);
-    ranges.add_handler(MemoryOperation::Write, 0x4020, 0xFFFF);
+    ranges.add_handler(MemoryOperation::READ, 0x4020, 0xFFFF);
+    ranges.add_handler(MemoryOperation::WRITE, 0x4020, 0xFFFF);
     if (chr_is_ram_) {
         // No PRG RAM by default
     }
 }
 
 uint8_t Mapper000::read_ram(uint16_t addr) {
-    if (prg_memory_access_[addr >> 8] & Read) {
+    if (prg_memory_access_[addr >> 8] & READ) {
         return prg_pages_[addr >> 8][(uint8_t)addr];
     }
     return console_->get_memory_manager()->get_open_bus();

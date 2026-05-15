@@ -39,7 +39,7 @@ int NesConsole::load_rom(const void* data, int size) {
 
     int prg_size = info.prg_banks * 0x4000;
     int chr_size = info.chr_banks * 0x2000;
-    int header_size = (rom_data[6] & 0x04) ? 32 : 16;
+    int header_size = 16 + (info.has_trainer ? 512 : 0);
 
     std::vector<uint8_t> prg_rom(prg_size);
     std::vector<uint8_t> chr_rom(chr_size);

@@ -35,6 +35,31 @@ CAT_BOTH_CRASH = "BOTH_CRASH"
 CAT_MIXED_FAIL = "MIXED_FAIL"  # e.g. one timeout + one crash
 
 
+def parse_frames_arg(value):
+    """Parse comma-separated frame counts from CLI (e.g. "40,60,120")."""
+    frames = []
+    for part in value.split(","):
+        token = part.strip()
+        if not token:
+            continue
+        try:
+            frame = int(token)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(
+                f"invalid frame count '{token}'"
+            ) from exc
+        if frame <= 0:
+            raise argparse.ArgumentTypeError(
+                f"frame count must be positive: {frame}"
+            )
+        frames.append(frame)
+
+    if not frames:
+        raise argparse.ArgumentTypeError("frame list cannot be empty")
+
+    return frames
+
+
 def parse_ppm(path):
     """Parse P6 PPM, return (width, height, bytearray of RGB triples)."""
     with open(path, "rb") as f:
@@ -100,20 +125,37 @@ def main():
         description="Compare ear6-cli vs mesen2-cli screenshots"
     )
     parser.add_argument("roms", nargs="*", help="ROM files to test (default: all in assets)")
-    parser.add_argument("--frames", type=int, nargs="+", default=FRAMES,
-                        help=f"Frame counts to test (default: {' '.join(map(str, FRAMES))})")
+    parser.add_argument(
+        "--input",
+        help="Single .nes file or directory containing .nes files"
+    )
+    parser.add_argument(
+        "-f", "--frames",
+        type=parse_frames_arg,
+        action="append",
+        metavar="LIST",
+        help=(
+            "Frame counts to test, comma-separated. "
+            "Example: -f 40,60,120 or -f 40 -f 60,120 "
+            f"(default: {','.join(map(str, FRAMES))})"
+        )
+    )
     parser.add_argument("--ear6", default=EAR6_CLI, help="Path to ear6-cli")
     parser.add_argument("--mesen2", default=MESEN2_CLI, help="Path to mesen2-cli")
     parser.add_argument("--mesen2-lib", default=MESEN2_LIB_DIR,
                         help="Path to mesen2 lib directory (for DYLD_LIBRARY_PATH)")
     parser.add_argument("--roms-dir", default=ROMS_DIR, help="ROMs directory")
+
     args = parser.parse_args()
 
     ear6_cli = os.path.abspath(args.ear6)
     mesen2_cli = os.path.abspath(args.mesen2)
     mesen2_lib = os.path.abspath(args.mesen2_lib)
     roms_dir = os.path.abspath(args.roms_dir)
-    frames_list = args.frames
+    if args.frames:
+        frames_list = [frame for group in args.frames for frame in group]
+    else:
+        frames_list = FRAMES
 
     # Check CLI tools
     for name, path in [("ear6-cli", ear6_cli), ("mesen2-cli", mesen2_cli)]:
@@ -122,7 +164,23 @@ def main():
             sys.exit(1)
 
     # Collect ROMs
-    if args.roms:
+    if args.input:
+        input_path = os.path.abspath(args.input)
+        if os.path.isfile(input_path):
+            if not input_path.lower().endswith(".nes"):
+                print(f"ERROR: input file is not a .nes ROM: {input_path}", file=sys.stderr)
+                sys.exit(1)
+            rom_files = [input_path]
+        elif os.path.isdir(input_path):
+            rom_files = sorted(
+                os.path.join(input_path, f)
+                for f in os.listdir(input_path)
+                if f.lower().endswith(".nes")
+            )
+        else:
+            print(f"ERROR: input path not found: {input_path}", file=sys.stderr)
+            sys.exit(1)
+    elif args.roms:
         rom_files = [os.path.abspath(r) for r in args.roms]
     else:
         if not os.path.isdir(roms_dir):

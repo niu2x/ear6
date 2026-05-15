@@ -857,6 +857,103 @@ if ((value & 0x80) || current_cycle - last_write_cycle_ >= 2) {
    这种日志可以直观看到 Mesen2 `diff=1 < 2` 过滤了第二笔写入，
    而 ear6 `diff=1 >= 1` 让它通过了。不需要推测，数据说话。
 
+### 2026-05-15：PPU VBlank 触发位置 — exec() vs ProcessScanlineFirstCycle
+
+**Bug：部分 MMC1 游戏在 VBlank 期间产生多余的 PPU 寄存器写入，渲染异常。**
+如 Final Fantasy 2 (J)、Arabian Dream Sharezerd 等，ear6 输出与 mesen2 不同。
+
+**根因：VBlank 触发位置在 `exec()` 中而非 `process_scanline_first_cycle()`。**
+
+Mesen2 在 `ProcessScanlineFirstCycle` 中触发 VBlank：
+```cpp
+// Mesen2 在 scanline 从 240 切换到 241 时（cycle 340）触发
+void ProcessScanlineFirstCycle() {
+    _cycle = 0;
+    if(++_scanline == 241) {
+        BeginVblank();      // 设置 _statusFlags.VerticalBlank = true，触发 NMI
+    }
+}
+```
+
+ear6 原先在 `exec()` 中触发：
+```cpp
+// ear6 在 scanline 241 的 cycle 1 时才触发
+void exec() {
+    cycle_++;
+    if (cycle_ < 340) {
+        if (scanline_ < 240) { ... }
+        else if (cycle_ == 1 && scanline_ == nmi_scanline_) {
+            begin_vblank();   // 晚了一个 cycle
+        }
+    } else {
+        process_scanline_first_cycle();
+    }
+}
+```
+
+**为什么抄错？**
+
+Mesen2 的 `BeginVblank` 调用在 `ProcessScanlineFirstCycle` 里：
+```cpp
+void ProcessScanlineFirstCycle() {
+    _cycle = 0;
+    _scanline++;
+    if(_scanline > 260) { ... }
+    if(_scanline == 241) {
+        BeginVblank();        // ← 在这里
+    }
+}
+```
+
+ear6 的 `process_scanline_first_cycle` 里没有对应代码（只处理了 scanline < 240 和 scanline == 240 的情况），
+导致 VBlank 触发被错误地放到了 `exec()` 函数里，且偏移了 1 个 cycle。
+
+**后果：**
+
+VBlank 延迟 1 个 cycle 触发，导致游戏在 VBlank 期间写入 PPU 寄存器（`$2005`/`$2006`/`$2007`）
+时的 timing 偏移。在 CHR RAM 游戏中，这会导致：
+- 多余的 `$2005`/`$2006` 写入（scroll/address 设置偏移）
+- 多余的 `$2007` 写入（CHR RAM 数据偏移）
+- 最终画面渲染错误
+
+**修复：将 VBlank 触发从 `exec()` 移到 `process_scanline_first_cycle()`，完全对齐 Mesen2。**
+
+```cpp
+void NesPpu::process_scanline_first_cycle() {
+    ...
+    } else if (scanline_ == 241) {
+        if (!prevent_vbl_flag_) {
+            status_flags_.vertical_blank = true;
+            begin_vblank();
+        }
+        prevent_vbl_flag_ = false;
+    }
+}
+```
+
+移除了 `exec()` 中的冗余检查。修正后 4 个 MMC1 游戏输出与 mesen2 像素一致。
+
+**教训与知识记录：**
+
+1. **逐函数对照 Mesen2 的结构，不要漏掉任何一个 case 分支。**
+   ear6 的 `process_scanline_first_cycle` 只复制了 scanline < 240 和 scanline == 240 的分支，
+   完全漏掉了 scanline == 241 的分支。而 Mesen2 的 `ProcessScanlineFirstCycle` 显式处理了
+   `_scanline == 241` 的 VBlank 触发。
+
+2. **"看起来结构一样"不等于真的样。** ear6 的 `exec()` 和 mesen2 的 `Exec()` 表面结构相似
+  （都调用 process_scanline_impl/ProcessScanlineImpl 和
+   process_scanline_first_cycle/ProcessScanlineFirstCycle），
+   但 ear6 在 `exec()` 中偷偷塞了一个额外的 VBlank 检查。这个"多余"的代码就是 bug 来源。
+
+3. **PPU 时序相关的移植，应先确保关键事件（VBlank、NMI、$2002 状态）的触发时机对齐。**
+   对比双方应同时打日志比对 `$2002` 读取数量及 VBlank 触发的 scanline/cycle，而不是直接比像素。
+   像素不同再排查太慢，时序匹配了像素自然就对了。
+
+4. **调试方法：双方同时打印所有 PPU 寄存器写入日志。**
+   通过 `diff` 对比双方的 `[PPUW] a=$200X` 日志，可以精确定位多余的寄存器写入发生在哪个
+   scanline/cycle。这次就是通过 `diff` 发现 ear6 在 VBlank 区域多了 10 笔 `$2005`/`$2006` 写入
+   才追到根因。
+
 ### 2026-05-14：三次漏细节的教训
 
 **Bug：uint16_t 回绕死循环**。`add_register_range(0x8000, 0xFFFF, WRITE)` 用

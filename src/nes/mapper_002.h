@@ -2,6 +2,7 @@
 
 #include "base_mapper.h"
 #include <cstdint>
+#include <vector>
 
 namespace ear6::nes {
 
@@ -13,6 +14,9 @@ public:
     uint16_t get_prg_page_size() override { return 0x4000; }
     uint16_t get_chr_page_size() override { return 0x2000; }
     void write_register(uint16_t addr, uint8_t value) override;
+
+private:
+    std::vector<uint8_t> work_ram_;
 };
 
 } // namespace ear6::nes

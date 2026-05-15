@@ -16,6 +16,8 @@ void Mapper002::init(const RomInfo& info,
         chr_rom_size_ = 0x2000;
     }
 
+    set_mirroring_type(info.mirroring);
+
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 
     uint16_t last_bank = (prg_size_ / 0x4000) - 1;

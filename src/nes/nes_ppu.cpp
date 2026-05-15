@@ -139,6 +139,7 @@ void NesPpu::process_scanline_first_cycle() {
         if (scanline_ == -1) {
             status_flags_.sprite_overflow = false;
             status_flags_.sprite_zero_hit = false;
+            status_flags_.vertical_blank = false;
             allow_full_ppu_access_ = true;
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
             framebuffer_ = current_output_buffer_;

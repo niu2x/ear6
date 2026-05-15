@@ -11,6 +11,8 @@ void Mapper003::init(const RomInfo& info,
     prg_size_ = (uint32_t)prg_rom.size();
     chr_rom_size_ = (uint32_t)chr_rom.size();
 
+    set_mirroring_type(info.mirroring);
+
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 
     select_prg_page(0, 0);

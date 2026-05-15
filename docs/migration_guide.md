@@ -769,6 +769,94 @@ xxd /tmp/test.ppm | head -20
 
 ## 20. 迁移教训与反思
 
+### 2026-05-15：MMC1 写入时序守卫 — 批量模型 vs 交织模型的潜藏差异
+
+**Bug：部分 Mapper 001 游戏 CHR bank 配置错误，画面异常。**
+如 AD&D Hillsfar (J).nes，ear6 输出完全错误，mesen2 正确。
+
+**根因：MMC1 `WriteRegister` 的 dummy-write 过滤器不生效。**
+
+MMC1 通过 5 位串行协议配置寄存器：
+- CPU 的 RMW 指令（`INC`/`DEC`/`ASL`/`LSR`/`ROL`/`ROR`）在写回修改值之前
+  会先写回**原始值**（dummy write）。
+- 如果 dummy write 的 bit 7 被置位（原始值恰为 `0x80-0xFF`），
+  MMC1 会误触发 RESET，导致移位寄存器清空、模式寄存器回退。
+
+防止机制：**写入时序守卫**——连续两次写入若相隔太近，忽略第二次写入。
+
+**Mesen2（正确）：**
+```cpp
+// 用 master clock 计数，单位是 PPU dot ÷ 4（NTSC）
+uint64_t currentCycle = _console->GetMasterClock();
+if ((value & 0x80) || currentCycle - _lastWriteCycle >= 2) {
+    ProcessBitWrite(addr, value);
+}
+_lastWriteCycle = currentCycle;
+```
+RMW 的两笔写入相隔仅 **1 master clock tick**（`diff=1 < 2`），dummy write 后的真实写入被过滤。
+
+**ear6（错误）：**
+```cpp
+// 用 CPU cycle 计数
+uint64_t current_cycle = console_->get_cpu()->get_cycle_count();
+if ((value & 0x80) || current_cycle - last_write_cycle_ >= 1) {
+    process_bit_write(addr, value);
+}
+last_write_cycle_ = current_cycle;
+```
+RMW 的两笔写入相隔 **1 CPU cycle**（`diff=1 >= 1`），未被过滤。
+移位寄存器多接收了 1 bit，使后续全部 5 位串行协议偏移一位。
+控制寄存器的 `chr_mode` 被错误设置为 1（4KB 模式），而正确值应为 0（8KB 模式）。
+
+**为什么抄错？**
+
+两个问题叠加。
+
+**问题 1：数值本身不对。** Mesen2 的 guard 是 `>= 2`，ear6 直接写了 `>= 1`。
+即使计数器基准完全相同，这两个值也不相等。抄的时候没有逐字核对门槛值。
+
+**问题 2：即使数值对了，不同计数基准下效果也不同。**
+Mesen2 用 **master clock**（PPU dot ÷ 4，一个 CPU cycle ≈ 12 master clock ticks），
+ear6 用 **CPU cycle**（`state_.cycle_count`）。
+
+| 场景 | Mesen2 master clock diff | ear6 CPU cycle diff |
+|------|--------------------------|---------------------|
+| RMW dummy write → real write | 1（< 2 → 过滤） | 1（>= 1 → 不过滤） |
+| 两个独立 `STA` 指令 | 16+（>= 2 → 通过） | 4+（>= 1 → 通过） |
+
+`>= 1` 在 ear6 的 CPU cycle 尺度上等价于 `>= 12` master clock ticks，
+远超 Mesen2 `>= 2` 的容限，因此无法过滤 RMW 的紧挨着写入。
+
+**修复：数值改为 `2` + 在 CPU cycle 基准下用 `>= 2` 等价截断。**
+```cpp
+if ((value & 0x80) || current_cycle - last_write_cycle_ >= 2) {
+```
+在 ear6 的 CPU cycle 尺度下：
+- RMW 两笔写入 diff = 1 < 2 → **过滤**（匹配 Mesen2）
+- 两个独立指令 diff = 4+ >= 2 → **通过**（匹配 Mesen2）
+
+**教训与知识记录：**
+
+1. **先追数值，再追基准。** 第一步应该发现 `>= 2` 和 `>= 1` 不一样。
+   第二步再问计数器物理含义。两个问题会同时出现，不能只看一个。
+
+2. **RMW 指令的 dummy write 是所有映射器寄存器的共同陷阱。**
+   不光是 MMC1，任何需要在 `$8000-$FFFF` 范围内用写入序列编程的 mapper
+   （MMC3、VRC 系列、FME-7 等）都可能受此影响。实现写入时序守卫时，
+   必须确保 RMW 内部的两笔写入被过滤，同时保持独立指令间的正常写入。
+
+3. **逐字对照 Mesen2 的魔法数字，不要凭"差不多"的印象写。**
+   `>= 2` 就是 `>= 2`，不能写成 `>= 1`。先确保数值一致，
+   再考虑不同的计数器基准是否需要换算。
+
+4. **调试技巧：在双方代码同时打印时序守卫日志。**
+   ```
+   [MMC1W] addr=$FFD7 val=$FF cycle=14 last=0 diff=14 proc=1   // RESET
+   [MMC1W] addr=$FFD7 val=$00 cycle=15 last=14 diff=1 proc=0   // 被过滤！
+   ```
+   这种日志可以直观看到 Mesen2 `diff=1 < 2` 过滤了第二笔写入，
+   而 ear6 `diff=1 >= 1` 让它通过了。不需要推测，数据说话。
+
 ### 2026-05-14：三次漏细节的教训
 
 **Bug：uint16_t 回绕死循环**。`add_register_range(0x8000, 0xFFFF, WRITE)` 用

@@ -147,7 +147,7 @@ void Mapper001::update_state() {
 void Mapper001::write_register(uint16_t addr, uint8_t value) {
     uint64_t current_cycle = console_->get_cpu()->get_cycle_count();
 
-    if ((value & 0x80) || current_cycle - last_write_cycle_ >= 1) {
+    if ((value & 0x80) || current_cycle - last_write_cycle_ >= 2) {
         process_bit_write(addr, value);
     }
     last_write_cycle_ = current_cycle;

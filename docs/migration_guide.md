@@ -751,6 +751,41 @@ CPU 的每次 `memory_read`/`memory_write` 内部都需要调用 `console_->get_
 
 ## 13. 测试清单
 
+### 单 ROM 截图对比流程（ear6 vs mesen2）
+
+当你要验证某一个 NES ROM 的迁移结果时，**不要主观判断画面**，直接分别运行 ear6-cli 和 mesen2-cli 截图，再比较结果。
+
+1. 先编译两个 CLI（只允许这两种编译方法）：
+
+```bash
+make
+make cli -C ../mesen2/DesktopApp
+```
+
+2. 对同一个 ROM 在 60 帧和 120 帧分别截图：
+
+```bash
+./build/app/cli/ear6-cli screenshot <rom.nes> -f 60 -o /tmp/ear6_60.ppm
+./build/app/cli/ear6-cli screenshot <rom.nes> -f 120 -o /tmp/ear6_120.ppm
+
+../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot <rom.nes> -f 60 -o /tmp/mesen2_60.ppm
+../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot <rom.nes> -f 120 -o /tmp/mesen2_120.ppm
+```
+
+3. 分别比较 60 帧和 120 帧截图是否一致：
+
+```bash
+cmp /tmp/ear6_60.ppm /tmp/mesen2_60.ppm
+cmp /tmp/ear6_120.ppm /tmp/mesen2_120.ppm
+```
+
+`cmp` 无输出表示两个文件完全一致；有输出表示存在差异。
+
+4. 若对比不一致，进入细节调试：
+- 可以分别修改 ear6 和 mesen2 代码，在关键路径加日志（PPU 寄存器写入、scanline/cycle、mapper 写入等）。
+- 修改后重新编译：ear6 用 `make`，mesen2 用 `make cli -C ../mesen2/DesktopApp`。
+- 重新运行同一组截图与比较命令，持续对齐日志与像素结果，直到 60/120 帧都一致。
+
 每次修改后，用以下 ROM 测试：
 
 1. **nestest.nes** — CPU 指令集正确性

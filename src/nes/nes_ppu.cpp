@@ -113,12 +113,6 @@ void NesPpu::exec() {
 
         if (scanline_ < 240) {
             process_scanline_impl();
-        } else if (cycle_ == 1 && scanline_ == (int)nmi_scanline_) {
-            if (!prevent_vbl_flag_) {
-                status_flags_.vertical_blank = true;
-                begin_vblank();
-            }
-            prevent_vbl_flag_ = false;
         }
     } else {
         process_scanline_first_cycle();
@@ -157,6 +151,12 @@ void NesPpu::process_scanline_first_cycle() {
         set_bus_address(video_ram_addr_ & 0x3FFF);
         send_frame();
         frame_count_++;
+    } else if (scanline_ == 241) {
+        if (!prevent_vbl_flag_) {
+            status_flags_.vertical_blank = true;
+            begin_vblank();
+        }
+        prevent_vbl_flag_ = false;
     }
 }
 

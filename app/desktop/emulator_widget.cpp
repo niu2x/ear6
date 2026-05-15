@@ -3,7 +3,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 
-EmulatorWidget::EmulatorWidget(Ear6SystemType system, QWidget* parent)
+EmulatorWidget::EmulatorWidget(Ear6SystemType system, const QString& rom_path, QWidget* parent)
     : QWidget(parent) {
     setFocusPolicy(Qt::StrongFocus);
     setMinimumSize(256, 240);
@@ -13,7 +13,11 @@ EmulatorWidget::EmulatorWidget(Ear6SystemType system, QWidget* parent)
         return;
     }
 
-    ear6_load(ctx_, nullptr);
+    if (rom_path.isEmpty()) {
+        ear6_load(ctx_, nullptr);
+    } else if (ear6_load(ctx_, rom_path.toUtf8().constData()) != 0) {
+        emit load_failed(rom_path);
+    }
 
     timer_ = new QTimer(this);
     timer_->setInterval(TIMER_INTERVAL_MS);
@@ -42,14 +46,18 @@ void EmulatorWidget::stop() {
     timer_->stop();
 }
 
-void EmulatorWidget::reset(Ear6SystemType system) {
+void EmulatorWidget::reset(Ear6SystemType system, const QString& rom_path) {
     stop();
     if (ctx_) {
         ear6_destroy(ctx_);
     }
     ctx_ = ear6_create(system);
     if (ctx_) {
-        ear6_load(ctx_, nullptr);
+        if (rom_path.isEmpty()) {
+            ear6_load(ctx_, nullptr);
+        } else if (ear6_load(ctx_, rom_path.toUtf8().constData()) != 0) {
+            emit load_failed(rom_path);
+        }
     }
     frame_image_ = QImage();
     update();

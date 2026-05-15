@@ -10,12 +10,16 @@ class EmulatorWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit EmulatorWidget(Ear6SystemType system, QWidget* parent = nullptr);
+    explicit EmulatorWidget(Ear6SystemType system, const QString& rom_path = {}, QWidget* parent = nullptr);
     ~EmulatorWidget() override;
 
+signals:
+    void load_failed(const QString& path);
+
+public:
     void start();
     void stop();
-    void reset(Ear6SystemType system);
+    void reset(Ear6SystemType system, const QString& rom_path = {});
 
     bool is_running() const;
 

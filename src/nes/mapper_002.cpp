@@ -11,6 +11,11 @@ void Mapper002::init(const RomInfo& info,
     prg_size_ = (uint32_t)prg_rom.size();
     chr_rom_size_ = (uint32_t)chr_rom.size();
 
+    if (chr_rom_size_ == 0) {
+        chr_rom_.resize(0x2000, 0);
+        chr_rom_size_ = 0x2000;
+    }
+
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 
     uint16_t last_bank = (prg_size_ / 0x4000) - 1;

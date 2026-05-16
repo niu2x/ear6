@@ -37,16 +37,6 @@ uint8_t NesControlManager::read_ram(uint16_t addr) {
         controller_read_pos_[port]++;
     }
     result |= 0x40;
-
-    // VS UniSystem: merge DIP switch bits into controller reads
-    if (is_vs_system_) {
-        if (addr == 0x4016) {
-            result = (result & 0x65) | 0x00;  // DIP bits 0-1 → bit 3-4, default 0
-        } else if (addr == 0x4017) {
-            result = 0x00;  // DIP bits 2-7 → bit 2-7, default 0
-        }
-    }
-
     return result;
 }
 
@@ -73,6 +63,7 @@ void NesControlManager::process_writes() {
 
 void NesControlManager::update_control_devices() {}
 void NesControlManager::update_input_state() {}
+
 uint8_t NesControlManager::get_open_bus_mask(uint8_t port) {
     (void)port;
     return 0x1F;

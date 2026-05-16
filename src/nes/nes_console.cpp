@@ -5,6 +5,7 @@
 #include "nes_sound_mixer.h"
 #include "nes_memory_manager.h"
 #include "nes_control_manager.h"
+#include "vs_control_manager.h"
 #include "base_mapper.h"
 #include "ines_loader.h"
 #include "mapper_factory.h"
@@ -55,10 +56,11 @@ int NesConsole::load_rom(const void* data, int size) {
     cpu_.reset(new NesCpu(this));
     ppu_.reset(new NesPpu(this));
     apu_.reset(new NesApu(this, sound_mixer_.get()));
-    control_manager_.reset(new NesControlManager(this));
     if (rom_info_.is_vs_system) {
-        control_manager_->set_vs_mode(true, rom_info_);
+        control_manager_.reset(new VsControlManager(this, rom_info_));
         ppu_->set_no_odd_frame_skip();
+    } else {
+        control_manager_.reset(new NesControlManager(this));
     }
 
     // Register IO devices in order

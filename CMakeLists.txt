@@ -58,6 +58,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/apu_length_counter.cpp
     src/nes/apu_frame_counter.cpp
     src/nes/nes_control_manager.cpp
+    src/nes/vs_control_manager.cpp
     src/nes/nes_console.cpp
     src/nes/nes_system.cpp
 )

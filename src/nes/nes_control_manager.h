@@ -13,14 +13,11 @@ public:
         (void)console_;
     }
 
-    void set_vs_mode(bool vs, const nes::RomInfo& info) {
-        is_vs_system_ = vs;
-        (void)info;
-    }
     void get_memory_ranges(MemoryRanges& ranges) override {
         ranges.add_handler(MemoryOperation::READ, 0x4016, 0x4017);
         ranges.add_handler(MemoryOperation::WRITE, 0x4016);
     }
+
     uint8_t read_ram(uint16_t addr) override;
     void write_ram(uint16_t addr, uint8_t value) override;
 
@@ -29,15 +26,15 @@ public:
     void update_input_state();
     bool has_pending_writes() const { return write_pending_ > 0; }
     void process_writes();
-    uint8_t get_open_bus_mask(uint8_t port);
+
+    virtual uint8_t get_open_bus_mask(uint8_t port);
 
     void set_button_state(int port, int button, bool pressed);
     void clear_all();
 
-private:
+protected:
     NesConsole* console_ = nullptr;
     uint8_t write_pending_ = 0;
-    bool is_vs_system_ = false;
     uint16_t write_addr_ = 0;
     uint8_t write_value_ = 0;
     uint8_t controller_state_[2] = {};

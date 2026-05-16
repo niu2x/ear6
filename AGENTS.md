@@ -168,7 +168,11 @@ ROM: `vs dr mario.nes` (mapper 1, MMC1, iNES byte 7 bit 0 = VS flag set)
 
 11. ❌ **$2007 write masking**: Already implements the "write LSB during rendering" behavior from mesen2. Not the issue.
 
-**Confirmed root cause**: PPU batch model (ears's current) vs cycle-interleaved model (mesen2). The batch model runs PPU in chunks of 3 cycles per CPU instruction, while cycle-interleaved runs PPU dot-by-dot interleaved with each CPU memory access. This causes subtle scanline/cycle timing differences that compound over frames, shifting the game's scroll position by ~1 scanline per 12 frames. By frame 60, the accumulated offset is measurable.
+12. ❌ **Open bus on $2000 writes**: ear6 did not update PPU open bus on $2000 writes (only $2001-$2007). mesen2 updates on ALL PPU writes except $4014. Fixed but did not affect this ROM's output.
+
+13. ❌ **REG trace at index 8181**: After 8180 identical PPU register events, NMI handler writes `$2004` (OAMDATA) in ear6 vs `$4014` (OAMDMA) in mesen2. This means the CPU executed different instructions — a branch was taken differently. Since the first 8180 events are identical across both emulators, the branch difference must come from PPU internal rendering pipeline state (tile shifters, attribute latches) that does not manifest as register accesses.
+
+**Confirmed root cause**: PPU batch model (ear6's current) vs cycle-interleaved model (mesen2). The batch model runs PPU in chunks of 3 cycles per CPU instruction, while cycle-interleaved runs PPU dot-by-dot interleaved with each CPU memory access. This causes subtle scanline/cycle timing differences that compound over frames, shifting the game's scroll position by ~1 scanline per 12 frames. By frame 60, the accumulated offset is measurable.
 
 **Key evidence from cycle-level tracing**:
 - All MMC1 register values identical (chr_reg0=2, chr_reg1=3→4, prg_reg=0)

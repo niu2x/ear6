@@ -17,6 +17,8 @@ namespace ear6::nes {
 //#define ENABLE_CPU8448_TRACE
 #define CPU8448_PC_MIN 0xB840
 #define CPU8448_PC_MAX 0xB86C
+#define ENABLE_MINIMAL_BAD_WINDOW_TRACE
+#define ENABLE_CYCLE_ALIGN_TRACE
 #ifdef ENABLE_CPU_TRACE
 void NesCpu::trace_cpu(const char* fmt, ...) {
     fprintf(stderr, "[CPU] %12lu ", state_.cycle_count);
@@ -311,6 +313,7 @@ void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
     uint8_t x_before = state_.x;
     uint8_t opcode = get_op_code();
+    #ifdef ENABLE_MINIMAL_BAD_WINDOW_TRACE
     if (pc_before == 0xBADD) {
         NesPpu* p = console_->get_ppu();
         if (p) {
@@ -368,6 +371,7 @@ void NesCpu::exec() {
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
     }
+    #endif
     g_exec_pc = pc_before;
     g_exec_op = opcode;
     {
@@ -386,6 +390,7 @@ void NesCpu::exec() {
         g_probe_addr = operand_;
     }
     (this->*op_table_[opcode])();
+    #ifdef ENABLE_MINIMAL_BAD_WINDOW_TRACE
     if ((pc_before == 0xBAD2 || pc_before == 0xBAD5 || pc_before == 0xBAD7 || pc_before == 0xBAD9 || pc_before == 0xBADB) &&
         console_->get_ppu()->get_frame_count() == 29) {
         uint8_t* iram = memory_manager_->get_internal_ram();
@@ -395,6 +400,7 @@ void NesCpu::exec() {
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
     }
+    #endif
     if (g_probe_cpu == this) {
         g_probe_cpu = nullptr;
     }
@@ -404,6 +410,14 @@ void NesCpu::exec() {
     TRACE_BADSTEP("AFTER", pc_before, opcode);
 
     if (prev_run_irq_ || prev_need_nmi_) {
+        #ifdef ENABLE_CYCLE_ALIGN_TRACE
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[EAR6_EVT] IRQ_ENTRY cpu=%lu pc=%04X nmi=%d need_nmi=%d run_irq=%d prev_run=%d f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.pc, (int)state_.nmi_flag, (int)need_nmi_, (int)run_irq_, (int)prev_run_irq_,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+        #endif
         TRACE_CPU8448("IRQ_ENTRY", state_.pc, opcode);
         irq();
     }

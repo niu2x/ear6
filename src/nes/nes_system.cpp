@@ -1,6 +1,8 @@
 #include "nes_system.h"
 #include "nes_ppu.h"
 
+//#define ENABLE_EARLY_FRAME_SUMMARY_TRACE
+
 namespace ear6 {
 
 static const uint32_t DEFAULT_NES_PALETTE[64] = {
@@ -67,6 +69,7 @@ void NesSystem::convert_frame() {
 
 int NesSystem::step() {
     console_->run_frame();
+    #ifdef ENABLE_EARLY_FRAME_SUMMARY_TRACE
     {
         auto* ppu = console_->get_ppu();
         if (ppu && ppu->get_frame_count() <= 8) {
@@ -74,6 +77,26 @@ int NesSystem::step() {
             uint16_t fb0 = fb ? fb[0] : 0;
             fprintf(stderr, "[EAR6_STEP] f=%u pal0=%02X fb0=%02X\n",
                 ppu->get_frame_count(), ppu->get_palette_ram0(), fb0 & 0x3F);
+        }
+    }
+    #endif
+    {
+        auto* ppu = console_->get_ppu();
+        if (ppu && ppu->get_frame_count() <= 8) {
+            const uint16_t* fb = console_->get_framebuffer();
+            uint16_t p0 = fb ? fb[0] : 0;
+            uint16_t p1 = fb ? fb[1] : 0;
+            uint16_t p2 = fb ? fb[2] : 0;
+            fprintf(stderr, "[EAR6_PREWRITE_PIX] f=%u p0=%02X p1=%02X p2=%02X\n",
+                ppu->get_frame_count(), p0 & 0x3F, p1 & 0x3F, p2 & 0x3F);
+            if (fb && ppu->get_frame_count() == 2) {
+                fprintf(stderr,
+                    "[EAR6_PREWRITE_PIX16] %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                    fb[0] & 0x3F, fb[1] & 0x3F, fb[2] & 0x3F, fb[3] & 0x3F,
+                    fb[4] & 0x3F, fb[5] & 0x3F, fb[6] & 0x3F, fb[7] & 0x3F,
+                    fb[8] & 0x3F, fb[9] & 0x3F, fb[10] & 0x3F, fb[11] & 0x3F,
+                    fb[12] & 0x3F, fb[13] & 0x3F, fb[14] & 0x3F, fb[15] & 0x3F);
+            }
         }
     }
     convert_frame();

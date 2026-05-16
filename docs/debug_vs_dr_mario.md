@@ -382,6 +382,59 @@ Required work:
 3. Re-run first-mismatch frame scan (1..60) in stable mode.
 4. Only after stability is proven, reintroduce tiny probes (`BADD`/`B84A`/frame summary) and continue bisection.
 
+---
+
+## 2026-05-16 Addendum B: Mesen2 Output Path Root Cause + Current Baseline
+
+### 1) Why mesen2 also became "wrong" during debugging
+
+This was caused by **debug-side logic drift**, not only by logging overhead:
+
+- Heavy probes were added in `Core/NES/NesCpu.cpp` and `Core/NES/NesPpu.cpp` hot paths (IRQ/NMI/VBL edge windows).
+- A non-trace semantic write was introduced in one debug variant (VBlank flag path touched during pre-render clear window).
+- CLI output path was changed multiple times (software-renderer callback vs PPU-index export + external palette mapping), which changed screenshot semantics.
+
+Result: stashing debug changes restored expected mesen2 rendering.
+
+### 2) Verified clean reference point
+
+- Known-good mesen2 commit for screenshot behavior: `adc959cfd121f17d25e81de3e3179a2b9b550fae`.
+- `master` diverged by adding CPU/PPU debug instrumentation + altered CLI export logic.
+- A debug snapshot was preserved for traceability: `a28ad818`.
+- Then cleanup commit kept only intended direction: deterministic CLI path cleanup + export focus.
+
+### 3) PPU-index export lesson
+
+When CLI converted PPU index (`uint16_t`) to RGB using hardcoded `DEFAULT_NES_PALETTE`, screenshots could be globally wrong for VS palette cases.
+
+Key insight: if exporting from PPU index, RGB mapping must follow mesen2 internal runtime palette/model path, otherwise screenshot comparison is invalid.
+
+### 4) Current direction for mesen2 CLI
+
+Use mesen2-internal final RGBA frame for screenshot output (no external palette mapping in CLI):
+
+- Add API to expose internal RGBA frame buffer from mesen2 renderer/video pipeline.
+- CLI writes that RGBA buffer directly to PPM.
+
+This keeps palette/model/filter responsibility inside mesen2 core path.
+
+### 5) Ear6 vs mesen2 baseline (latest run)
+
+Using current local trees during this session, frame scan `1..60` for `vs dr mario.nes` showed:
+
+- first mismatch frame: `1`
+- frame `1..60`: `61440/61440` mismatched pixels each frame (`100%`)
+
+This baseline was captured **before** final cleanup/alignment of all debug branches; rerun baseline after locking both repos to agreed clean states.
+
+### 6) Next-session checklist
+
+1. Freeze mesen2 to known clean branch state for comparison (no hot-path probes in CPU/PPU core).
+2. Keep only stable screenshot path (internal RGBA export) in mesen2 CLI.
+3. Re-run frame scan `1..60` and record per-frame mismatch ratio.
+4. If mismatch pattern suggests color-only divergence, dump first N palette indices + resolved RGB on both sides.
+5. Continue first-real-divergence bisection only after baseline is repeatable.
+
 ### Temporary trace knobs currently in tree
 
 - ear6:

@@ -9,12 +9,14 @@
 
 namespace ear6::nes {
 
-#define ENABLE_PPU_TRACE
+//#define ENABLE_PPU_TRACE
 #define VS8448_TRACE_MIN_FRAME 3
 #define VS8448_TRACE_MAX_FRAME 6
 #define VS8448_TRACE_MIN_SCANLINE 248
 #define VS8448_TRACE_MAX_SCANLINE 260
-#define ENABLE_VS8448_TRACE
+//#define ENABLE_VS8448_TRACE
+#define ENABLE_EARLY_FRAME_SUMMARY_TRACE
+#define ENABLE_CYCLE_ALIGN_TRACE
 #ifdef ENABLE_PPU_TRACE
 void NesPpu::trace_ppu(const char* fmt, ...) {
     (void)fmt;
@@ -154,6 +156,10 @@ void NesPpu::exec() {
             if (!prevent_vbl_flag_) {
                 trace_ppu("VBL_SET\n");
                 status_flags_.vertical_blank = true;
+                #ifdef ENABLE_CYCLE_ALIGN_TRACE
+                uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
+                fprintf(stderr, "[EAR6_EVT] VBL_SET f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+                #endif
                 begin_vblank();
             }
             prevent_vbl_flag_ = false;
@@ -189,14 +195,20 @@ void NesPpu::process_scanline_first_cycle() {
             status_flags_.sprite_zero_hit = false;
             trace_ppu("VBL_CLR\n");
             status_flags_.vertical_blank = false;
+            #ifdef ENABLE_CYCLE_ALIGN_TRACE
+            uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
+            fprintf(stderr, "[EAR6_EVT] VBL_CLR f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+            #endif
             allow_full_ppu_access_ = true;
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
             framebuffer_ = current_output_buffer_;
+            #ifdef ENABLE_EARLY_FRAME_SUMMARY_TRACE
             if (frame_count_ <= 8) {
                 fprintf(stderr, "[EAR6_SWAP] f=%u to=%d fb0=%02X\n", frame_count_,
                     current_output_buffer_ == output_buffers_[0] ? 0 : 1,
                     current_output_buffer_[0] & 0x3F);
             }
+            #endif
         } else if (prev_rendering_enabled_) {
             if (scanline_ > 0 || (!(frame_count_ & 0x01) || no_odd_frame_skip_)) {
                 set_bus_address((tile_.tile_addr << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr);
@@ -460,6 +472,7 @@ uint8_t NesPpu::read_ram(uint16_t addr) {
         case 0x02: { // Status
             trace_ppu("R$2002\n");
             bool wt_before = write_toggle_;
+            (void)wt_before;
             write_toggle_ = false;
             TRACE_WTGL("R2002", 0x00, wt_before, write_toggle_);
             return_value = (
@@ -581,6 +594,7 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             trace_ppu("W$2005=%02X\n", value);
             {
                 bool wt_before = write_toggle_;
+                (void)wt_before;
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x73E0) | ((value & 0xF8) << 2) | ((value & 0x07) << 12);
             } else {
@@ -596,6 +610,7 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             trace_ppu("W$2006=%02X\n", value);
             {
                 bool wt_before = write_toggle_;
+                (void)wt_before;
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x00FF) | value;
                 need_state_update_ = true;
@@ -689,20 +704,32 @@ void NesPpu::begin_vblank() {
 void NesPpu::trigger_nmi() {
     if (control_.nmi_on_vertical_blank) {
         trace_ppu("NMI\n");
+        #ifdef ENABLE_CYCLE_ALIGN_TRACE
+        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
+        fprintf(stderr, "[EAR6_EVT] NMI_TRIG f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+        #endif
         console_->get_cpu()->set_nmi_flag();
     }
 }
 
 void NesPpu::send_frame() {
     update_grayscale_and_intensify_bits();
+    #ifdef ENABLE_EARLY_FRAME_SUMMARY_TRACE
     if (frame_count_ <= 8) {
+        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
         fprintf(stderr, "[EAR6_SEND] f=%u from=%d fb0=%02X re=%d pre=%d bg=%d sp=%d pal0=%02X\n",
             frame_count_, current_output_buffer_ == output_buffers_[0] ? 0 : 1,
             current_output_buffer_[0] & 0x3F,
             (int)rendering_enabled_, (int)prev_rendering_enabled_,
             (int)mask_.background_enabled, (int)mask_.sprites_enabled,
             palette_ram_[0]);
+        fprintf(stderr, "[EAR6_SEND_PIX] f=%u p0=%02X p1=%02X p2=%02X\n", frame_count_,
+            current_output_buffer_[0] & 0x3F,
+            current_output_buffer_[1] & 0x3F,
+            current_output_buffer_[2] & 0x3F);
+        fprintf(stderr, "[EAR6_CYCLE] f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
     }
+    #endif
     // Frame is ready in current_output_buffer_
 }
 

@@ -224,16 +224,17 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
     }
 
     for (int i = 0; i < frames; ++i) {
-        // Press Start at frame 30, release at frame 35
-        if (i == 30) {
+        ear6_step(ctx);
+
+        // Press Start after frame 30 completes, release after frame 35 completes
+        // (matches mesen2-cli timing: notification callback fires after each frame)
+        if (i == 28) {
             ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
             if (verbose) printf("[%d/%d] press Start\n", i, frames);
-        } else if (i == 35) {
+        } else if (i == 33) {
             ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
             if (verbose) printf("[%d/%d] release Start\n", i, frames);
         }
-
-        ear6_step(ctx);
         if (verbose && (i % 60 == 0 || i == frames - 1)) {
             printf("[%d/%d] frame %d\n", i, frames, i);
         }

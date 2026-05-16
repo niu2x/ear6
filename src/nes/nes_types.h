@@ -155,6 +155,7 @@ struct RomInfo {
     MirroringType mirroring = MirroringType::HORIZONTAL;
     bool has_trainer = false;
     bool is_vs_system = false;
+    bool use_vs_palette = false;
 };
 
 } // namespace ear6::nes

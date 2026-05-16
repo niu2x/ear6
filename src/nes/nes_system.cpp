@@ -33,7 +33,7 @@ NesSystem::NesSystem()
 
 int NesSystem::load(const void* data, int size) {
     int ret = console_->load_rom(data, size);
-    if (ret == 0 && console_->get_rom_info().is_vs_system) {
+    if (ret == 0 && console_->get_rom_info().use_vs_palette) {
         set_palette(VS_PALETTE_2C03);
     }
     return ret;

@@ -62,6 +62,9 @@ int NesConsole::load_rom(const void* data, int size) {
     } else {
         control_manager_.reset(new NesControlManager(this));
     }
+    if (rom_info_.use_vs_palette) {
+        ppu_->set_no_odd_frame_skip();
+    }
 
     // Register IO devices in order
     memory_manager_->register_io_device(ppu_.get());
@@ -74,10 +77,12 @@ int NesConsole::load_rom(const void* data, int size) {
 }
 
 void NesConsole::reset(bool soft_reset) {
-    if (cpu_) cpu_->reset(soft_reset);
+    // Reset order must match mesen2: PPU before CPU, so CPU's dummy cycles
+    // advance the freshly-reset PPU rather than being thrown away by PPU reset.
+    if (memory_manager_) memory_manager_->reset(soft_reset);
     if (ppu_) ppu_->reset(soft_reset);
     if (apu_) apu_->reset(soft_reset);
-    if (memory_manager_) memory_manager_->reset(soft_reset);
+    if (cpu_) cpu_->reset(soft_reset);
     if (control_manager_) control_manager_->reset(soft_reset);
 }
 

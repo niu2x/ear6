@@ -27,17 +27,16 @@ void Mapper001::init(const RomInfo& info,
     // Register $8000-$FFFF for MMC1 register writes
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
 
-    // MMC1 power-on defaults: prg_mode=1, slot_select=1 so the last bank
-    // is at $C000 (reset vector must be accessible). CHR regs = 0 with
-    // chr_mode=0 (8KB CHR mode, both pattern tables in one continuous bank).
-    // Mirroring defaults to SCREEN_A_ONLY (the game will reconfigure it).
-    chr_mode_ = false;
-    prg_mode_ = true;
-    slot_select_ = true;
-    chr_reg0_ = 0;
-    chr_reg1_ = 0;
-    prg_reg_ = 0;
-    wram_disable_ = false;
+    // MMC1 power-on sequence matching mesen2's InitMapper:
+    // ProcessRegisterWrite(0x8000, GetPowerOnByte() | 0x0C) → chr_mode=0, prg_mode=1, slot_select=1
+    process_register_write(0x8000, 0x0C);
+    // ProcessRegisterWrite(0xA000, GetPowerOnByte()) → chr_reg0 = 0
+    process_register_write(0xA000, 0x00);
+    // ProcessRegisterWrite(0xC000, GetPowerOnByte()) → chr_reg1 = 0
+    process_register_write(0xC000, 0x00);
+    // ProcessRegisterWrite(0xE000, ...) → prg_reg = 0, wram_disable = 0
+    process_register_write(0xE000, 0x00);
+    last_chr_reg_ = 0xA000;
 
     update_state();
 }

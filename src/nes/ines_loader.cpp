@@ -19,7 +19,9 @@ RomInfo INesLoader::parse_header(const uint8_t* data) {
     if (data[6] & 0x08) {
         info.mirroring = MirroringType::FOUR_SCREENS;
     }
-    info.is_vs_system = (data[7] & 0x01) != 0;
+    // byte 7 bit 0 = VS flag → mesen2 uses 2C03 RGB palette even when system is not VsSystem
+    info.is_vs_system = false;  // mesen2 detects VS from filename, not from header
+    info.use_vs_palette = (data[7] & 0x01) != 0;
     return info;
 }
 

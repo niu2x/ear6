@@ -138,6 +138,48 @@ ROM: `Duck Hunt (JUE).nes` (mapper 0, NROM)
 
 **Fix when adding Zapper support**: Implement Zapper emulation on controller port 2, or provide a CLI option to set port 2 device type.
 
+### vs dr mario shows 0.00% match (PPU batch model vs cycle-interleaved)
+
+ROM: `vs dr mario.nes` (mapper 1, MMC1, iNES byte 7 bit 0 = VS flag set)
+
+**Symptom**: 0.00% pixel match at all frame counts (60, 120, 256). ear6 shows a repeating checkerboard pattern (Dr Mario pill tile from CHR bank 2) while mesen2 shows proper game content.
+
+**Investigation history (2026-05-16):**
+
+1. ❌ **VS System detection**: Initially blamed byte 7 bit 0 → created VsControlManager, 2C03 palette, odd-frame skip disable. Partially correct (mesen2 DOES use 2C03 palette for this ROM) but controller manager was wrong — mesen2 detects VS from filename `(vs)` not from header bit, so it uses standard NesControlManager.
+
+2. ✅ **Resolved**: Split `is_vs_system` (controls VsControlManager creation) from `use_vs_palette` (controls 2C03 palette). Only the latter is set from header byte 7 bit 0.
+
+3. ❌ **DIP switch / $4017 reads**: ear6 used VsControlManager which returns `0x00` for `$4017`; mesen2 uses standard NesControlManager returning `0x40`. The difference caused game code to branch differently.
+
+4. ✅ **Resolved**: `is_vs_system` is never set from header (only from CLI `--system vs`), so standard NesControlManager is always used.
+
+5. ❌ **MMC1 init differences**: ear6 set member variables directly; mesen2 used `ProcessRegisterWrite(0x8000, GetPowerOnByte() | 0x0C)` setting ScreenAOnly mirroring instead of header-specified Horizontal.
+
+6. ✅ **Resolved**: MMC1 init rewritten to match mesen2's InitMapper.
+
+7. ❌ **Reset order**: ear6 called CPU reset (8 dummy cycles advancing PPU) then PPU reset (wasting 24 PPU cycles). mesen2 calls PPU reset first, then CPU reset.
+
+8. ✅ **Resolved**: Reset order changed to PPU→CPU matching mesen2.
+
+9. ❌ **VRAM/palette data**: First 5468 PPU trace events are identical. Divergence at trace index 5505 — `$2006` second byte writes `$AA` vs `$CB` (33 bytes = 1 scanline + 1 pixel scroll offset) during nametable address setup after palette update.
+
+10. ❌ **NMI timing**: Both emulators fire NMI at frames 4, 6, 8, 10, 12, 14 (every other frame). Not a NMI issue.
+
+11. ❌ **$2007 write masking**: Already implements the "write LSB during rendering" behavior from mesen2. Not the issue.
+
+**Confirmed root cause**: PPU batch model (ears's current) vs cycle-interleaved model (mesen2). The batch model runs PPU in chunks of 3 cycles per CPU instruction, while cycle-interleaved runs PPU dot-by-dot interleaved with each CPU memory access. This causes subtle scanline/cycle timing differences that compound over frames, shifting the game's scroll position by ~1 scanline per 12 frames. By frame 60, the accumulated offset is measurable.
+
+**Key evidence from cycle-level tracing**:
+- All MMC1 register values identical (chr_reg0=2, chr_reg1=3→4, prg_reg=0)
+- All palette RAM writes identical (same values, same addresses)
+- VRAM nametable data content identical
+- NMI firing pattern identical
+- Only difference: `$2006` address setup after palette write differs by $21 (33 bytes = coarse X+1, coarse Y+4)
+- This is consistent with the game's scroll counter being 1 frame ahead in ear6
+
+**Fix**: Requires PPU architecture migration from batch model to cycle-interleaved model (docs/migration_guide.md Phase 3). The batch model cannot match mesen2's PPU cycle accuracy.
+
 ### RomInfo lacks SubMapperID field
 
 `src/nes/nes_types.h:RomInfo` has no `SubMapperID` field. This means:

@@ -111,6 +111,33 @@ All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their 
 
 ## Known Limitations
 
+### FDS BIOS ROM renders wrong colors (missing FDS hardware)
+
+ROM: `Famicom Disk System BIOS ROM (J).nes` (mapper 0, NROM)
+
+**Symptom**: Screenshot comparison at frame 60 shows ~58% pixel match with Mesen2. The stripe pattern positions match exactly, but colors use wrong palette indices (offset of +9: ear6 uses palette indices 0x01/0x21 vs Mesen2's 0x0A/0x2A).
+
+**Root cause**: The ROM is an NROM cartridge containing the FDS BIOS. It reads FDS I/O registers at `$4024-$403F` to detect disk hardware. ear6 has no FDS implementation, so reads return open bus (0x00). The BIOS takes a different code path and writes different values to PPU palette RAM (`$3F00-$3F1F`). The NES palette lookup table itself is identical between ear6 and Mesen2.
+
+**Fix when adding FDS support**: Implement minimal FDS stub for this ROM:
+1. `$4024-$403F` I/O registers returning sane stub values
+2. `$6000-$7FFF` 8KB WRAM mapping (FDS RAM Adapter)
+3. Detect this ROM either by iNES 2.0 submapper or by hash
+
+The lower ~90% of the frame is all-black in both emulators (false match in comparison). See `docs/TODO.md` for FDS implementation status.
+
+### Duck Hunt shows "Connect Zapper" screen (missing Zapper/light gun emulation)
+
+ROM: `Duck Hunt (JUE).nes` (mapper 0, NROM)
+
+**Symptom**: Screenshot comparison shows ~71.77% pixel match with Mesen2 at frames 20-60. Top 128 rows (sky/grass background) match perfectly, but rows 128+ differ completely — ear6 shows a white-background "Connect Zapper" screen while mesen2 shows black/dark content.
+
+**Root cause**: Duck Hunt reads controller port 2 (`$4017`) at startup to detect the NES Zapper (light gun). ear6 has no Zapper emulation, so `$4017` reads return `0x40` (standard controller, no buttons pressed), causing the game to display the "Connect Zapper" instruction screen. Mesen2's internal default for port 2 apparently returns different data, making the game detect a Zapper and proceed to the game/title screen.
+
+**Impact**: Only affects games that read port 2 for Zapper detection. PPU and standard controller rendering are correct (confirmed by 128 perfect rows).
+
+**Fix when adding Zapper support**: Implement Zapper emulation on controller port 2, or provide a CLI option to set port 2 device type.
+
 ### RomInfo lacks SubMapperID field
 
 `src/nes/nes_types.h:RomInfo` has no `SubMapperID` field. This means:

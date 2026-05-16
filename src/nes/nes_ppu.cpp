@@ -19,8 +19,10 @@ NesPpu::NesPpu(NesConsole* console) {
     output_buffers_[0] = new uint16_t[256 * 240];
     output_buffers_[1] = new uint16_t[256 * 240];
     current_output_buffer_ = output_buffers_[0];
-    memset(output_buffers_[0], 0, 256 * 240 * sizeof(uint16_t));
-    memset(output_buffers_[1], 0, 256 * 240 * sizeof(uint16_t));
+    // Initialize to palette index 0x0F (black in standard NES palette).
+    // memset pattern 0x0F per byte → each uint16_t = 0x0F0F → lower 6 bits = 0x0F = black.
+    memset(output_buffers_[0], 0x0F, 256 * 240 * sizeof(uint16_t));
+    memset(output_buffers_[1], 0x0F, 256 * 240 * sizeof(uint16_t));
     framebuffer_ = output_buffers_[0];
 
     const uint8_t palette_boot[0x20] = {
@@ -113,6 +115,12 @@ void NesPpu::exec() {
 
         if (scanline_ < 240) {
             process_scanline_impl();
+        } else if (cycle_ == 1 && scanline_ == (int)nmi_scanline_) {
+            if (!prevent_vbl_flag_) {
+                status_flags_.vertical_blank = true;
+                begin_vblank();
+            }
+            prevent_vbl_flag_ = false;
         }
     } else {
         process_scanline_first_cycle();
@@ -153,11 +161,7 @@ void NesPpu::process_scanline_first_cycle() {
         send_frame();
         frame_count_++;
     } else if (scanline_ == 241) {
-        if (!prevent_vbl_flag_) {
-            status_flags_.vertical_blank = true;
-            begin_vblank();
-        }
-        prevent_vbl_flag_ = false;
+        // NMI is now triggered in exec() at cycle 1 to match Mesen2 timing
     }
 }
 
@@ -173,12 +177,10 @@ void NesPpu::process_scanline_impl() {
         }
 
         if (scanline_ >= 0) {
-            // DrawPixel
-            if (rendering_enabled_ || ((video_ram_addr_ & 0x3F00) != 0x3F00)) {
+            // DrawPixel — only write to framebuffer when rendering is enabled (matches Mesen2)
+            if (rendering_enabled_) {
                 uint32_t color = get_pixel_color();
                 current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[color & 0x03 ? color : 0];
-            } else {
-                current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[video_ram_addr_ & 0x1F];
             }
 
             shift_tile_registers();

@@ -6,7 +6,11 @@
 
 **Root cause**: Accumulated PPU cycle-level timing differences between ear6's `process_scanline_impl()` and Mesen2's `ProcessScanlineImpl()`. These are NOT register-level bugs — events 0-8447 are identical. The first divergence is an 18-PPU-cycle (6-CPU-cycle) offset that appears between two PPU register writes ~10 scanlines apart, during which there are no PPU register accesses at all. The offset then propagates and causes NMI pattern divergence at frame 9.
 
-**Status**: Root cause identified at macro level (PPU rendering pipeline micro-timing). Exact cycle within the pipeline NOT yet identified.
+**Status (updated 2026-05-16, handoff-ready)**:
+- Confirmed and fixed one real divergence source: `$4016` controller read behavior in ear6 was incorrect vs Mesen2.
+- This fix removes the previously confirmed `+18 PPU cycles` drift around frame 4 / scanline 259 (`R$2002`, `W$2006` sequence now aligns).
+- Frame-level pixel match for `vs dr mario` at frame 60/120 is still `0.00%`; remaining divergence now starts earlier (around frame 2 VBlank / `$2002` timing window).
+- Next session should continue from the new earliest divergence point, not from `$4016`/`$01DB`.
 
 ---
 
@@ -231,6 +235,23 @@ Events 0-8447 have the SAME scanline/cycle values in both emulators. This means:
 - Between 8447 and 8448 there are ZERO PPU register events
 - CPU-only code executes for ~1098 CPU cycles (ear6) vs ~1092 (Mesen2)
 
+### Update: why that 18-cycle offset happened (resolved)
+
+Additional instrumentation (`[CPU8448]`, `[CPUSTATE]`, `[CPUMEM]`, `[CPUMEMW]`, `[ADPROBE]`, `[WTGL]`, `[VS8448]`) showed:
+- `B84C` executes `LDA $4016` (not RAM).
+- Before fix: ear6 read `$4016=0x40`, Mesen2 read `$4016=0x01`.
+- This caused `A`/`Z` mismatch, then `BEQ` path split at `B813`, then `$01DB` write mismatch (`02` vs `00`), then the observed `W$2006` timing drift.
+
+Fix applied in ear6:
+- `NesControlManager` now applies `$4016` writes on pending-write completion (`process_writes`) instead of immediate state change.
+- While strobe is set, reads return bit0 of current latched state; when strobe is clear, reads shift; after 8 bits, reads return `1`.
+- Removed hardcoded `| 0x40` behavior from `$4016/$4017` reads (it was forcing wrong high bits for this ROM path).
+
+After fix:
+- `ADPROBE` confirms ear6 now reads `$4016=0x01` at the same point as Mesen2.
+- `WTGL` confirms former `+18 PPU cycles` offset at frame 4 / sl 259 is gone.
+- New earliest divergence is earlier: frame 2 around `sl=241` (`VBL_SET` vs repeated `R$2002` pattern).
+
 ### The 3-cycle "bump" at frame 8→9
 
 - Between frames 7→9, another +3 PPU cycles accumulate
@@ -250,6 +271,7 @@ Events 0-8447 have the SAME scanline/cycle values in both emulators. This means:
 - Odd-frame cycle skip matches (both disabled for Ppu2C03)
 - PPU register event trace matches for first 8447 events
 - `ppu_offset_` matches (= 1)
+- APU frame counter reset-pending behavior matches Mesen2 (`new_value`/`_newValue` logic)
 
 ---
 
@@ -273,11 +295,16 @@ A conditional branch taken from a non-page-crossing address costs 2 cycles if ta
 
 **Testing**: Add trace at `process_pending_dma()` entry/exit showing which branches were taken.
 
-### Hypothesis 4: APU frame counter generates an extra IRQ
+### Hypothesis 4: APU frame counter reset-pending behavior mismatch
 
-The APU frame counter runs on every CPU clock via `process_cpu_clock()`. If the frame counter fires an IRQ at a different time in ear6 vs Mesen2, the CPU would vector to the IRQ handler (7 cycles) at a different time.
+~~The reset-pending path might differ and inject timing drift.~~
 
-**Testing**: Add trace to `end_cpu_cycle()` showing `irq_flag` changes. Compare IRQ event times.
+**Result (2026-05-16): ruled out.** ear6 and Mesen2 are aligned here:
+- Reset seeds a pending `$4017=$00`-equivalent value.
+- Apply happens after the same 3/4-cycle delay rule.
+- Pending state is cleared by setting `new_value`/`_newValue` to `-1`.
+
+No code change needed for this hypothesis.
 
 ### Hypothesis 5: DMC/SPR-DMA concurrency
 
@@ -288,6 +315,26 @@ If both DMC DMA and sprite DMA are active at the same time, the `process_pending
 ---
 
 ## Next Steps for Debugging
+
+## Next Session Handoff (start here)
+
+1. Keep the controller fix (do not revert): it is validated and removes a confirmed branch divergence source.
+2. Re-run short trace (`-f 15`) and focus on earliest mismatch now at frame 2 around `scanline 240-241`.
+3. Investigate `VBL_SET` / `R$2002` ordering:
+   - compare `update_status_flag()` / `prevent_vbl_flag_` semantics and timing window,
+   - verify exact cycle condition for suppressing VBlank on `$2002` reads at NMI boundary.
+4. Once earliest divergence is shifted again, repeat “first mismatch” workflow instead of continuing from old frame-4 assumptions.
+
+### Temporary trace knobs currently in tree
+
+- ear6:
+  - `src/nes/nes_ppu.cpp`: `ENABLE_PPU_TRACE`, `ENABLE_VS8448_TRACE`, `[WTGL]`, `[VS8448]`
+  - `src/nes/nes_cpu.cpp`: `ENABLE_CPU8448_TRACE`, `[CPU8448]`, `[CPUSTATE]`, `[CPUMEM]`, `[CPUMEMW]`, `[ADPROBE]`
+- Mesen2:
+  - `Core/NES/NesPpu.cpp`: `[PPU]` register traces + `[WTGL]`/`[VS8448]`
+  - `Core/NES/NesCpu.cpp`: `[CPU8448]`, `[CPUSTATE]`, `[CPUMEM]`, `[CPUMEMW]`, `[ADPROBE]`
+
+These are intentionally verbose for root-cause work and should be gated/cleaned in a follow-up once debugging ends.
 
 ### Step 1: Enable CPU IRQ traces and compare
 

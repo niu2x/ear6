@@ -33,6 +33,8 @@ public:
     void clear_all();
 
 protected:
+    void apply_write(uint8_t value);
+
     NesConsole* console_ = nullptr;
     uint8_t write_pending_ = 0;
     uint16_t write_addr_ = 0;

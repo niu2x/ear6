@@ -9,7 +9,12 @@
 
 namespace ear6::nes {
 
-//#define ENABLE_PPU_TRACE
+#define ENABLE_PPU_TRACE
+#define VS8448_TRACE_MIN_FRAME 3
+#define VS8448_TRACE_MAX_FRAME 6
+#define VS8448_TRACE_MIN_SCANLINE 248
+#define VS8448_TRACE_MAX_SCANLINE 260
+#define ENABLE_VS8448_TRACE
 #ifdef ENABLE_PPU_TRACE
 void NesPpu::trace_ppu(const char* fmt, ...) {
     uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
@@ -21,6 +26,36 @@ void NesPpu::trace_ppu(const char* fmt, ...) {
 }
 #else
 void NesPpu::trace_ppu(const char* fmt, ...) { (void)fmt; }
+#endif
+
+#ifdef ENABLE_VS8448_TRACE
+static inline bool in_vs8448_window(uint32_t frame, int16_t scanline) {
+    return frame >= VS8448_TRACE_MIN_FRAME && frame <= VS8448_TRACE_MAX_FRAME &&
+           scanline >= VS8448_TRACE_MIN_SCANLINE && scanline <= VS8448_TRACE_MAX_SCANLINE;
+}
+#define TRACE_VS8448(tag) do { \
+    if (in_vs8448_window(frame_count_, scanline_)) { \
+        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0; \
+        fprintf(stderr, \
+            "[VS8448] %s f=%u sl=%d cy=%u cpu=%lu v=%04X t=%04X bus=%04X rd=%d prd=%d nsu=%d uvd=%u uv=%04X ivr=%u vb=%d nmi=%d\n", \
+            tag, frame_count_, scanline_, cycle_, cpu_cycle, \
+            video_ram_addr_, tmp_video_ram_addr_, ppu_bus_address_, \
+            (int)rendering_enabled_, (int)prev_rendering_enabled_, (int)need_state_update_, \
+            update_vram_addr_delay_, update_vram_addr_, ignore_vram_read_, \
+            (int)status_flags_.vertical_blank, console_->get_cpu() ? (int)console_->get_cpu()->get_state().nmi_flag : -1 \
+        ); \
+    } \
+} while (0)
+#define TRACE_WTGL(tag, value, before, after) do { \
+    if (in_vs8448_window(frame_count_, scanline_)) { \
+        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0; \
+        fprintf(stderr, "[WTGL] %s f=%u sl=%d cy=%u cpu=%lu val=%02X wt=%d->%d t=%04X v=%04X\n", \
+            tag, frame_count_, scanline_, cycle_, cpu_cycle, (unsigned)(value), (int)(before), (int)(after), tmp_video_ram_addr_, video_ram_addr_); \
+    } \
+} while (0)
+#else
+#define TRACE_VS8448(tag) do {} while (0)
+#define TRACE_WTGL(tag, value, before, after) do {} while (0)
 #endif
 
 
@@ -125,11 +160,15 @@ void NesPpu::run(uint64_t run_to) {
 }
 
 void NesPpu::exec() {
+    TRACE_VS8448("exec.enter");
     if (cycle_ < 340) {
         cycle_++;
+        TRACE_VS8448("exec.after_cycle_inc");
 
         if (scanline_ < 240) {
+            TRACE_VS8448("exec.before_scanline_impl");
             process_scanline_impl();
+            TRACE_VS8448("exec.after_scanline_impl");
         } else if (cycle_ == 1 && scanline_ == (int)nmi_scanline_) {
             if (!prevent_vbl_flag_) {
                 trace_ppu("VBL_SET\n");
@@ -143,11 +182,15 @@ void NesPpu::exec() {
     }
 
     if (need_state_update_) {
+        TRACE_VS8448("exec.before_update_state");
         update_state();
+        TRACE_VS8448("exec.after_update_state");
     }
+    TRACE_VS8448("exec.exit");
 }
 
 void NesPpu::process_scanline_first_cycle() {
+    TRACE_VS8448("sl0.enter");
     cycle_ = 0;
     if (++scanline_ > (int)vblank_end_) {
         last_updated_pixel_ = -1;
@@ -180,9 +223,11 @@ void NesPpu::process_scanline_first_cycle() {
     } else if (scanline_ == 241) {
         // NMI is now triggered in exec() at cycle 1 to match Mesen2 timing
     }
+    TRACE_VS8448("sl0.exit");
 }
 
 void NesPpu::process_scanline_impl() {
+    TRACE_VS8448("impl.enter");
     if (cycle_ <= 256) {
         load_tile_info();
 
@@ -252,6 +297,7 @@ void NesPpu::process_scanline_impl() {
             }
         }
     }
+    TRACE_VS8448("impl.exit");
 }
 
 void NesPpu::load_tile_info() {
@@ -427,7 +473,9 @@ uint8_t NesPpu::read_ram(uint16_t addr) {
     switch (addr & 0x7) {
         case 0x02: { // Status
             trace_ppu("R$2002\n");
+            bool wt_before = write_toggle_;
             write_toggle_ = false;
+            TRACE_WTGL("R2002", 0x00, wt_before, write_toggle_);
             return_value = (
                 ((uint8_t)status_flags_.sprite_overflow << 5) |
                 ((uint8_t)status_flags_.sprite_zero_hit << 6) |
@@ -545,6 +593,8 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             break;
         case 0x05: // PPUSCROLL
             trace_ppu("W$2005=%02X\n", value);
+            {
+                bool wt_before = write_toggle_;
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x73E0) | ((value & 0xF8) << 2) | ((value & 0x07) << 12);
             } else {
@@ -553,9 +603,13 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
                 process_tmp_addr_scroll_glitch(new_addr, console_->get_memory_manager()->get_open_bus() >> 3, 0x001F);
             }
             write_toggle_ = !write_toggle_;
+            TRACE_WTGL("W2005", value, wt_before, write_toggle_);
+            }
             break;
         case 0x06: // PPUADDR
             trace_ppu("W$2006=%02X\n", value);
+            {
+                bool wt_before = write_toggle_;
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x00FF) | value;
                 need_state_update_ = true;
@@ -566,6 +620,8 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
                 process_tmp_addr_scroll_glitch(new_addr, console_->get_memory_manager()->get_open_bus() << 8, 0x0C00);
             }
             write_toggle_ = !write_toggle_;
+            TRACE_WTGL("W2006", value, wt_before, write_toggle_);
+            }
             break;
         case 0x07: // PPUDATA
             trace_ppu("W$2007=%02X\n", value);
@@ -657,6 +713,7 @@ void NesPpu::send_frame() {
 }
 
 void NesPpu::update_state() {
+    TRACE_VS8448("state.enter");
     need_state_update_ = false;
 
     if (prev_rendering_enabled_ != rendering_enabled_) {
@@ -714,6 +771,7 @@ void NesPpu::update_state() {
         need_video_ram_increment_ = false;
         update_video_ram_addr();
     }
+    TRACE_VS8448("state.exit");
 }
 
 void NesPpu::process_sprite_evaluation_start() {

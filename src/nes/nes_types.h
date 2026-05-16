@@ -154,6 +154,7 @@ struct RomInfo {
     bool has_battery = false;
     MirroringType mirroring = MirroringType::HORIZONTAL;
     bool has_trainer = false;
+    bool is_vs_system = false;
 };
 
 } // namespace ear6::nes

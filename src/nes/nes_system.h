@@ -11,9 +11,7 @@ class NesSystem : public System {
 public:
     NesSystem();
 
-    int load(const void* data, int size) override {
-        return console_->load_rom(data, size);
-    }
+    int load(const void* data, int size) override;
 
     int step() override;
 

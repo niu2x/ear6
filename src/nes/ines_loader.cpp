@@ -19,6 +19,7 @@ RomInfo INesLoader::parse_header(const uint8_t* data) {
     if (data[6] & 0x08) {
         info.mirroring = MirroringType::FOUR_SCREENS;
     }
+    info.is_vs_system = (data[7] & 0x01) != 0;
     return info;
 }
 

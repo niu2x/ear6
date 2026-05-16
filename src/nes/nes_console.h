@@ -52,6 +52,7 @@ public:
     // Input
     void set_button_state(int port, int button, bool pressed);
     void clear_input();
+    const RomInfo& get_rom_info() const { return rom_info_; }
 
 private:
     void init_components();

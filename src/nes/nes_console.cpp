@@ -56,6 +56,9 @@ int NesConsole::load_rom(const void* data, int size) {
     ppu_.reset(new NesPpu(this));
     apu_.reset(new NesApu(this, sound_mixer_.get()));
     control_manager_.reset(new NesControlManager(this));
+    if (rom_info_.is_vs_system) {
+        control_manager_->set_vs_mode(true, rom_info_);
+    }
 
     // Register IO devices in order
     memory_manager_->register_io_device(ppu_.get());

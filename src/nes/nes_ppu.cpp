@@ -496,9 +496,8 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
         return;
     }
 
-    if ((addr & 0x7) != 0x00) {
-        set_open_bus(0xFF, value);
-    }
+    // mesen2 sets open bus for ALL PPU writes except $4014
+    set_open_bus(0xFF, value);
 
     switch (addr & 0x7) {
         case 0x00: // PPUCTRL

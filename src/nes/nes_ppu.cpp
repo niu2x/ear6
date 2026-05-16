@@ -4,9 +4,24 @@
 #include "nes_cpu.h"
 #include <cstring>
 #include <cstdio>
+#include <cstdarg>
 #include "nes_ppu.h"
 
 namespace ear6::nes {
+
+//#define ENABLE_PPU_TRACE
+#ifdef ENABLE_PPU_TRACE
+void NesPpu::trace_ppu(const char* fmt, ...) {
+    uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
+    fprintf(stderr, "[PPU] %6u %4d %4d %12lu ", frame_count_, scanline_, cycle_, cpu_cycle);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+#else
+void NesPpu::trace_ppu(const char* fmt, ...) { (void)fmt; }
+#endif
 
 
 
@@ -117,6 +132,7 @@ void NesPpu::exec() {
             process_scanline_impl();
         } else if (cycle_ == 1 && scanline_ == (int)nmi_scanline_) {
             if (!prevent_vbl_flag_) {
+                trace_ppu("VBL_SET\n");
                 status_flags_.vertical_blank = true;
                 begin_vblank();
             }
@@ -147,6 +163,7 @@ void NesPpu::process_scanline_first_cycle() {
         if (scanline_ == -1) {
             status_flags_.sprite_overflow = false;
             status_flags_.sprite_zero_hit = false;
+            trace_ppu("VBL_CLR\n");
             status_flags_.vertical_blank = false;
             allow_full_ppu_access_ = true;
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
@@ -409,6 +426,7 @@ uint8_t NesPpu::read_ram(uint16_t addr) {
 
     switch (addr & 0x7) {
         case 0x02: { // Status
+            trace_ppu("R$2002\n");
             write_toggle_ = false;
             return_value = (
                 ((uint8_t)status_flags_.sprite_overflow << 5) |
@@ -421,6 +439,7 @@ uint8_t NesPpu::read_ram(uint16_t addr) {
             break;
         }
         case 0x04: { // OAMDATA
+            trace_ppu("R$2004\n");
             if (scanline_ <= 239 && rendering_enabled_) {
                 if (cycle_ >= 257 && cycle_ <= 320) {
                     uint8_t step = ((cycle_ - 257) % 8) > 3 ? 3 : ((cycle_ - 257) % 8);
@@ -435,6 +454,7 @@ uint8_t NesPpu::read_ram(uint16_t addr) {
             break;
         }
         case 0x07: { // PPUDATA
+            trace_ppu("R$2007\n");
             if (ignore_vram_read_) {
                 open_bus_mask = 0xFF;
             } else {
@@ -491,6 +511,7 @@ uint8_t NesPpu::peek_ram(uint16_t addr) {
 
 void NesPpu::write_ram(uint16_t addr, uint8_t value) {
     if (addr == 0x4014) {
+        trace_ppu("W$4014=%02X\n", value);
         set_open_bus(0xFF, value);
         console_->get_cpu()->run_dma_transfer(value);
         return;
@@ -501,15 +522,19 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
 
     switch (addr & 0x7) {
         case 0x00: // PPUCTRL
+            trace_ppu("W$2000=%02X\n", value);
             set_control_register(value);
             break;
         case 0x01: // PPUMASK
+            trace_ppu("W$2001=%02X\n", value);
             set_mask_register(value);
             break;
         case 0x03: // OAMADDR
+            trace_ppu("W$2003=%02X\n", value);
             sprite_ram_addr_ = value;
             break;
         case 0x04: // OAMDATA
+            trace_ppu("W$2004=%02X\n", value);
             if ((scanline_ >= 240) || !rendering_enabled_) {
                 if ((sprite_ram_addr_ & 0x03) == 0x02) value &= 0xE3;
                 write_sprite_ram(sprite_ram_addr_, value);
@@ -519,6 +544,7 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             }
             break;
         case 0x05: // PPUSCROLL
+            trace_ppu("W$2005=%02X\n", value);
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x73E0) | ((value & 0xF8) << 2) | ((value & 0x07) << 12);
             } else {
@@ -529,6 +555,7 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             write_toggle_ = !write_toggle_;
             break;
         case 0x06: // PPUADDR
+            trace_ppu("W$2006=%02X\n", value);
             if (write_toggle_) {
                 tmp_video_ram_addr_ = (tmp_video_ram_addr_ & ~0x00FF) | value;
                 need_state_update_ = true;
@@ -541,6 +568,7 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
             write_toggle_ = !write_toggle_;
             break;
         case 0x07: // PPUDATA
+            trace_ppu("W$2007=%02X\n", value);
             if ((ppu_bus_address_ & 0x3FFF) >= 0x3F00) {
                 uint8_t pa = ppu_bus_address_ & 0x1F;
                 if (pa == 0x00 || pa == 0x10) { palette_ram_[0x00] = value & 0x3F; palette_ram_[0x10] = value & 0x3F; }
@@ -618,6 +646,7 @@ void NesPpu::begin_vblank() {
 
 void NesPpu::trigger_nmi() {
     if (control_.nmi_on_vertical_blank) {
+        trace_ppu("NMI\n");
         console_->get_cpu()->set_nmi_flag();
     }
 }

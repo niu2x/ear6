@@ -40,6 +40,9 @@ public:
     void start_dmc_transfer();
     void stop_dmc_transfer();
 
+    // Tracing (ENABLE_CPU_TRACE to activate)
+    void trace_cpu(const char* fmt, ...);
+
 private:
     typedef void (NesCpu::*Func)();
 

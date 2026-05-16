@@ -6,6 +6,9 @@
 make ear6          # native: libear6.so + ear6-desktop
 make ear6-web      # wasm: libear6.a + ear6-web.js (requires Emscripten in .env)
 make clean
+
+# Mesen2 reference (for trace comparison):
+make cli -C ../mesen2/DesktopApp   # ONLY valid way to build mesen2-cli
 ```
 
 ## Lint / Typecheck
@@ -191,6 +194,18 @@ ROM: `vs dr mario.nes` (mapper 1, MMC1, iNES byte 7 bit 0 = VS flag set)
 - Other mappers may also depend on submapper info for variant behavior
 
 Fix when adding `SubMapperID` support: add field to `RomInfo`, parse from iNES 2.0 header byte 15, and update affected mappers.
+
+## Modifying Mesen2 (for trace comparison)
+
+When you need to add trace logging to Mesen2:
+- **Prefer editing .cpp files only** — avoid .h files to minimize rebuild time (Mesen2's build is very slow).
+- The ONLY valid build command is `make cli -C ../mesen2/DesktopApp`.
+- **NEVER delete the Mesen2 build directory** — a full rebuild takes >10 minutes. If you need to force a rebuild of a specific file, remove only the single `.o` file:
+  ```bash
+  rm -f build-Release/x86_64-PC-Linux/MesenRT/CMakeFiles/MesenLib.dir/Core/NES/NesPpu.cpp.o
+  ```
+  Then run `make cli -C ../mesen2/DesktopApp` normally — cmake will detect the missing `.o` and rebuild just that file + re-link.
+- If you must change a `.h` file (e.g. `SettingTypes.h`), touch only the `.cpp` files that include it, or accept a slow rebuild.
 
 ## Notes for AI Agent
 

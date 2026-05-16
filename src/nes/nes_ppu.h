@@ -167,6 +167,9 @@ private:
     void update_grayscale_and_intensify_bits();
     void update_color_bit_masks();
     void update_minimum_draw_cycles();
+
+    // Tracing (ENABLE_PPU_TRACE to activate)
+    void trace_ppu(const char* fmt, ...);
 };
 
 } // namespace ear6::nes

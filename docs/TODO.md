@@ -9,15 +9,33 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 
 **Debug history (2026-05-16)**:
 
-- **Frame 5 matches perfectly** — all PPU register events identical between ear6 and Mesen2 for first 5 frames.
-- **Frame 4 VBlank first divergence**: `W$2000=10` at ear6 scanline 259 vs Mesen2 scanline 260 (1 scanline early).
-- **~393 PPU cycle gap** in frame 4 VBlank (DMA + post-DMA code takes fewer cycles in ear6).
-- **Accumulation**: By frame 7, `W$2001=1E` at ear6 sl=257 vs Mesen2 sl=258. By frame 11/12, difference reaches 1 full frame.
+- **Step 1 — Frame 5 matches perfectly**: Both emulators produce identical pixel output at frame 5 (confirmed via `cmp`).
+- **Step 2 — Mesen2 made deterministic**: Changed `RamPowerOnState` from `Random` to `AllZeros` in `SettingTypes.h:659`.
+- **Step 3 — Trace diff found ~18 PPU cycle offset at frame 4**:
+  ```
+  ear6:   W$2001=00 at sl=259 cyc=57
+  Mesen2: W$2001=00 at sl=259 cyc=39
+  ```
+  Offset = +18 cycles (ear6 ahead), CONSTANT for all subsequent events (not growing scanline-to-scanline).
+- **Step 4 — Offset origin**: Between `W$2005=00` (sl=249 cyc=173, SAME in both) and `W$2001=00` (sl=259 cyc=57/39), there are 10 scanlines of pure PPU internal work (no CPU register accesses). The 18-cycle gap accumulates ENTIRELY inside the PPU rendering pipeline.
+- **Step 5 — Offset tracked scanline-by-scanline**: Across 76 scanlines (frame 3 scanlines 184-259), ear6 averages ~0.24 extra PPU cycles per scanline vs Mesen2. The 18-cycle offset is constant once established — it does NOT grow further until frame 9.
+- **Step 6 — NMI pattern diverges at frame 9**: +3 more cycles accumulate between frames 7→9, shifting the `$2002` read timing → `prevent_vbl_flag_` set differently → NMI fires on an extra frame in ear6 (frame 10 vs Mesen2 frame 11). After this, all subsequent events are on different frame numbers.
 - **Palette never written**: Game code takes different branch → never executes palette initialization code → boot palette persists. This is a **symptom**, not root cause.
 
-**Root cause**: PPU internal rendering pipeline (tile shifters, attribute latches, sprite evaluation, DMA timing) has accumulated cycle-level differences from the Mesen2 reference. Despite ear6 already using per-cycle PPU stepping via `start_cpu_cycle/end_cpu_cycle`, the `exec()`, `process_scanline_impl()`, `process_sprite_evaluation()`, and `process_pending_dma()` implementations have subtle timing differences vs Mesen2's cycle-exact versions.
+**Root cause**: PPU rendering pipeline (`process_scanline_impl()`) has micro-timing differences vs Mesen2's `ProcessScanlineImpl()`:
+1. VRAM read pattern during tile/attribute/pattern fetches (cycles 1-256 per scanline)
+2. Sprite evaluation cycle timing (cycles 65-256, 257-320)
+3. Idle reads (cycles 337-339)
+4. The `process_sprite_evaluation()`, `load_tile_info()`, `shift_tile_registers()` functions differ from Mesen2's equivalents in exactly which cycles they perform each operation
 
-**Fix**: Not a single register bug. Requires systematic migration of all PPU internal pipeline functions to match Mesen2's cycle-level behavior. See `docs/migration_guide.md` Phase 3-4.
+**Fix requirement**: Systematic cycle-by-cycle migration of `process_scanline_impl()` to match Mesen2's `ProcessScanlineImpl()`:
+- Phase A: Align VRAM read pattern (exact cycles for NT/AT/PT fetches)
+- Phase B: Align sprite evaluation timing (split into per-cycle steps)
+- Phase C: Align scroll increment timing (inc_horizontal at cycle 0 mod 8 exactly)
+- Phase D: Align idle cycle behavior (cycles 337-339, pre-fetch, dummy reads)
+- See `docs/migration_guide.md` Phase 3-4.
+
+**Note**: This is NOT fixable by any single register-level TODO item. It requires systematic pipeline migration.
 
 ---
 
@@ -148,4 +166,5 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **blargg APU tests** — length counter, envelope, sweep, DMC
 - [ ] **Full compatibility suite** — 100+ popular ROMs
 - [ ] **Frame-by-frame trace compare** — script that runs ear6 and Mesen2 side-by-side for the same ROM, finds the first divergent PPU register event
-- [ ] **PPU cycle event logging infrastructure** — reusable trace macros in both emulators for diff-based debugging
+- [ ] **PPU cycle event logging infrastructure** — ✅ DONE. `trace_ppu()` in `nes_ppu.cpp` and `trace_cpu()` in `nes_cpu.cpp`, both gated by `#define ENABLE_PPU_TRACE` / `#define ENABLE_CPU_TRACE`.
+- [ ] **vs dr mario: find the 6 extra CPU cycles** — see `docs/debug_vs_dr_mario.md` for full research doc, trace infra, and step-by-step debugging guide.

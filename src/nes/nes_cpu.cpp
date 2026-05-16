@@ -3,9 +3,23 @@
 #include "nes_ppu.h"
 #include "nes_apu.h"
 #include <cstring>
+#include <cstdarg>
 #include "nes_cpu.h"
 
 namespace ear6::nes {
+
+//#define ENABLE_CPU_TRACE
+#ifdef ENABLE_CPU_TRACE
+void NesCpu::trace_cpu(const char* fmt, ...) {
+    fprintf(stderr, "[CPU] %12lu ", state_.cycle_count);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
+}
+#else
+void NesCpu::trace_cpu(const char* fmt, ...) { (void)fmt; }
+#endif
 
 NesCpu::NesCpu(NesConsole* console) {
     console_ = console;
@@ -140,6 +154,9 @@ void NesCpu::end_cpu_cycle(bool for_read) {
 
     prev_run_irq_ = run_irq_;
     run_irq_ = ((state_.irq_flag & irq_mask_) > 0 && !check_flag(PSFlags::INTERRUPT));
+
+    trace_cpu("IRQ_FLAGS irq=%02X run_irq=%d prev_run=%d nmi=%d prev_nmi=%d need_nmi=%d\n",
+        state_.irq_flag, run_irq_, prev_run_irq_, state_.nmi_flag, prev_nmi_flag_, need_nmi_);
 }
 
 uint8_t NesCpu::get_op_code() {
@@ -283,6 +300,8 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
 
     need_halt_ = false;
 
+    trace_cpu("DMA_START offset=%02X\n", sprite_dma_offset_);
+
     start_cpu_cycle(true);
     end_cpu_cycle(true);
 
@@ -341,6 +360,7 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
             }
         }
     }
+    trace_cpu("DMA_END sprite_dma=%d dmc_dma=%d\n", sprite_dma_transfer_, dmc_dma_running_);
 }
 
 void NesCpu::run_dma_transfer(uint8_t offset_value) {

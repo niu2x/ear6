@@ -1,4 +1,5 @@
 #include "nes_system.h"
+#include "nes_ppu.h"
 
 namespace ear6 {
 
@@ -66,6 +67,15 @@ void NesSystem::convert_frame() {
 
 int NesSystem::step() {
     console_->run_frame();
+    {
+        auto* ppu = console_->get_ppu();
+        if (ppu && ppu->get_frame_count() <= 8) {
+            const uint16_t* fb = console_->get_framebuffer();
+            uint16_t fb0 = fb ? fb[0] : 0;
+            fprintf(stderr, "[EAR6_STEP] f=%u pal0=%02X fb0=%02X\n",
+                ppu->get_frame_count(), ppu->get_palette_ram0(), fb0 & 0x3F);
+        }
+    }
     convert_frame();
     return 0;
 }

@@ -9,12 +9,12 @@
 namespace ear6::nes {
 
 //#define ENABLE_CPU_TRACE
-#define CPU8448_FRAME_MIN 4
-#define CPU8448_FRAME_MAX 4
+#define CPU8448_FRAME_MIN 17
+#define CPU8448_FRAME_MAX 17
 #define CPU8448_SCANLINE_MIN 249
 #define CPU8448_SCANLINE_MAX 259
-//#define ENABLE_CPU8448_TRACE
 #define ENABLE_CPU8448_TRACE
+//#define ENABLE_CPU8448_TRACE
 #define CPU8448_PC_MIN 0xB840
 #define CPU8448_PC_MAX 0xB86C
 #ifdef ENABLE_CPU_TRACE
@@ -32,79 +32,18 @@ void NesCpu::trace_cpu(const char* fmt, ...) { (void)fmt; }
 #ifdef ENABLE_CPU8448_TRACE
 static NesCpu* g_probe_cpu = nullptr;
 static uint16_t g_probe_addr = 0;
-#define TRACE_CPU8448(tag, pcv, opv) do { \
-    NesPpu* p = console_->get_ppu(); \
-    if (p) { \
-        uint32_t f = p->get_frame_count(); \
-        int sl = p->get_scanline(); \
-        if (f >= CPU8448_FRAME_MIN && f <= CPU8448_FRAME_MAX && sl >= CPU8448_SCANLINE_MIN && sl <= CPU8448_SCANLINE_MAX) { \
-            fprintf(stderr, "[CPU8448] %s cpu=%lu pc=%04X op=%02X f=%u sl=%d cy=%d irq=%02X run=%d prun=%d nmi=%d need=%d\n", \
-                tag, state_.cycle_count, (unsigned)(pcv), (unsigned)(opv), f, sl, p->get_cycle(), \
-                state_.irq_flag, (int)run_irq_, (int)prev_run_irq_, (int)state_.nmi_flag, (int)need_nmi_); \
-        } \
-    } \
-} while (0)
-#define TRACE_CPU8448_STATE(tag, pcv, opv) do { \
-    NesPpu* p = console_->get_ppu(); \
-    if (p) { \
-        uint32_t f = p->get_frame_count(); \
-        int sl = p->get_scanline(); \
-        if (f >= CPU8448_FRAME_MIN && f <= CPU8448_FRAME_MAX && sl >= CPU8448_SCANLINE_MIN && sl <= CPU8448_SCANLINE_MAX && (pcv) >= CPU8448_PC_MIN && (pcv) <= CPU8448_PC_MAX) { \
-            fprintf(stderr, "[CPUSTATE] %s cpu=%lu pc=%04X op=%02X a=%02X x=%02X y=%02X ps=%02X f=%u sl=%d cy=%d\n", \
-                tag, state_.cycle_count, (unsigned)(pcv), (unsigned)(opv), state_.a, state_.x, state_.y, state_.ps, f, sl, p->get_cycle()); \
-        } \
-    } \
-} while (0)
-#define TRACE_CPU8448_MEM(tag, addrv, valv) do { \
-    NesPpu* p = console_->get_ppu(); \
-    if (p) { \
-        uint32_t f = p->get_frame_count(); \
-        int sl = p->get_scanline(); \
-        if (f >= CPU8448_FRAME_MIN && f <= CPU8448_FRAME_MAX && sl >= CPU8448_SCANLINE_MIN && sl <= CPU8448_SCANLINE_MAX && ((addrv) == 0x01DB || (addrv) == 0x01D0)) { \
-            fprintf(stderr, "[CPUMEM] %s cpu=%lu pc=%04X addr=%04X val=%02X f=%u sl=%d cy=%d\n", \
-                tag, state_.cycle_count, state_.pc, (unsigned)(addrv), (unsigned)(valv), f, sl, p->get_cycle()); \
-        } \
-    } \
-} while (0)
-#define TRACE_CPU8448_MEMW(addrv, valv) do { \
-    if ((addrv) == 0x01DB || (addrv) == 0x01D0) { \
-        NesPpu* p = console_->get_ppu(); \
-        if (p) { \
-            fprintf(stderr, "[CPUMEMW] cpu=%lu pc=%04X addr=%04X val=%02X f=%u sl=%d cy=%d\n", \
-                state_.cycle_count, state_.pc, (unsigned)(addrv), (unsigned)(valv), p->get_frame_count(), p->get_scanline(), p->get_cycle()); \
-        } \
-    } \
-} while (0)
-#define TRACE_CPU8448_X(tag, pcv, opv, xb, xa) do { \
-    if ((xb) != (xa)) { \
-        NesPpu* p = console_->get_ppu(); \
-        if (p) { \
-            uint32_t f = p->get_frame_count(); \
-            if (f <= CPU8448_FRAME_MAX) { \
-                fprintf(stderr, "[CPUX] %s cpu=%lu pc=%04X op=%02X x=%02X->%02X a=%02X ps=%02X f=%u sl=%d cy=%d\n", \
-                    tag, state_.cycle_count, (unsigned)(pcv), (unsigned)(opv), (unsigned)(xb), (unsigned)(xa), state_.a, state_.ps, f, p->get_scanline(), p->get_cycle()); \
-            } \
-        } \
-    } \
-} while (0)
-#define TRACE_AD_PROBE_ADDR(pcv, opv, addrv) do { \
-    if ((pcv) == 0xB84C && (opv) == 0xAD) { \
-        NesPpu* p = console_->get_ppu(); \
-        if (p) { \
-            fprintf(stderr, "[ADPROBE] cpu=%lu pc=%04X op=%02X addr=%04X f=%u sl=%d cy=%d\n", \
-                state_.cycle_count, (unsigned)(pcv), (unsigned)(opv), (unsigned)(addrv), p->get_frame_count(), p->get_scanline(), p->get_cycle()); \
-        } \
-    } \
-} while (0)
-#define TRACE_AD_PROBE_VAL(addrv, valv) do { \
-    if (this == g_probe_cpu && (addrv) == g_probe_addr) { \
-        NesPpu* p = console_->get_ppu(); \
-        if (p) { \
-            fprintf(stderr, "[ADPROBE] cpu=%lu pc=%04X read_addr=%04X val=%02X f=%u sl=%d cy=%d\n", \
-                state_.cycle_count, state_.pc, (unsigned)(addrv), (unsigned)(valv), p->get_frame_count(), p->get_scanline(), p->get_cycle()); \
-        } \
-    } \
-} while (0)
+static uint16_t g_exec_pc = 0;
+static uint8_t g_exec_op = 0;
+static bool g_exec_trace_rw = false;
+#define TRACE_CPU8448(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
+#define TRACE_CPU8448_STATE(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
+#define TRACE_CPU8448_MEM(tag, addrv, valv) do { (void)tag; (void)addrv; (void)valv; } while (0)
+#define TRACE_CPU8448_MEMW(addrv, valv) do { (void)addrv; (void)valv; } while (0)
+#define TRACE_CPU8448_X(tag, pcv, opv, xb, xa) do { (void)tag; (void)pcv; (void)opv; (void)xb; (void)xa; } while (0)
+#define TRACE_AD_PROBE_ADDR(pcv, opv, addrv) do { (void)pcv; (void)opv; (void)addrv; } while (0)
+#define TRACE_AD_PROBE_VAL(addrv, valv) do { (void)addrv; (void)valv; } while (0)
+#define TRACE_RW_PROBE(tag, addrv, valv) do { (void)tag; (void)addrv; (void)valv; } while (0)
+#define TRACE_BADSTEP(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
 #else
 #define TRACE_CPU8448(tag, pcv, opv) do {} while (0)
 #define TRACE_CPU8448_STATE(tag, pcv, opv) do {} while (0)
@@ -113,6 +52,8 @@ static uint16_t g_probe_addr = 0;
 #define TRACE_CPU8448_X(tag, pcv, opv, xb, xa) do {} while (0)
 #define TRACE_AD_PROBE_ADDR(pcv, opv, addrv) do {} while (0)
 #define TRACE_AD_PROBE_VAL(addrv, valv) do {} while (0)
+#define TRACE_RW_PROBE(tag, addrv, valv) do {} while (0)
+#define TRACE_BADSTEP(tag, pcv, opv) do {} while (0)
 #endif
 
 NesCpu::NesCpu(NesConsole* console) {
@@ -251,6 +192,7 @@ void NesCpu::end_cpu_cycle(bool for_read) {
 
     trace_cpu("IRQ_FLAGS irq=%02X run_irq=%d prev_run=%d nmi=%d prev_nmi=%d need_nmi=%d\n",
         state_.irq_flag, run_irq_, prev_run_irq_, state_.nmi_flag, prev_nmi_flag_, need_nmi_);
+
 }
 
 uint8_t NesCpu::get_op_code() {
@@ -304,12 +246,14 @@ uint8_t NesCpu::memory_read(uint16_t addr) {
     uint8_t v = memory_manager_->read(addr);
     end_cpu_cycle(true);
     TRACE_AD_PROBE_VAL(addr, v);
+    TRACE_RW_PROBE("R", addr, v);
     TRACE_CPU8448_MEM("READ", addr, v);
     return v;
 }
 
 void NesCpu::memory_write(uint16_t addr, uint8_t value) {
     TRACE_CPU8448_MEMW(addr, value);
+    TRACE_RW_PROBE("W", addr, value);
     cpu_write_ = true;
     start_cpu_cycle(false);
     memory_manager_->write(addr, value);
@@ -367,8 +311,73 @@ void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
     uint8_t x_before = state_.x;
     uint8_t opcode = get_op_code();
+    if (pc_before == 0xBADD) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[BADD] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if (pc_before == 0xB84A) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[B84A] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if (pc_before == 0xB85B) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[B85B] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if (pc_before == 0xB87D) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[B87D] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if (pc_before == 0xB880) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[B880] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if (pc_before == 0xB885) {
+        NesPpu* p = console_->get_ppu();
+        if (p) {
+            fprintf(stderr, "[B885] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+                p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
+    }
+    if ((pc_before == 0xBAD2 || pc_before == 0xBAD5 || pc_before == 0xBAD7 || pc_before == 0xBAD9 || pc_before == 0xBADB) &&
+        console_->get_ppu()->get_frame_count() == 29) {
+        uint8_t* iram = memory_manager_->get_internal_ram();
+        NesPpu* p = console_->get_ppu();
+        fprintf(stderr, "[BADSEQ] BEFORE pc=%04X cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
+            pc_before, state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
+            p->get_frame_count(), p->get_scanline(), p->get_cycle());
+    }
+    g_exec_pc = pc_before;
+    g_exec_op = opcode;
+    {
+        NesPpu* p = console_->get_ppu();
+        uint32_t f = p ? p->get_frame_count() : 0;
+        g_exec_trace_rw = (pc_before >= 0xBAD0 && pc_before <= 0xBAE0 && f >= 16 && f <= 18);
+    }
     TRACE_CPU8448("EXEC", pc_before, opcode);
     TRACE_CPU8448_STATE("BEFORE", pc_before, opcode);
+    TRACE_BADSTEP("BEFORE", pc_before, opcode);
     inst_addr_mode_ = addr_mode_[opcode];
     operand_ = fetch_operand();
     TRACE_AD_PROBE_ADDR(pc_before, opcode, operand_);
@@ -377,11 +386,22 @@ void NesCpu::exec() {
         g_probe_addr = operand_;
     }
     (this->*op_table_[opcode])();
+    if ((pc_before == 0xBAD2 || pc_before == 0xBAD5 || pc_before == 0xBAD7 || pc_before == 0xBAD9 || pc_before == 0xBADB) &&
+        console_->get_ppu()->get_frame_count() == 29) {
+        uint8_t* iram = memory_manager_->get_internal_ram();
+        NesPpu* p = console_->get_ppu();
+        fprintf(stderr, "[BADSEQ] AFTER  pc=%04X cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
+            pc_before, state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
+            p->get_frame_count(), p->get_scanline(), p->get_cycle());
+    }
     if (g_probe_cpu == this) {
         g_probe_cpu = nullptr;
     }
+    g_exec_trace_rw = false;
     TRACE_CPU8448_X("EXEC", pc_before, opcode, x_before, state_.x);
     TRACE_CPU8448_STATE("AFTER", pc_before, opcode);
+    TRACE_BADSTEP("AFTER", pc_before, opcode);
 
     if (prev_run_irq_ || prev_need_nmi_) {
         TRACE_CPU8448("IRQ_ENTRY", state_.pc, opcode);

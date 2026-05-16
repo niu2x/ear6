@@ -325,6 +325,63 @@ If both DMC DMA and sprite DMA are active at the same time, the `process_pending
    - verify exact cycle condition for suppressing VBlank on `$2002` reads at NMI boundary.
 4. Once earliest divergence is shifted again, repeat “first mismatch” workflow instead of continuing from old frame-4 assumptions.
 
+---
+
+## 2026-05-16 Addendum: Logging Instability + Frame-8 Color Divergence
+
+### What was confirmed in this round
+
+1. `$4016` fix remains correct and must be kept. Earlier branch split was removed as expected.
+
+2. CPU probe points that were previously suspected now align under low-noise tracing:
+   - `BADD`, `B84A`, `B85B`, `B87D`, `B880`, `B885` are aligned through frame 28 in clean runs.
+   - Stable state split starts at frame 29 in those probes (`A/Y` differs), but this is not the first visual split.
+
+3. Frame-level screenshot binary diff (no runtime instrumentation) shows first visual mismatch appears much earlier:
+   - first mismatching frame: **7** (later experiment indicates effective breakpoint around frame 8 depending on run path).
+   - symptom: whole-frame single-color mismatch (all 61440 pixels differ), not local tile/sprite corruption.
+
+4. Palette value itself did not explain the split in ear6:
+   - `pal0` stayed `0x09` in early frame summaries.
+   - `fb0` also reached `0x09` in ear6 frame summaries, yet mesen2 screenshot output still remained black in problematic runs.
+
+5. Temporary ear6 experiment (force black output for early frames) validated that the mismatch is frame-window dependent:
+   - with forced black for early frames, frames 6-7 matched exactly,
+   - mismatch reappeared immediately after forced window ended.
+   - This experiment was reverted (do not keep this behavior).
+
+### Critical finding: Mesen2 debug logging is unstable
+
+Adding logs to Mesen2 (even reduced logs) repeatedly changed execution behavior:
+
+- Runs often stopped producing expected probe points after frame 5-8.
+- Same code path sometimes reached target CPU cycle windows, sometimes not.
+- High-frequency PPU/CPU traces clearly caused severe timing perturbation.
+
+This means many runtime traces collected from heavily instrumented Mesen2 are not trustworthy for root-cause timing comparisons.
+
+### New priority task (before further cycle-level conclusions)
+
+**Stabilize Mesen2 into deterministic single-thread debug mode.**
+
+Goal: remove timing perturbation from thread scheduling and I/O interleaving so trace runs are reproducible.
+
+Required work:
+
+1. Investigate Mesen2 threading used by CLI screenshot path (video decoder / notifications / event processing).
+2. Add a single-thread debug mode (compile-time or runtime flag) that forces deterministic execution order.
+3. Keep logging minimal and buffered; no hot-path `fprintf` in per-cycle loops.
+4. Re-validate baseline:
+   - same ROM, same frame count should produce stable probe coverage every run,
+   - then resume earliest-divergence search.
+
+### Immediate next steps for next session
+
+1. Keep ear6 black-frame experiment reverted (already done).
+2. Work in Mesen2 first: implement/enable single-thread deterministic debug path for screenshot runs.
+3. Re-run first-mismatch frame scan (1..60) in stable mode.
+4. Only after stability is proven, reintroduce tiny probes (`BADD`/`B84A`/frame summary) and continue bisection.
+
 ### Temporary trace knobs currently in tree
 
 - ear6:

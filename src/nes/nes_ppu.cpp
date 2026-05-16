@@ -17,12 +17,7 @@ namespace ear6::nes {
 #define ENABLE_VS8448_TRACE
 #ifdef ENABLE_PPU_TRACE
 void NesPpu::trace_ppu(const char* fmt, ...) {
-    uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
-    fprintf(stderr, "[PPU] %6u %4d %4d %12lu ", frame_count_, scanline_, cycle_, cpu_cycle);
-    va_list args;
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
+    (void)fmt;
 }
 #else
 void NesPpu::trace_ppu(const char* fmt, ...) { (void)fmt; }
@@ -34,24 +29,10 @@ static inline bool in_vs8448_window(uint32_t frame, int16_t scanline) {
            scanline >= VS8448_TRACE_MIN_SCANLINE && scanline <= VS8448_TRACE_MAX_SCANLINE;
 }
 #define TRACE_VS8448(tag) do { \
-    if (in_vs8448_window(frame_count_, scanline_)) { \
-        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0; \
-        fprintf(stderr, \
-            "[VS8448] %s f=%u sl=%d cy=%u cpu=%lu v=%04X t=%04X bus=%04X rd=%d prd=%d nsu=%d uvd=%u uv=%04X ivr=%u vb=%d nmi=%d\n", \
-            tag, frame_count_, scanline_, cycle_, cpu_cycle, \
-            video_ram_addr_, tmp_video_ram_addr_, ppu_bus_address_, \
-            (int)rendering_enabled_, (int)prev_rendering_enabled_, (int)need_state_update_, \
-            update_vram_addr_delay_, update_vram_addr_, ignore_vram_read_, \
-            (int)status_flags_.vertical_blank, console_->get_cpu() ? (int)console_->get_cpu()->get_state().nmi_flag : -1 \
-        ); \
-    } \
+    (void)tag; \
 } while (0)
 #define TRACE_WTGL(tag, value, before, after) do { \
-    if (in_vs8448_window(frame_count_, scanline_)) { \
-        uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0; \
-        fprintf(stderr, "[WTGL] %s f=%u sl=%d cy=%u cpu=%lu val=%02X wt=%d->%d t=%04X v=%04X\n", \
-            tag, frame_count_, scanline_, cycle_, cpu_cycle, (unsigned)(value), (int)(before), (int)(after), tmp_video_ram_addr_, video_ram_addr_); \
-    } \
+    (void)tag; (void)value; (void)before; (void)after; \
 } while (0)
 #else
 #define TRACE_VS8448(tag) do {} while (0)
@@ -69,10 +50,10 @@ NesPpu::NesPpu(NesConsole* console) {
     output_buffers_[0] = new uint16_t[256 * 240];
     output_buffers_[1] = new uint16_t[256 * 240];
     current_output_buffer_ = output_buffers_[0];
-    // Initialize to palette index 0x0F (black in standard NES palette).
-    // memset pattern 0x0F per byte → each uint16_t = 0x0F0F → lower 6 bits = 0x0F = black.
-    memset(output_buffers_[0], 0x0F, 256 * 240 * sizeof(uint16_t));
-    memset(output_buffers_[1], 0x0F, 256 * 240 * sizeof(uint16_t));
+    // Match Mesen2 boot backdrop index behavior for early startup frames.
+    // memset pattern 0x09 per byte -> each uint16_t = 0x0909 -> lower 6 bits = 0x09.
+    memset(output_buffers_[0], 0x09, 256 * 240 * sizeof(uint16_t));
+    memset(output_buffers_[1], 0x09, 256 * 240 * sizeof(uint16_t));
     framebuffer_ = output_buffers_[0];
 
     const uint8_t palette_boot[0x20] = {
@@ -211,6 +192,11 @@ void NesPpu::process_scanline_first_cycle() {
             allow_full_ppu_access_ = true;
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
             framebuffer_ = current_output_buffer_;
+            if (frame_count_ <= 8) {
+                fprintf(stderr, "[EAR6_SWAP] f=%u to=%d fb0=%02X\n", frame_count_,
+                    current_output_buffer_ == output_buffers_[0] ? 0 : 1,
+                    current_output_buffer_[0] & 0x3F);
+            }
         } else if (prev_rendering_enabled_) {
             if (scanline_ > 0 || (!(frame_count_ & 0x01) || no_odd_frame_skip_)) {
                 set_bus_address((tile_.tile_addr << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr);
@@ -709,6 +695,14 @@ void NesPpu::trigger_nmi() {
 
 void NesPpu::send_frame() {
     update_grayscale_and_intensify_bits();
+    if (frame_count_ <= 8) {
+        fprintf(stderr, "[EAR6_SEND] f=%u from=%d fb0=%02X re=%d pre=%d bg=%d sp=%d pal0=%02X\n",
+            frame_count_, current_output_buffer_ == output_buffers_[0] ? 0 : 1,
+            current_output_buffer_[0] & 0x3F,
+            (int)rendering_enabled_, (int)prev_rendering_enabled_,
+            (int)mask_.background_enabled, (int)mask_.sprites_enabled,
+            palette_ram_[0]);
+    }
     // Frame is ready in current_output_buffer_
 }
 

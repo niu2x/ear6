@@ -29,6 +29,7 @@ public:
     uint32_t get_frame_count() const { return frame_count_; }
     int get_scanline() const { return scanline_; }
     int get_cycle() const { return cycle_; }
+    uint8_t get_palette_ram0() const { return palette_ram_[0]; }
     uint16_t* get_framebuffer() { return framebuffer_; }
     const uint16_t* get_framebuffer() const { return framebuffer_; }
     uint8_t* get_oam() { return sprite_ram_; }

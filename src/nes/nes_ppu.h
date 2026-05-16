@@ -34,6 +34,7 @@ public:
     uint8_t* get_oam() { return sprite_ram_; }
 
     uint8_t peek_ram(uint16_t addr);
+    void set_no_odd_frame_skip() { no_odd_frame_skip_ = true; }
 
 private:
     NesConsole* console_ = nullptr;
@@ -47,6 +48,7 @@ private:
     uint32_t frame_count_ = 1;
     uint32_t nmi_scanline_ = 241;
     uint16_t vblank_end_ = 260;
+    bool no_odd_frame_skip_ = false;
 
 
     // Framebuffer

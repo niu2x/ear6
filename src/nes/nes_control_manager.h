@@ -16,8 +16,6 @@ public:
     void set_vs_mode(bool vs, const nes::RomInfo& info) {
         is_vs_system_ = vs;
         (void)info;
-        vs_read4016_ = 0x18;
-        vs_read4017_ = 0x7C;
     }
     void get_memory_ranges(MemoryRanges& ranges) override {
         ranges.add_handler(MemoryOperation::READ, 0x4016, 0x4017);
@@ -40,8 +38,6 @@ private:
     NesConsole* console_ = nullptr;
     uint8_t write_pending_ = 0;
     bool is_vs_system_ = false;
-    uint8_t vs_read4016_ = 0;
-    uint8_t vs_read4017_ = 0;
     uint16_t write_addr_ = 0;
     uint8_t write_value_ = 0;
     uint8_t controller_state_[2] = {};

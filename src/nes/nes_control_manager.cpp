@@ -41,11 +41,9 @@ uint8_t NesControlManager::read_ram(uint16_t addr) {
     // VS UniSystem: merge DIP switch bits into controller reads
     if (is_vs_system_) {
         if (addr == 0x4016) {
-            result &= 0x65;
-            result |= vs_read4016_ & 0x18;
+            result = (result & 0x65) | 0x00;  // DIP bits 0-1 → bit 3-4, default 0
         } else if (addr == 0x4017) {
-            result &= 0x01;
-            result |= vs_read4017_ & 0xFE;
+            result = 0x00;  // DIP bits 2-7 → bit 2-7, default 0
         }
     }
 

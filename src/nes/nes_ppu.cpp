@@ -152,7 +152,7 @@ void NesPpu::process_scanline_first_cycle() {
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
             framebuffer_ = current_output_buffer_;
         } else if (prev_rendering_enabled_) {
-            if (scanline_ > 0 || (!(frame_count_ & 0x01))) {
+            if (scanline_ > 0 || (!(frame_count_ & 0x01) || no_odd_frame_skip_)) {
                 set_bus_address((tile_.tile_addr << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr);
             }
         }
@@ -230,7 +230,7 @@ void NesPpu::process_scanline_impl() {
     } else if (cycle_ == 337 || cycle_ == 339) {
         if (rendering_enabled_) {
             tile_.tile_addr = read_vram(get_nametable_addr());
-            if (scanline_ == -1 && cycle_ == 339 && (frame_count_ & 0x01)) {
+            if (scanline_ == -1 && cycle_ == 339 && (frame_count_ & 0x01) && !no_odd_frame_skip_) {
                 cycle_ = 340;
             }
         }

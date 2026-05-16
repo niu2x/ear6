@@ -20,6 +20,7 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - **Step 4 — Offset origin**: Between `W$2005=00` (sl=249 cyc=173, SAME in both) and `W$2001=00` (sl=259 cyc=57/39), there are 10 scanlines of pure PPU internal work (no CPU register accesses). The 18-cycle gap accumulates ENTIRELY inside the PPU rendering pipeline.
 - **Step 5 — Offset tracked scanline-by-scanline**: Across 76 scanlines (frame 3 scanlines 184-259), ear6 averages ~0.24 extra PPU cycles per scanline vs Mesen2. The 18-cycle offset is constant once established — it does NOT grow further until frame 9.
 - **Step 6 — NMI pattern diverges at frame 9**: +3 more cycles accumulate between frames 7→9, shifting the `$2002` read timing → `prevent_vbl_flag_` set differently → NMI fires on an extra frame in ear6 (frame 10 vs Mesen2 frame 11). After this, all subsequent events are on different frame numbers.
+- **Step 7 — Trace infrastructure pitfall fixed**: Direct per-cycle `printf/fprintf` in Mesen2 `EndCpuCycle()` caused severe timing perturbation (vs dr mario rendered all-black). Resolved by buffering CPU logs (ring buffer), logging hot-path transitions only, and using `PRIu64` for portable 64-bit formatting.
 - **Palette never written**: Game code takes different branch → never executes palette initialization code → boot palette persists. This is a **symptom**, not root cause.
 
 **Root cause**: PPU rendering pipeline (`process_scanline_impl()`) has micro-timing differences vs Mesen2's `ProcessScanlineImpl()`:

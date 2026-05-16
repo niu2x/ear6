@@ -135,6 +135,12 @@ If APU timing is suspected, add a trace function to `NesApu` following the same 
 
 Mesen2 has no permanent trace infrastructure. Add printf calls manually when debugging:
 
+**Critical timing note (2026-05-16 update):**
+- Do **NOT** print per-cycle logs directly in hot paths like `NesCpu::EndCpuCycle()` using `printf/fprintf`.
+- Even stderr logging can change timing enough to make `vs dr mario` render all-black.
+- If CPU tracing is needed, use buffered logging (ring buffer + periodic/batch flush), and log only state transitions in hot paths.
+- Also use portable 64-bit format macros (`PRIu64`) instead of hardcoded `%llu` to avoid UB on platforms where `uint64_t` is `unsigned long`.
+
 **PPU register traces** — in `Core/NES/NesPpu.cpp`:
 ```cpp
 // Template for adding PPU traces:
@@ -146,9 +152,11 @@ printf("[PPU] %6d %4d %4d %12llu W$200X=%02X\n", _frameCount, _scanline, _cycle,
 
 **CPU IRQ traces** — in `Core/NES/NesCpu.cpp`, `EndCpuCycle()`:
 ```cpp
-printf("[CPU] %12llu IRQ_FLAGS irq=%d run_irq=%d prev_run=%d nmi=%d prev_nmi=%d need_nmi=%d\n",
-       _state.CycleCount, _state.IrqFlag, _runIrq, _prevRunIrq,
-       _state.NmiFlag, _prevNmiFlag, _needNmi);
+// Recommended: enqueue to ring buffer here, flush outside hot path.
+// If printing directly for quick test, log only transitions (NOT every cycle).
+fprintf(stderr, "[CPU] %12" PRIu64 " IRQ_FLAGS irq=%02X run_irq=%d prev_run=%d nmi=%d prev_nmi=%d need_nmi=%d\n",
+        _state.CycleCount, _state.IrqFlag, _runIrq, _prevRunIrq,
+        _state.NmiFlag, _prevNmiFlag, _needNmi);
 ```
 
 ### Mesen2 CPU vars (for traces)

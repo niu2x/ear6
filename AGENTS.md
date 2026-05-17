@@ -132,86 +132,17 @@ All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their 
 
 ## Known Limitations
 
-### FDS BIOS ROM renders wrong colors (missing FDS hardware)
+- **FDS hardware is not implemented**: FDS BIOS/classic FDS-dependent code paths can diverge because `$4024-$403F` and FDS RAM adapter behavior are missing.
+- **PPU model parity is incomplete**: Some VS/System and mapper-heavy titles still require tighter cycle-level parity with mesen2's interleaved model.
+- **Mapper-specific submapper logic is partial**: `RomInfo.submapper_id` exists and can be filled from NES DB, but mapper behavior must be implemented per mapper.
 
-ROM: `Famicom Disk System BIOS ROM (J).nes` (mapper 0, NROM)
+## Debugging Lessons
 
-**Symptom**: Screenshot comparison at frame 60 shows ~58% pixel match with Mesen2. The stripe pattern positions match exactly, but colors use wrong palette indices (offset of +9: ear6 uses palette indices 0x01/0x21 vs Mesen2's 0x0A/0x2A).
-
-**Root cause**: The ROM is an NROM cartridge containing the FDS BIOS. It reads FDS I/O registers at `$4024-$403F` to detect disk hardware. ear6 has no FDS implementation, so reads return open bus (0x00). The BIOS takes a different code path and writes different values to PPU palette RAM (`$3F00-$3F1F`). The NES palette lookup table itself is identical between ear6 and Mesen2.
-
-**Fix when adding FDS support**: Implement minimal FDS stub for this ROM:
-1. `$4024-$403F` I/O registers returning sane stub values
-2. `$6000-$7FFF` 8KB WRAM mapping (FDS RAM Adapter)
-3. Detect this ROM either by iNES 2.0 submapper or by hash
-
-The lower ~90% of the frame is all-black in both emulators (false match in comparison). See `docs/TODO.md` for FDS implementation status.
-
-### Duck Hunt shows "Connect Zapper" screen (missing Zapper/light gun emulation)
-
-ROM: `Duck Hunt (JUE).nes` (mapper 0, NROM)
-
-**Symptom**: Screenshot comparison shows ~71.77% pixel match with Mesen2 at frames 20-60. Top 128 rows (sky/grass background) match perfectly, but rows 128+ differ completely — ear6 shows a white-background "Connect Zapper" screen while mesen2 shows black/dark content.
-
-**Root cause**: Duck Hunt reads controller port 2 (`$4017`) at startup to detect the NES Zapper (light gun). ear6 has no Zapper emulation, so `$4017` reads return `0x40` (standard controller, no buttons pressed), causing the game to display the "Connect Zapper" instruction screen. Mesen2's internal default for port 2 apparently returns different data, making the game detect a Zapper and proceed to the game/title screen.
-
-**Impact**: Only affects games that read port 2 for Zapper detection. PPU and standard controller rendering are correct (confirmed by 128 perfect rows).
-
-**Fix when adding Zapper support**: Implement Zapper emulation on controller port 2, or provide a CLI option to set port 2 device type.
-
-### vs dr mario shows 0.00% match (PPU batch model vs cycle-interleaved)
-
-ROM: `vs dr mario.nes` (mapper 1, MMC1, iNES byte 7 bit 0 = VS flag set)
-
-**Symptom**: 0.00% pixel match at all frame counts (60, 120, 256). ear6 shows a repeating checkerboard pattern (Dr Mario pill tile from CHR bank 2) while mesen2 shows proper game content.
-
-**Investigation history (2026-05-16):**
-
-1. ❌ **VS System detection**: Initially blamed byte 7 bit 0 → created VsControlManager, 2C03 palette, odd-frame skip disable. Partially correct (mesen2 DOES use 2C03 palette for this ROM) but controller manager was wrong — mesen2 detects VS from filename `(vs)` not from header bit, so it uses standard NesControlManager.
-
-2. ✅ **Resolved**: Split `is_vs_system` (controls VsControlManager creation) from `use_vs_palette` (controls 2C03 palette). Only the latter is set from header byte 7 bit 0.
-
-3. ❌ **DIP switch / $4017 reads**: ear6 used VsControlManager which returns `0x00` for `$4017`; mesen2 uses standard NesControlManager returning `0x40`. The difference caused game code to branch differently.
-
-4. ✅ **Resolved**: `is_vs_system` is never set from header (only from CLI `--system vs`), so standard NesControlManager is always used.
-
-5. ❌ **MMC1 init differences**: ear6 set member variables directly; mesen2 used `ProcessRegisterWrite(0x8000, GetPowerOnByte() | 0x0C)` setting ScreenAOnly mirroring instead of header-specified Horizontal.
-
-6. ✅ **Resolved**: MMC1 init rewritten to match mesen2's InitMapper.
-
-7. ❌ **Reset order**: ear6 called CPU reset (8 dummy cycles advancing PPU) then PPU reset (wasting 24 PPU cycles). mesen2 calls PPU reset first, then CPU reset.
-
-8. ✅ **Resolved**: Reset order changed to PPU→CPU matching mesen2.
-
-9. ❌ **VRAM/palette data**: First 5468 PPU trace events are identical. Divergence at trace index 5505 — `$2006` second byte writes `$AA` vs `$CB` (33 bytes = 1 scanline + 1 pixel scroll offset) during nametable address setup after palette update.
-
-10. ❌ **NMI timing**: Both emulators fire NMI at frames 4, 6, 8, 10, 12, 14 (every other frame). Not a NMI issue.
-
-11. ❌ **$2007 write masking**: Already implements the "write LSB during rendering" behavior from mesen2. Not the issue.
-
-12. ❌ **Open bus on $2000 writes**: ear6 did not update PPU open bus on $2000 writes (only $2001-$2007). mesen2 updates on ALL PPU writes except $4014. Fixed but did not affect this ROM's output.
-
-13. ❌ **REG trace at index 8181**: After 8180 identical PPU register events, NMI handler writes `$2004` (OAMDATA) in ear6 vs `$4014` (OAMDMA) in mesen2. This means the CPU executed different instructions — a branch was taken differently. Since the first 8180 events are identical across both emulators, the branch difference must come from PPU internal rendering pipeline state (tile shifters, attribute latches) that does not manifest as register accesses.
-
-**Confirmed root cause**: PPU batch model (ear6's current) vs cycle-interleaved model (mesen2). The batch model runs PPU in chunks of 3 cycles per CPU instruction, while cycle-interleaved runs PPU dot-by-dot interleaved with each CPU memory access. This causes subtle scanline/cycle timing differences that compound over frames, shifting the game's scroll position by ~1 scanline per 12 frames. By frame 60, the accumulated offset is measurable.
-
-**Key evidence from cycle-level tracing**:
-- All MMC1 register values identical (chr_reg0=2, chr_reg1=3→4, prg_reg=0)
-- All palette RAM writes identical (same values, same addresses)
-- VRAM nametable data content identical
-- NMI firing pattern identical
-- Only difference: `$2006` address setup after palette write differs by $21 (33 bytes = coarse X+1, coarse Y+4)
-- This is consistent with the game's scroll counter being 1 frame ahead in ear6
-
-**Fix**: Requires PPU architecture migration from batch model to cycle-interleaved model (docs/migration_guide.md Phase 3). The batch model cannot match mesen2's PPU cycle accuracy.
-
-### RomInfo lacks SubMapperID field
-
-`src/nes/nes_types.h:RomInfo` has no `SubMapperID` field. This means:
-- **Mapper 002** (UNROM): Cannot detect submapper 2 variants that have bus conflicts (`HasBusConflicts()`)
-- Other mappers may also depend on submapper info for variant behavior
-
-Fix when adding `SubMapperID` support: add field to `RomInfo`, parse from iNES 2.0 header byte 15, and update affected mappers.
+- **Prefer code-path confirmation over log-only inference**: read mesen2 implementation first, then add trace points to validate hypotheses.
+- **Differentiate observation vs behavior changes**: add trace instrumentation freely; gate or postpone semantic changes until evidence is complete.
+- **Treat NES DB as authoritative metadata**: apply DB overrides (mirroring/input/PPU model/etc.) with explicit field mapping and safe bounds checks.
+- **Use layered localization**: RGB mismatch -> raw index mismatch -> register/event timeline -> memory read/write source.
+- **Always run targeted regressions after fixes**: verify the target ROM and at least 1-2 known-good ROMs in related mappers.
 
 ## Modifying Mesen2 (for trace comparison)
 

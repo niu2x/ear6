@@ -144,5 +144,14 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **blargg APU tests** — length counter, envelope, sweep, DMC
 - [ ] **Full compatibility suite** — 100+ popular ROMs
 - [ ] **Frame-by-frame trace compare** — script that runs ear6 and Mesen2 side-by-side for the same ROM, finds the first divergent PPU register event
-- [ ] **PPU cycle event logging infrastructure** — ✅ DONE. `trace_ppu()` in `nes_ppu.cpp` and `trace_cpu()` in `nes_cpu.cpp`, both gated by `#define ENABLE_PPU_TRACE` / `#define ENABLE_CPU_TRACE`.
+- [ ] **PPU cycle event logging infrastructure** — ✅ DONE. `trace_ppu()` (`src/nes/nes_ppu.cpp`) and `trace_cpu()` (`src/nes/nes_cpu.cpp`) now use two-level gating: compile-time `EAR6_ENABLE_*` macros + runtime `EAR6_TRACE_*` env vars (both required).
+- [ ] **Trace/Debug switch reference** — ✅ DONE. Current two-level controls:
+  - `EAR6_ENABLE_CPU_TRACE` + `EAR6_TRACE_CPU`
+  - `EAR6_ENABLE_PPU_TRACE` + `EAR6_TRACE_PPU`
+  - `EAR6_ENABLE_CPU8448_TRACE` + `EAR6_TRACE_CPU8448`
+  - `EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE` + `EAR6_TRACE_MINIMAL_BAD_WINDOW`
+  - `EAR6_ENABLE_CYCLE_ALIGN_TRACE` + `EAR6_TRACE_CYCLE_ALIGN`
+  - `EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE` + `EAR6_TRACE_EARLY_FRAME_SUMMARY`
+  - `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
+  - `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE` (optional: `EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`)
 - [ ] Build reusable first-divergence workflow script: compare raw index, mapped index, and final RGB in separate stages.

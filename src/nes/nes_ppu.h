@@ -169,7 +169,7 @@ private:
     void update_color_bit_masks();
     void update_minimum_draw_cycles();
 
-    // Tracing (ENABLE_PPU_TRACE to activate)
+    // Tracing (requires EAR6_ENABLE_PPU_TRACE and EAR6_TRACE_PPU)
     void trace_ppu(const char* fmt, ...);
 };
 

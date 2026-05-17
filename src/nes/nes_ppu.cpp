@@ -10,21 +10,13 @@
 
 namespace ear6::nes {
 
-#define ENABLE_PPU_TRACE
-#define VS8448_TRACE_MIN_FRAME 3
-#define VS8448_TRACE_MAX_FRAME 6
-#define VS8448_TRACE_MIN_SCANLINE 248
-#define VS8448_TRACE_MAX_SCANLINE 260
-//#define ENABLE_VS8448_TRACE
-//#define ENABLE_EARLY_FRAME_SUMMARY_TRACE
-//#define ENABLE_CYCLE_ALIGN_TRACE
-#ifdef ENABLE_PPU_TRACE
+#if defined(EAR6_ENABLE_PPU_TRACE)
+static bool is_ppu_trace_enabled() {
+    return std::getenv("EAR6_TRACE_PPU") != nullptr;
+}
+
 void NesPpu::trace_ppu(const char* fmt, ...) {
-    if (std::getenv("EAR6_TRACE_9_12") == nullptr) {
-        (void)fmt;
-        return;
-    }
-    if (frame_count_ < 9 || frame_count_ > 12) {
+    if (!is_ppu_trace_enabled()) {
         (void)fmt;
         return;
     }
@@ -39,16 +31,24 @@ void NesPpu::trace_ppu(const char* fmt, ...) {
 void NesPpu::trace_ppu(const char* fmt, ...) { (void)fmt; }
 #endif
 
-#ifdef ENABLE_VS8448_TRACE
+#if defined(EAR6_ENABLE_VS8448_TRACE)
+static bool is_vs8448_trace_enabled() {
+    return std::getenv("EAR6_TRACE_VS8448") != nullptr;
+}
+
 static inline bool in_vs8448_window(uint32_t frame, int16_t scanline) {
+    static constexpr uint32_t VS8448_TRACE_MIN_FRAME = 3;
+    static constexpr uint32_t VS8448_TRACE_MAX_FRAME = 6;
+    static constexpr int16_t VS8448_TRACE_MIN_SCANLINE = 248;
+    static constexpr int16_t VS8448_TRACE_MAX_SCANLINE = 260;
     return frame >= VS8448_TRACE_MIN_FRAME && frame <= VS8448_TRACE_MAX_FRAME &&
            scanline >= VS8448_TRACE_MIN_SCANLINE && scanline <= VS8448_TRACE_MAX_SCANLINE;
 }
 #define TRACE_VS8448(tag) do { \
-    (void)tag; \
+    if (is_vs8448_trace_enabled() && in_vs8448_window(frame_count_, scanline_)) { (void)tag; } \
 } while (0)
 #define TRACE_WTGL(tag, value, before, after) do { \
-    (void)tag; (void)value; (void)before; (void)after; \
+    if (is_vs8448_trace_enabled() && in_vs8448_window(frame_count_, scanline_)) { (void)tag; (void)value; (void)before; (void)after; } \
 } while (0)
 #else
 #define TRACE_VS8448(tag) do {} while (0)
@@ -170,9 +170,11 @@ void NesPpu::exec() {
             if (!prevent_vbl_flag_) {
                 trace_ppu("VBL_SET\n");
                 status_flags_.vertical_blank = true;
-                #ifdef ENABLE_CYCLE_ALIGN_TRACE
+                #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
+                if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
                 uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
                 fprintf(stderr, "[EAR6_EVT] VBL_SET f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+                }
                 #endif
                 begin_vblank();
             }
@@ -209,18 +211,22 @@ void NesPpu::process_scanline_first_cycle() {
             status_flags_.sprite_zero_hit = false;
             trace_ppu("VBL_CLR\n");
             status_flags_.vertical_blank = false;
-            #ifdef ENABLE_CYCLE_ALIGN_TRACE
+            #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
+            if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
             uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
             fprintf(stderr, "[EAR6_EVT] VBL_CLR f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+            }
             #endif
             allow_full_ppu_access_ = true;
             current_output_buffer_ = (current_output_buffer_ == output_buffers_[0]) ? output_buffers_[1] : output_buffers_[0];
             framebuffer_ = current_output_buffer_;
-            #ifdef ENABLE_EARLY_FRAME_SUMMARY_TRACE
+            #if defined(EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE)
+            if (std::getenv("EAR6_TRACE_EARLY_FRAME_SUMMARY") != nullptr) {
             if (frame_count_ <= 8) {
                 fprintf(stderr, "[EAR6_SWAP] f=%u to=%d fb0=%02X\n", frame_count_,
                     current_output_buffer_ == output_buffers_[0] ? 0 : 1,
                     current_output_buffer_[0] & 0x3F);
+            }
             }
             #endif
         } else if (prev_rendering_enabled_) {
@@ -313,7 +319,13 @@ void NesPpu::process_scanline_impl() {
 }
 
 void NesPpu::load_tile_info() {
-    const bool trace_f11 = std::getenv("VS_DMARIO_TRACE11") != nullptr && (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
+    const bool trace_f11 =
+#if defined(EAR6_ENABLE_DMARIO_TRACE11)
+        std::getenv("EAR6_TRACE_DMARIO11") != nullptr &&
+        (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
+#else
+        false;
+#endif
     if (rendering_enabled_) {
         switch (cycle_ & 0x07) {
             case 1: {
@@ -362,7 +374,13 @@ void NesPpu::shift_tile_registers() {
 }
 
 uint8_t NesPpu::get_pixel_color() {
-    const bool trace_f11 = std::getenv("VS_DMARIO_TRACE11") != nullptr && (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
+    const bool trace_f11 =
+#if defined(EAR6_ENABLE_DMARIO_TRACE11)
+        std::getenv("EAR6_TRACE_DMARIO11") != nullptr &&
+        (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
+#else
+        false;
+#endif
     uint8_t offset = x_scroll_;
     uint8_t bg_color = 0;
     uint8_t sprite_bg_color = 0;
@@ -746,9 +764,11 @@ void NesPpu::begin_vblank() {
 void NesPpu::trigger_nmi() {
     if (control_.nmi_on_vertical_blank) {
         trace_ppu("NMI\n");
-        #ifdef ENABLE_CYCLE_ALIGN_TRACE
+        #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
+        if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
         uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
         fprintf(stderr, "[EAR6_EVT] NMI_TRIG f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+        }
         #endif
         console_->get_cpu()->set_nmi_flag();
     }
@@ -756,7 +776,8 @@ void NesPpu::trigger_nmi() {
 
 void NesPpu::send_frame() {
     update_grayscale_and_intensify_bits();
-    #ifdef ENABLE_EARLY_FRAME_SUMMARY_TRACE
+    #if defined(EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE)
+    if (std::getenv("EAR6_TRACE_EARLY_FRAME_SUMMARY") != nullptr) {
     if (frame_count_ <= 8) {
         uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
         fprintf(stderr, "[EAR6_SEND] f=%u from=%d fb0=%02X re=%d pre=%d bg=%d sp=%d pal0=%02X\n",
@@ -770,6 +791,7 @@ void NesPpu::send_frame() {
             current_output_buffer_[1] & 0x3F,
             current_output_buffer_[2] & 0x3F);
         fprintf(stderr, "[EAR6_CYCLE] f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+    }
     }
     #endif
     // Frame is ready in current_output_buffer_

@@ -40,7 +40,7 @@ public:
     void start_dmc_transfer();
     void stop_dmc_transfer();
 
-    // Tracing (ENABLE_CPU_TRACE to activate)
+    // Tracing (requires EAR6_ENABLE_CPU_TRACE and EAR6_TRACE_CPU)
     void trace_cpu(const char* fmt, ...);
 
 private:

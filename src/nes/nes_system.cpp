@@ -124,9 +124,10 @@ int NesSystem::step() {
     console_->run_frame();
     convert_frame();
 
-    if (std::getenv("EAR6_PALETTE_LOG") != nullptr) {
+    #if defined(EAR6_ENABLE_PALETTE_TRACE)
+    if (std::getenv("EAR6_TRACE_PALETTE") != nullptr) {
         uint32_t target_frame = 1;
-        if (const char* frame_env = std::getenv("EAR6_PALETTE_FRAME")) {
+        if (const char* frame_env = std::getenv("EAR6_TRACE_PALETTE_FRAME")) {
             unsigned long v = std::strtoul(frame_env, nullptr, 10);
             if (v > 0) target_frame = (uint32_t)v;
         }
@@ -203,7 +204,7 @@ int NesSystem::step() {
 
             fprintf(stderr, "[EAR6_PAL0_F%u] %02X\n", completed_frame, ppu->get_palette_ram0() & 0x3F);
 
-            const char* dump_prefix = std::getenv("EAR6_PALETTE_DUMP_PREFIX");
+            const char* dump_prefix = std::getenv("EAR6_TRACE_PALETTE_DUMP_PREFIX");
             if (dump_prefix && idx_fb) {
                 std::string idx_path = std::string(dump_prefix) + "_idx_f" + std::to_string(completed_frame) + ".txt";
                 std::string rgb_path = std::string(dump_prefix) + "_rgb_f" + std::to_string(completed_frame) + ".txt";
@@ -226,6 +227,7 @@ int NesSystem::step() {
             }
         }
     }
+    #endif
 
     return 0;
 }

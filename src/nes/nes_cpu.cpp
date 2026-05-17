@@ -4,23 +4,21 @@
 #include "nes_apu.h"
 #include <cstring>
 #include <cstdarg>
+#include <cstdlib>
 #include "nes_cpu.h"
 
 namespace ear6::nes {
 
-#define ENABLE_CPU_TRACE
-#define CPU8448_FRAME_MIN 17
-#define CPU8448_FRAME_MAX 17
-#define CPU8448_SCANLINE_MIN 249
-#define CPU8448_SCANLINE_MAX 259
-//#define ENABLE_CPU8448_TRACE
-//#define ENABLE_CPU8448_TRACE
-#define CPU8448_PC_MIN 0xB840
-#define CPU8448_PC_MAX 0xB86C
-//#define ENABLE_MINIMAL_BAD_WINDOW_TRACE
-//#define ENABLE_CYCLE_ALIGN_TRACE
-#ifdef ENABLE_CPU_TRACE
+#ifdef EAR6_ENABLE_CPU_TRACE
+static bool is_cpu_trace_enabled() {
+    return std::getenv("EAR6_TRACE_CPU") != nullptr;
+}
+
 void NesCpu::trace_cpu(const char* fmt, ...) {
+    if (!is_cpu_trace_enabled()) {
+        return;
+    }
+
     fprintf(stderr, "[CPU] %12lu ", state_.cycle_count);
     va_list args;
     va_start(args, fmt);
@@ -31,21 +29,25 @@ void NesCpu::trace_cpu(const char* fmt, ...) {
 void NesCpu::trace_cpu(const char* fmt, ...) { (void)fmt; }
 #endif
 
-#ifdef ENABLE_CPU8448_TRACE
+#if defined(EAR6_ENABLE_CPU8448_TRACE)
+static bool is_cpu8448_trace_enabled() {
+    return std::getenv("EAR6_TRACE_CPU8448") != nullptr;
+}
+
 static NesCpu* g_probe_cpu = nullptr;
 static uint16_t g_probe_addr = 0;
 static uint16_t g_exec_pc = 0;
 static uint8_t g_exec_op = 0;
 static bool g_exec_trace_rw = false;
-#define TRACE_CPU8448(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
-#define TRACE_CPU8448_STATE(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
-#define TRACE_CPU8448_MEM(tag, addrv, valv) do { (void)tag; (void)addrv; (void)valv; } while (0)
-#define TRACE_CPU8448_MEMW(addrv, valv) do { (void)addrv; (void)valv; } while (0)
-#define TRACE_CPU8448_X(tag, pcv, opv, xb, xa) do { (void)tag; (void)pcv; (void)opv; (void)xb; (void)xa; } while (0)
-#define TRACE_AD_PROBE_ADDR(pcv, opv, addrv) do { (void)pcv; (void)opv; (void)addrv; } while (0)
-#define TRACE_AD_PROBE_VAL(addrv, valv) do { (void)addrv; (void)valv; } while (0)
-#define TRACE_RW_PROBE(tag, addrv, valv) do { (void)tag; (void)addrv; (void)valv; } while (0)
-#define TRACE_BADSTEP(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
+#define TRACE_CPU8448(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
+#define TRACE_CPU8448_STATE(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
+#define TRACE_CPU8448_MEM(tag, addrv, valv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)addrv; (void)valv; } } while (0)
+#define TRACE_CPU8448_MEMW(addrv, valv) do { if (is_cpu8448_trace_enabled()) { (void)addrv; (void)valv; } } while (0)
+#define TRACE_CPU8448_X(tag, pcv, opv, xb, xa) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; (void)xb; (void)xa; } } while (0)
+#define TRACE_AD_PROBE_ADDR(pcv, opv, addrv) do { if (is_cpu8448_trace_enabled()) { (void)pcv; (void)opv; (void)addrv; } } while (0)
+#define TRACE_AD_PROBE_VAL(addrv, valv) do { if (is_cpu8448_trace_enabled()) { (void)addrv; (void)valv; } } while (0)
+#define TRACE_RW_PROBE(tag, addrv, valv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)addrv; (void)valv; } } while (0)
+#define TRACE_BADSTEP(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
 #else
 static NesCpu* g_probe_cpu = nullptr;
 static uint16_t g_probe_addr = 0;
@@ -317,7 +319,9 @@ uint8_t NesCpu::get_operand_value() {
 void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
     uint8_t opcode = get_op_code();
-    #ifdef ENABLE_MINIMAL_BAD_WINDOW_TRACE
+    #if defined(EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE)
+    const bool minimal_bad_window_trace_enabled = std::getenv("EAR6_TRACE_MINIMAL_BAD_WINDOW") != nullptr;
+    if (minimal_bad_window_trace_enabled) {
     if (pc_before == 0xBADD) {
         NesPpu* p = console_->get_ppu();
         if (p) {
@@ -375,6 +379,7 @@ void NesCpu::exec() {
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
     }
+    }
     #endif
     g_exec_pc = pc_before;
     g_exec_op = opcode;
@@ -394,7 +399,8 @@ void NesCpu::exec() {
         g_probe_addr = operand_;
     }
     (this->*op_table_[opcode])();
-    #ifdef ENABLE_MINIMAL_BAD_WINDOW_TRACE
+    #if defined(EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE)
+    if (minimal_bad_window_trace_enabled) {
     if ((pc_before == 0xBAD2 || pc_before == 0xBAD5 || pc_before == 0xBAD7 || pc_before == 0xBAD9 || pc_before == 0xBADB) &&
         console_->get_ppu()->get_frame_count() == 29) {
         uint8_t* iram = memory_manager_->get_internal_ram();
@@ -403,6 +409,7 @@ void NesCpu::exec() {
             pc_before, state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
+    }
     }
     #endif
     if (g_probe_cpu == this) {
@@ -414,12 +421,14 @@ void NesCpu::exec() {
     TRACE_BADSTEP("AFTER", pc_before, opcode);
 
     if (prev_run_irq_ || prev_need_nmi_) {
-        #ifdef ENABLE_CYCLE_ALIGN_TRACE
+        #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
+        if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
         NesPpu* p = console_->get_ppu();
         if (p) {
             fprintf(stderr, "[EAR6_EVT] IRQ_ENTRY cpu=%lu pc=%04X nmi=%d need_nmi=%d run_irq=%d prev_run=%d f=%u sl=%d cy=%d\n",
                 state_.cycle_count, state_.pc, (int)state_.nmi_flag, (int)need_nmi_, (int)run_irq_, (int)prev_run_irq_,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
+        }
         }
         #endif
         TRACE_CPU8448("IRQ_ENTRY", state_.pc, opcode);

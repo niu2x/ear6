@@ -31,6 +31,8 @@ public:
 
     void set_button_state(int port, int button, bool pressed);
     void clear_all();
+    void set_port2_zapper_enabled(bool enabled) { port2_zapper_enabled_ = enabled; }
+    void set_cli_exp_bit3_mode(bool enabled) { cli_exp_bit3_mode_ = enabled; }
 
 protected:
     void apply_write(uint8_t value);
@@ -42,6 +44,8 @@ protected:
     uint8_t controller_state_[2] = {};
     int controller_read_pos_[2] = {};
     bool strobe_ = false;
+    bool port2_zapper_enabled_ = false;
+    bool cli_exp_bit3_mode_ = false;
 };
 
 } // namespace ear6::nes

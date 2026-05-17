@@ -148,12 +148,26 @@ struct NesPpuState {
 };
 
 struct RomInfo {
+    enum class BusConflictType {
+        DEFAULT = 0,
+        YES = 1,
+        NO = 2,
+    } bus_conflicts = BusConflictType::DEFAULT;
+
+    enum class GameInputType {
+        UNSPECIFIED = 0,
+        STANDARD_CONTROLLERS = 1,
+        VS_ZAPPER = 7,
+        ZAPPER = 8,
+    } input_type = GameInputType::UNSPECIFIED;
+
     int mapper_number = 0;
     int prg_banks = 0;
     int chr_banks = 0;
     bool has_battery = false;
     MirroringType mirroring = MirroringType::HORIZONTAL;
     bool has_trainer = false;
+    int submapper_id = 0;
     bool is_vs_system = false;
     bool use_vs_palette = false;
     enum class VsPpuModel {

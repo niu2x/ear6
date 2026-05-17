@@ -69,6 +69,8 @@ public:
     virtual uint16_t get_prg_page_size() = 0;
     virtual uint16_t get_chr_page_size() = 0;
 
+    void set_has_bus_conflicts(bool enabled) { has_bus_conflicts_ = enabled; }
+
 protected:
     NesConsole* console_ = nullptr;
     RomInfo rom_info_ = {};

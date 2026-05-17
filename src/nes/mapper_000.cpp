@@ -38,7 +38,8 @@ void Mapper000::init(const RomInfo& info,
         }
         set_ppu_memory_mapping(0x0000, 0x1FFF, source, 0, 0x2000, READ_WRITE);
     } else {
-        select_chr_page_8x(0, 0);
+        // NROM CHR ROM is a single fixed 8KB window.
+        set_ppu_memory_mapping(0x0000, 0x1FFF, 0, ChrMemoryType::CHR_ROM, READ);
     }
 }
 

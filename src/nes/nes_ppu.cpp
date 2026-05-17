@@ -257,15 +257,46 @@ void NesPpu::process_scanline_impl() {
         }
 
         if (scanline_ >= 0) {
+            bool probe = std::getenv("EAR6_TRACE_PIXEL_PROBE") != nullptr;
+            uint32_t probe_frame = 0;
+            int probe_x = -1;
+            int probe_y = -1;
+            if (probe) {
+                if (const char* f = std::getenv("EAR6_TRACE_PIXEL_PROBE_FRAME")) {
+                    unsigned long v = std::strtoul(f, nullptr, 10);
+                    if (v > 0) probe_frame = static_cast<uint32_t>(v);
+                }
+                if (const char* x = std::getenv("EAR6_TRACE_PIXEL_PROBE_X")) {
+                    probe_x = static_cast<int>(std::strtol(x, nullptr, 10));
+                }
+                if (const char* y = std::getenv("EAR6_TRACE_PIXEL_PROBE_Y")) {
+                    probe_y = static_cast<int>(std::strtol(y, nullptr, 10));
+                }
+            }
+            uint8_t color_out = 0xFF;
+            const char* branch = "";
             // Match Mesen2 DefaultNesPpu::DrawPixel behavior:
             // - When rendering is enabled, draw normal pixel pipeline output.
             // - When rendering is disabled, still update output; if v is in $3F00-$3FFF,
             //   output palette[v & 0x1F], otherwise output backdrop palette[0].
             if (rendering_enabled_ || ((video_ram_addr_ & 0x3F00) != 0x3F00)) {
                 uint32_t color = get_pixel_color();
+                color_out = static_cast<uint8_t>(color & 0x3F);
                 current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[color & 0x03 ? color : 0];
+                branch = rendering_enabled_ ? "render" : "forced_bg0";
             } else {
                 current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[video_ram_addr_ & 0x1F];
+                branch = "forced_vram";
+            }
+
+            if (probe && frame_count_ == probe_frame && ((int)cycle_ - 1) == probe_x && scanline_ == probe_y) {
+                fprintf(stderr,
+                    "[EAR6_PIXEL_PROBE] f=%u x=%d y=%d sl=%d cy=%u branch=%s render=%d v=%04X pal0=%02X color=%02X out=%02X prevp=%u curp=%u hs=%u sc=%u xs=%u lbs=%04X hbs=%04X\n",
+                    frame_count_, probe_x, probe_y, scanline_, cycle_, branch,
+                    rendering_enabled_ ? 1 : 0, video_ram_addr_, palette_ram_[0] & 0x3F,
+                    color_out & 0x3F, current_output_buffer_[(scanline_ << 8) + cycle_ - 1] & 0x3F,
+                    previous_tile_palette_, current_tile_palette_, has_sprite_[cycle_] ? 1 : 0, sprite_count_,
+                    x_scroll_, low_bit_shift_, high_bit_shift_);
             }
 
             shift_tile_registers();
@@ -334,11 +365,55 @@ void NesPpu::load_tile_info() {
     if (rendering_enabled_) {
         switch (cycle_ & 0x07) {
             case 1: {
+                uint16_t lbs_before = low_bit_shift_;
+                uint16_t hbs_before = high_bit_shift_;
                 previous_tile_palette_ = current_tile_palette_;
                 current_tile_palette_ = tile_.palette_offset;
                 low_bit_shift_ |= tile_.low_byte;
                 high_bit_shift_ |= tile_.high_byte;
-                uint8_t tile_index = read_vram(get_nametable_addr());
+                uint16_t nt_addr = get_nametable_addr();
+                uint8_t tile_index = read_vram(nt_addr);
+                if (std::getenv("EAR6_TRACE_TILE_SHIFT") != nullptr) {
+                    uint32_t tf = 0;
+                    int tsl = -999;
+                    int tcy = -999;
+                    if (const char* f = std::getenv("EAR6_TRACE_TILE_SHIFT_FRAME")) {
+                        unsigned long v = std::strtoul(f, nullptr, 10);
+                        if (v > 0) tf = static_cast<uint32_t>(v);
+                    }
+                    if (const char* s = std::getenv("EAR6_TRACE_TILE_SHIFT_SL")) {
+                        tsl = static_cast<int>(std::strtol(s, nullptr, 10));
+                    }
+                    if (const char* c = std::getenv("EAR6_TRACE_TILE_SHIFT_CY")) {
+                        tcy = static_cast<int>(std::strtol(c, nullptr, 10));
+                    }
+                    bool hit = (tf == 0 || frame_count_ == tf) && (tsl == -999 || scanline_ == tsl) && (tcy == -999 || (int)cycle_ == tcy);
+                    if (hit) {
+                        fprintf(stderr,
+                            "[EAR6_TILE_SHIFT] f=%u sl=%d cy=%u lbs_b=%04X hbs_b=%04X tile_lb=%02X tile_hb=%02X lbs_a=%04X hbs_a=%04X v=%04X t=%04X\n",
+                            frame_count_, scanline_, cycle_, lbs_before, hbs_before,
+                            tile_.low_byte, tile_.high_byte, low_bit_shift_, high_bit_shift_, video_ram_addr_, tmp_video_ram_addr_);
+                    }
+                }
+                if (std::getenv("EAR6_TRACE_TILE_INDEX") != nullptr) {
+                    uint32_t tf = 0;
+                    int tsl = -999;
+                    if (const char* f = std::getenv("EAR6_TRACE_TILE_INDEX_FRAME")) {
+                        unsigned long v = std::strtoul(f, nullptr, 10);
+                        if (v > 0) tf = static_cast<uint32_t>(v);
+                    }
+                    if (const char* s = std::getenv("EAR6_TRACE_TILE_INDEX_SL")) {
+                        tsl = static_cast<int>(std::strtol(s, nullptr, 10));
+                    }
+                    if ((tf == 0 || frame_count_ == tf) && (tsl == -999 || scanline_ == tsl)) {
+                        fprintf(stderr,
+                            "[EAR6_TILE_INDEX] f=%u sl=%d cy=%u nt=%04X idx=%02X fineY=%u bgPat=%04X ta=%04X v=%04X t=%04X\n",
+                            frame_count_, scanline_, cycle_, nt_addr, tile_index,
+                            (unsigned)(video_ram_addr_ >> 12), control_.background_pattern_addr,
+                            (uint16_t)((tile_index << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr),
+                            video_ram_addr_, tmp_video_ram_addr_);
+                    }
+                }
                 tile_.tile_addr = (tile_index << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr;
                 if (trace_f11) {
                     fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=1 nt=%02X ta=%04X v=%04X t=%04X pprev=%u pcur=%u\n",
@@ -357,6 +432,21 @@ void NesPpu::load_tile_info() {
             }
             case 5:
                 tile_.low_byte = read_vram(tile_.tile_addr);
+                if (std::getenv("EAR6_TRACE_TILE_FETCH") != nullptr) {
+                    uint32_t tf = 0;
+                    int tsl = -999;
+                    if (const char* f = std::getenv("EAR6_TRACE_TILE_FETCH_FRAME")) {
+                        unsigned long v = std::strtoul(f, nullptr, 10);
+                        if (v > 0) tf = static_cast<uint32_t>(v);
+                    }
+                    if (const char* s = std::getenv("EAR6_TRACE_TILE_FETCH_SL")) {
+                        tsl = static_cast<int>(std::strtol(s, nullptr, 10));
+                    }
+                    if ((tf == 0 || frame_count_ == tf) && (tsl == -999 || scanline_ == tsl)) {
+                        fprintf(stderr, "[EAR6_TILE_FETCH] f=%u sl=%d cy=%u st=5 ta=%04X lb=%02X v=%04X t=%04X\n",
+                            frame_count_, scanline_, cycle_, tile_.tile_addr, tile_.low_byte, video_ram_addr_, tmp_video_ram_addr_);
+                    }
+                }
                 if (trace_f11) {
                     fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=5 lb=%02X ta=%04X\n",
                         scanline_, cycle_, tile_.low_byte, tile_.tile_addr);
@@ -364,6 +454,21 @@ void NesPpu::load_tile_info() {
                 break;
             case 7:
                 tile_.high_byte = read_vram(tile_.tile_addr + 8);
+                if (std::getenv("EAR6_TRACE_TILE_FETCH") != nullptr) {
+                    uint32_t tf = 0;
+                    int tsl = -999;
+                    if (const char* f = std::getenv("EAR6_TRACE_TILE_FETCH_FRAME")) {
+                        unsigned long v = std::strtoul(f, nullptr, 10);
+                        if (v > 0) tf = static_cast<uint32_t>(v);
+                    }
+                    if (const char* s = std::getenv("EAR6_TRACE_TILE_FETCH_SL")) {
+                        tsl = static_cast<int>(std::strtol(s, nullptr, 10));
+                    }
+                    if ((tf == 0 || frame_count_ == tf) && (tsl == -999 || scanline_ == tsl)) {
+                        fprintf(stderr, "[EAR6_TILE_FETCH] f=%u sl=%d cy=%u st=7 ta=%04X hb=%02X v=%04X t=%04X\n",
+                            frame_count_, scanline_, cycle_, tile_.tile_addr + 8, tile_.high_byte, video_ram_addr_, tmp_video_ram_addr_);
+                    }
+                }
                 if (trace_f11) {
                     fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=7 hb=%02X ta=%04X\n",
                         scanline_, cycle_, tile_.high_byte, tile_.tile_addr + 8);
@@ -438,12 +543,39 @@ void NesPpu::set_bus_address(uint16_t addr) {
 
 uint8_t NesPpu::read_vram(uint16_t addr) {
     set_bus_address(addr);
-    return mapper_->read_vram(addr);
+    uint8_t v = mapper_->read_vram(addr);
+    if (std::getenv("EAR6_TRACE_NTADDR") != nullptr) {
+        uint16_t a = addr & 0x3FFF;
+        if (a == 0x21E2 || a == 0x21E3 || a == 0x25E2 || a == 0x25E3 || a == 0x29E2 || a == 0x29E3 || a == 0x2DE2 || a == 0x2DE3) {
+            fprintf(stderr, "[EAR6_NTADDR_R] f=%u sl=%d cy=%u a=%04X v=%02X\n", frame_count_, scanline_, cycle_, a, v);
+        }
+    }
+    return v;
 }
 
 void NesPpu::write_vram(uint16_t addr, uint8_t value) {
     set_bus_address(addr);
+    if (std::getenv("EAR6_TRACE_NTADDR") != nullptr) {
+        uint16_t a = addr & 0x3FFF;
+        if (a == 0x21E2 || a == 0x21E3 || a == 0x25E2 || a == 0x25E3 || a == 0x29E2 || a == 0x29E3 || a == 0x2DE2 || a == 0x2DE3) {
+            fprintf(stderr, "[EAR6_NTADDR_W] f=%u sl=%d cy=%u a=%04X v=%02X\n", frame_count_, scanline_, cycle_, a, value);
+        }
+    }
     mapper_->write_vram(addr, value);
+
+    if (std::getenv("EAR6_TRACE_NT_WINDOW") != nullptr) {
+        uint16_t a = addr & 0x3FFF;
+        if (a >= 0x21E0 && a <= 0x21FF) {
+            uint32_t tf = 0;
+            if (const char* f = std::getenv("EAR6_TRACE_NT_WINDOW_FRAME")) {
+                unsigned long vv = std::strtoul(f, nullptr, 10);
+                if (vv > 0) tf = static_cast<uint32_t>(vv);
+            }
+            if (tf == 0 || frame_count_ == tf) {
+                fprintf(stderr, "[EAR6_NT_WIN_W] f=%u sl=%d cy=%u a=%04X v=%02X\n", frame_count_, scanline_, cycle_, a, value);
+            }
+        }
+    }
 }
 
 uint16_t NesPpu::get_nametable_addr() {
@@ -631,6 +763,27 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
     // mesen2 sets open bus for ALL PPU writes except $4014
     set_open_bus(0xFF, value);
 
+    if (std::getenv("EAR6_TRACE_REG_WRITES") != nullptr) {
+        uint32_t target_frame = 0;
+        if (const char* f = std::getenv("EAR6_TRACE_REG_WRITES_FRAME")) {
+            unsigned long v = std::strtoul(f, nullptr, 10);
+            if (v > 0) target_frame = static_cast<uint32_t>(v);
+        }
+        if (target_frame == 0 || frame_count_ == target_frame || frame_count_ + 1 == target_frame) {
+            uint16_t reg = static_cast<uint16_t>(0x2000 | (addr & 0x07));
+            if (reg == 0x2000 || reg == 0x2001 || reg == 0x2005 || reg == 0x2006 || reg == 0x2007) {
+                fprintf(stderr,
+                    "[EAR6_REG_WRITE] f=%u sl=%d cy=%u reg=%04X val=%02X rend=%d prev=%d bg=%d sp=%d v=%04X t=%04X wt=%d\n",
+                    frame_count_, scanline_, cycle_, reg, value,
+                    rendering_enabled_ ? 1 : 0,
+                    prev_rendering_enabled_ ? 1 : 0,
+                    mask_.background_enabled ? 1 : 0,
+                    mask_.sprites_enabled ? 1 : 0,
+                    video_ram_addr_, tmp_video_ram_addr_, write_toggle_ ? 1 : 0);
+            }
+        }
+    }
+
     switch (addr & 0x7) {
         case 0x00: // PPUCTRL
             trace_ppu("W$2000=%02X\n", value);
@@ -711,6 +864,17 @@ void NesPpu::write_ram(uint16_t addr, uint8_t value) {
 }
 
 void NesPpu::set_control_register(uint8_t value) {
+    if (std::getenv("EAR6_TRACE_CTRL2000") != nullptr) {
+        fprintf(stderr,
+            "[EAR6_CTRL2000] f=%u sl=%d cy=%u val=%02X allow=%d before_bg=%04X\n",
+            frame_count_, scanline_, cycle_, value,
+            allow_full_ppu_access_ ? 1 : 0,
+            control_.background_pattern_addr);
+    }
+    if (!allow_full_ppu_access_) {
+        return;
+    }
+
     uint8_t name_table = value & 0x03;
     uint16_t normal_addr = (tmp_video_ram_addr_ & ~0x0C00) | (name_table << 10);
     process_tmp_addr_scroll_glitch(normal_addr, console_->get_memory_manager()->get_open_bus() << 10, 0x0400);
@@ -720,6 +884,12 @@ void NesPpu::set_control_register(uint8_t value) {
     control_.background_pattern_addr = (value & 0x10) ? 0x1000 : 0x0000;
     control_.large_sprites = (value & 0x20) != 0;
     control_.nmi_on_vertical_blank = (value & 0x80) != 0;
+
+    if (std::getenv("EAR6_TRACE_CTRL2000") != nullptr) {
+        fprintf(stderr,
+            "[EAR6_CTRL2000] f=%u sl=%d cy=%u after_bg=%04X\n",
+            frame_count_, scanline_, cycle_, control_.background_pattern_addr);
+    }
 
     if (!control_.nmi_on_vertical_blank) {
         console_->get_cpu()->clear_nmi_flag();

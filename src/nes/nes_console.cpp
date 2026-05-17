@@ -10,7 +10,13 @@
 #include "ines_loader.h"
 #include "mapper_factory.h"
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace {
 
@@ -27,12 +33,195 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
 }
 
 void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
-    // Align with mesen2 behavior for entries resolved by NES DB.
-    // vs dr mario.nes: DB row 2B85420E => VsSystem, mapper1, PpuModel=2C04C.
-    if (prg_chr_crc32 == 0x2B85420Eu) {
+    enum NesDbField {
+        FIELD_CRC = 0,
+        FIELD_SYSTEM = 1,
+        FIELD_BOARD = 2,
+        FIELD_PCB = 3,
+        FIELD_CHIP = 4,
+        FIELD_MAPPER = 5,
+        FIELD_PRG_ROM_SIZE = 6,
+        FIELD_CHR_ROM_SIZE = 7,
+        FIELD_CHR_RAM_SIZE = 8,
+        FIELD_WORK_RAM_SIZE = 9,
+        FIELD_SAVE_RAM_SIZE = 10,
+        FIELD_BATTERY = 11,
+        FIELD_MIRRORING = 12,
+        FIELD_INPUT_TYPE = 13,
+        FIELD_BUS_CONFLICTS = 14,
+        FIELD_SUB_MAPPER = 15,
+        FIELD_VS_SYSTEM_TYPE = 16,
+        FIELD_PPU_MODEL = 17,
+    };
+
+    struct NesDbEntry {
+        bool has_mapper = false;
+        int mapper = 0;
+        bool has_battery = false;
+        bool battery = false;
+        bool has_bus_conflicts = false;
+        ear6::nes::RomInfo::BusConflictType bus_conflicts = ear6::nes::RomInfo::BusConflictType::DEFAULT;
+        bool has_submapper = false;
+        int submapper = 0;
+        bool has_input_type = false;
+        int input_type = 0;
+        bool has_ppu_model = false;
+        int ppu_model = 0;
+        bool is_vs_system = false;
+        bool has_mirroring = false;
+        ear6::nes::MirroringType mirroring = ear6::nes::MirroringType::HORIZONTAL;
+    };
+
+    static bool loaded = false;
+    static std::unordered_map<uint32_t, NesDbEntry> db;
+
+    if (!loaded) {
+        loaded = true;
+        std::ifstream in("assets/nes/MesenNesDB.txt");
+        if (in) {
+            std::string line;
+            while (std::getline(in, line)) {
+                if (line.empty() || line[0] == '#') {
+                    continue;
+                }
+
+                std::vector<std::string> fields;
+                std::stringstream ss(line);
+                std::string part;
+                while (std::getline(ss, part, ',')) {
+                    fields.push_back(part);
+                }
+
+                if (fields.size() < 14) {
+                    continue;
+                }
+
+                uint32_t crc = static_cast<uint32_t>(std::strtoul(fields[0].c_str(), nullptr, 16));
+                if (crc == 0) {
+                    continue;
+                }
+
+                NesDbEntry entry;
+                entry.is_vs_system = (fields[FIELD_SYSTEM] == "VsSystem");
+
+                if (!fields[FIELD_MAPPER].empty()) {
+                    int mapper = std::atoi(fields[FIELD_MAPPER].c_str());
+                    if (mapper >= 0 && mapper < 65000) {
+                        entry.has_mapper = true;
+                        entry.mapper = mapper;
+                    }
+                }
+
+                if (!fields[FIELD_BATTERY].empty()) {
+                    entry.has_battery = true;
+                    entry.battery = (std::atoi(fields[FIELD_BATTERY].c_str()) != 0);
+                }
+
+                if (fields.size() > FIELD_BUS_CONFLICTS && !fields[FIELD_BUS_CONFLICTS].empty()) {
+                    entry.has_bus_conflicts = true;
+                    int bc = std::atoi(fields[FIELD_BUS_CONFLICTS].c_str());
+                    if (bc == 1) {
+                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::YES;
+                    } else if (bc == 0) {
+                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::NO;
+                    } else {
+                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::DEFAULT;
+                    }
+                }
+
+                if (fields.size() > FIELD_SUB_MAPPER && !fields[FIELD_SUB_MAPPER].empty()) {
+                    entry.has_submapper = true;
+                    entry.submapper = std::atoi(fields[FIELD_SUB_MAPPER].c_str());
+                }
+
+                if (!fields[FIELD_INPUT_TYPE].empty()) {
+                    entry.has_input_type = true;
+                    entry.input_type = std::atoi(fields[FIELD_INPUT_TYPE].c_str());
+                }
+                if (fields.size() > FIELD_MIRRORING && !fields[FIELD_MIRRORING].empty()) {
+                    const std::string& m = fields[FIELD_MIRRORING];
+                    if (m == "h") {
+                        entry.has_mirroring = true;
+                        entry.mirroring = ear6::nes::MirroringType::HORIZONTAL;
+                    } else if (m == "v") {
+                        entry.has_mirroring = true;
+                        entry.mirroring = ear6::nes::MirroringType::VERTICAL;
+                    } else if (m == "4") {
+                        entry.has_mirroring = true;
+                        entry.mirroring = ear6::nes::MirroringType::FOUR_SCREENS;
+                    }
+                }
+                if (fields.size() > FIELD_PPU_MODEL && !fields[FIELD_PPU_MODEL].empty()) {
+                    entry.has_ppu_model = true;
+                    entry.ppu_model = std::atoi(fields[FIELD_PPU_MODEL].c_str());
+                }
+                db[crc] = entry;
+            }
+        }
+    }
+
+    auto it = db.find(prg_chr_crc32);
+    if (it == db.end()) {
+        if (std::getenv("EAR6_TRACE_NESDB") != nullptr) {
+            fprintf(stderr, "[EAR6_NESDB] miss crc=%08X\n", prg_chr_crc32);
+        }
+        return;
+    }
+
+    const NesDbEntry& entry = it->second;
+    if (std::getenv("EAR6_TRACE_NESDB") != nullptr) {
+        fprintf(stderr, "[EAR6_NESDB] hit crc=%08X mapper=%d has_mapper=%d battery=%d has_battery=%d bus=%d has_bus=%d sub=%d has_sub=%d input=%d has_input=%d vs=%d ppu=%d has_ppu=%d\n",
+            prg_chr_crc32,
+            entry.mapper,
+            entry.has_mapper ? 1 : 0,
+            entry.battery ? 1 : 0,
+            entry.has_battery ? 1 : 0,
+            (int)entry.bus_conflicts,
+            entry.has_bus_conflicts ? 1 : 0,
+            entry.submapper,
+            entry.has_submapper ? 1 : 0,
+            entry.input_type,
+            entry.has_input_type ? 1 : 0,
+            entry.is_vs_system ? 1 : 0,
+            entry.ppu_model,
+            entry.has_ppu_model ? 1 : 0);
+    }
+    if (entry.has_mapper) {
+        info.mapper_number = entry.mapper;
+    }
+    if (entry.has_battery) {
+        info.has_battery = entry.battery;
+    }
+    if (entry.has_bus_conflicts) {
+        info.bus_conflicts = entry.bus_conflicts;
+    }
+    if (entry.has_submapper) {
+        info.submapper_id = entry.submapper;
+    }
+    if (entry.is_vs_system) {
         info.is_vs_system = true;
         info.use_vs_palette = true;
-        info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C04C;
+    }
+    if (entry.has_ppu_model) {
+        if (entry.ppu_model == 1) {
+            info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C03;
+            info.use_vs_palette = true;
+        } else if (entry.ppu_model == 2) {
+            info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C04C;
+            info.use_vs_palette = true;
+        }
+    }
+    if (entry.has_input_type) {
+        if (entry.input_type == 7) {
+            info.input_type = ear6::nes::RomInfo::GameInputType::VS_ZAPPER;
+        } else if (entry.input_type == 8) {
+            info.input_type = ear6::nes::RomInfo::GameInputType::ZAPPER;
+        } else if (entry.input_type == 1) {
+            info.input_type = ear6::nes::RomInfo::GameInputType::STANDARD_CONTROLLERS;
+        }
+    }
+    if (entry.has_mirroring) {
+        info.mirroring = entry.mirroring;
     }
 }
 
@@ -78,6 +267,11 @@ int NesConsole::load_rom(const void* data, int size) {
 
     mapper_.reset(MapperFactory::create(info.mapper_number));
     mapper_->initialize(this);
+    if (rom_info_.bus_conflicts == RomInfo::BusConflictType::YES) {
+        mapper_->set_has_bus_conflicts(true);
+    } else if (rom_info_.bus_conflicts == RomInfo::BusConflictType::NO) {
+        mapper_->set_has_bus_conflicts(false);
+    }
     mapper_->init(info, prg_rom, chr_rom);
 
     // Create core components
@@ -94,6 +288,12 @@ int NesConsole::load_rom(const void* data, int size) {
     if (rom_info_.use_vs_palette) {
         ppu_->set_no_odd_frame_skip();
     }
+    if (std::getenv("EAR6_CLI_INPUT_TOPOLOGY") != nullptr) {
+        control_manager_->set_cli_exp_bit3_mode(true);
+    }
+    // Keep input behavior aligned with mesen2-cli API path:
+    // CLI config currently exposes only NES/SNES controller types,
+    // so port2 remains standard controller unless explicit API support is added.
 
     // Register IO devices in order
     memory_manager_->register_io_device(ppu_.get());

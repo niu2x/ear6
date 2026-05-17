@@ -1,5 +1,8 @@
 #include "nes_console.h"
+#include "nes_cpu.h"
 #include "nes_memory_manager.h"
+#include <cstdio>
+#include <cstdlib>
 #include "nes_control_manager.h"
 
 namespace ear6::nes {
@@ -30,27 +33,51 @@ void NesControlManager::clear_all() {
 }
 
 uint8_t NesControlManager::read_ram(uint16_t addr) {
+    if (port2_zapper_enabled_ && addr == 0x4017) {
+        uint8_t value = console_->get_memory_manager()->get_open_bus(get_open_bus_mask(1));
+        value |= 0x09;
+        if (std::getenv("EAR6_TRACE_4017") != nullptr) {
+            fprintf(stderr, "[EAR6_4017] zapper=1 val=%02X\n", value);
+        }
+        return value;
+    }
+
     uint8_t port = (uint8_t)(addr & 1);
     if (port > 1) port = 0;
     uint8_t result = console_->get_memory_manager()->get_open_bus(get_open_bus_mask(port));
     uint8_t serial_bit = 0;
+    if (port == 1 && cli_exp_bit3_mode_) {
+        serial_bit = 0;
+    }
     if (strobe_) {
-        serial_bit = controller_state_[port] & 1;
+        if (!(port == 1 && cli_exp_bit3_mode_)) {
+            serial_bit = controller_state_[port] & 1;
+        }
     } else if (controller_read_pos_[port] < 8) {
-        serial_bit = (controller_state_[port] >> controller_read_pos_[port]) & 1;
-        controller_read_pos_[port]++;
+        if (!(port == 1 && cli_exp_bit3_mode_)) {
+            serial_bit = (controller_state_[port] >> controller_read_pos_[port]) & 1;
+            controller_read_pos_[port]++;
+        }
     } else {
         // Standard NES controller keeps returning 1 after 8 serial bits.
-        serial_bit = 1;
+        serial_bit = (port == 1 && cli_exp_bit3_mode_) ? 0 : 1;
     }
     result |= serial_bit;
+    if (addr == 0x4017) {
+        if (cli_exp_bit3_mode_) {
+            result |= 0x08;
+        }
+    }
+    if (std::getenv("EAR6_TRACE_4017") != nullptr && addr == 0x4017) {
+        fprintf(stderr, "[EAR6_4017] zapper=0 val=%02X serial=%d pos=%d\n", result, serial_bit, controller_read_pos_[1]);
+    }
     return result;
 }
 
 void NesControlManager::write_ram(uint16_t addr, uint8_t value) {
     write_addr_ = addr;
     write_value_ = value;
-    write_pending_ = 2;
+    write_pending_ = (console_->get_cpu()->get_cycle_count() & 0x01) ? 1 : 2;
 }
 
 void NesControlManager::apply_write(uint8_t value) {
@@ -81,7 +108,7 @@ void NesControlManager::update_input_state() {}
 
 uint8_t NesControlManager::get_open_bus_mask(uint8_t port) {
     (void)port;
-    return 0x00;
+    return 0xE0;
 }
 
 } // namespace ear6::nes

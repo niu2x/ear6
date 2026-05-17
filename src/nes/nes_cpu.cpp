@@ -2,6 +2,7 @@
 #include "nes_memory_manager.h"
 #include "nes_ppu.h"
 #include "nes_apu.h"
+#include "nes_control_manager.h"
 #include <cstring>
 #include <cstdarg>
 #include <cstdlib>
@@ -254,6 +255,35 @@ uint8_t NesCpu::memory_read(uint16_t addr) {
     start_cpu_cycle(true);
     uint8_t v = memory_manager_->read(addr);
     end_cpu_cycle(true);
+    if (std::getenv("EAR6_TRACE_D131") != nullptr && g_exec_pc == 0xD131) {
+        NesPpu* p = console_->get_ppu();
+        fprintf(stderr,
+            "[EAR6_D131_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%lu\n",
+            g_exec_pc,
+            g_exec_op,
+            addr,
+            v,
+            p ? p->get_frame_count() : 0,
+            p ? p->get_scanline() : 0,
+            p ? p->get_cycle() : 0,
+            state_.cycle_count);
+    }
+    if (std::getenv("EAR6_TRACE_C294") != nullptr && g_exec_pc == 0xC294) {
+        NesPpu* p = console_->get_ppu();
+        fprintf(stderr,
+            "[EAR6_C294_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%lu a=%02X x=%02X y=%02X\n",
+            g_exec_pc,
+            g_exec_op,
+            addr,
+            v,
+            p ? p->get_frame_count() : 0,
+            p ? p->get_scanline() : 0,
+            p ? p->get_cycle() : 0,
+            state_.cycle_count,
+            state_.a,
+            state_.x,
+            state_.y);
+    }
     TRACE_AD_PROBE_VAL(addr, v);
     TRACE_RW_PROBE("R", addr, v);
     TRACE_CPU8448_MEM("READ", addr, v);
@@ -319,6 +349,22 @@ uint8_t NesCpu::get_operand_value() {
 void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
     uint8_t opcode = get_op_code();
+    if (std::getenv("EAR6_TRACE_CPU_SEQ") != nullptr) {
+        NesPpu* p = console_->get_ppu();
+        fprintf(stderr,
+            "[EAR6_CPU_SEQ] f=%u sl=%d cy=%d cpu=%lu pc=%04X op=%02X a=%02X x=%02X y=%02X sp=%02X ps=%02X\n",
+            p ? p->get_frame_count() : 0,
+            p ? p->get_scanline() : 0,
+            p ? p->get_cycle() : 0,
+            state_.cycle_count,
+            pc_before,
+            opcode,
+            state_.a,
+            state_.x,
+            state_.y,
+            state_.sp,
+            state_.ps);
+    }
     #if defined(EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE)
     const bool minimal_bad_window_trace_enabled = std::getenv("EAR6_TRACE_MINIMAL_BAD_WINDOW") != nullptr;
     if (minimal_bad_window_trace_enabled) {
@@ -455,14 +501,87 @@ void NesCpu::irq() {
 
 void NesCpu::process_pending_dma(uint16_t read_address) {
     if (!need_halt_) return;
-    (void)read_address;
+
+    uint16_t prev_read_address = read_address;
+    bool enable_internal_reg_reads = (read_address & 0xFFE0) == 0x4000;
+    bool skip_first_input_clock = false;
+    if (enable_internal_reg_reads && dmc_dma_running_ && (read_address == 0x4016 || read_address == 0x4017)) {
+        uint16_t dmc_address = console_->get_apu()->get_dmc_read_address();
+        if ((dmc_address & 0x1F) == (read_address & 0x1F)) {
+            skip_first_input_clock = true;
+        }
+    }
+
+    bool is_nes_behavior = true;
+    bool skip_dummy_reads = is_nes_behavior && (read_address == 0x4016 || read_address == 0x4017);
+
+    auto process_dma_read = [&](uint16_t addr) -> uint8_t {
+        if (!enable_internal_reg_reads) {
+            uint8_t val;
+            if (addr >= 0x4000 && addr <= 0x401F) {
+                val = memory_manager_->get_open_bus();
+            } else {
+                val = memory_manager_->read(addr);
+            }
+            prev_read_address = addr;
+            return val;
+        }
+
+        uint16_t internal_addr = 0x4000 | (addr & 0x1F);
+        bool is_same_address = internal_addr == addr;
+        uint8_t val = 0;
+
+        switch (internal_addr) {
+            case 0x4015:
+                val = memory_manager_->read(internal_addr);
+                if (!is_same_address) {
+                    memory_manager_->read(addr);
+                }
+                break;
+
+            case 0x4016:
+            case 0x4017: {
+                if (is_nes_behavior && prev_read_address == internal_addr) {
+                    val = memory_manager_->get_open_bus();
+                } else {
+                    val = memory_manager_->read(internal_addr);
+                }
+
+                if (!is_same_address) {
+                    uint8_t ob_mask = console_->get_control_manager()->get_open_bus_mask((uint8_t)(internal_addr - 0x4016));
+                    uint8_t external_value = memory_manager_->read(addr);
+                    val = (external_value & ob_mask) | ((val & ~ob_mask) & (external_value & ~ob_mask));
+                }
+                break;
+            }
+
+            default:
+                val = memory_manager_->read(addr);
+                break;
+        }
+
+        prev_read_address = internal_addr;
+        return val;
+    };
 
     need_halt_ = false;
 
     trace_cpu("DMA_START offset=%02X\n", sprite_dma_offset_);
 
     start_cpu_cycle(true);
+    if (!(abort_dmc_dma_ && is_nes_behavior && (read_address == 0x4016 || read_address == 0x4017)) && !skip_first_input_clock) {
+        memory_manager_->read(read_address);
+    }
     end_cpu_cycle(true);
+
+    if (abort_dmc_dma_) {
+        dmc_dma_running_ = false;
+        abort_dmc_dma_ = false;
+        if (!sprite_dma_transfer_) {
+            need_dummy_read_ = false;
+            return;
+        }
+    }
 
     uint16_t sprite_counter = 0;
     uint8_t sprite_read_addr = 0;
@@ -486,7 +605,7 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
                 start_cpu_cycle(true);
                 is_dmc_dma_read_ = true;
                 uint16_t dmc_addr = console_->get_apu()->get_dmc_read_address();
-                read_value = memory_manager_->read(dmc_addr);
+                read_value = process_dma_read(dmc_addr);
                 console_->get_apu()->set_dmc_read_buffer(read_value);
                 is_dmc_dma_read_ = false;
                 end_cpu_cycle(true);
@@ -494,13 +613,15 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
                 abort_dmc_dma_ = false;
             } else if (sprite_dma_transfer_) {
                 start_cpu_cycle(true);
-                read_value = memory_manager_->read(sprite_dma_offset_ * 0x100 + sprite_read_addr);
+                read_value = process_dma_read((uint16_t)(sprite_dma_offset_ * 0x100 + sprite_read_addr));
                 end_cpu_cycle(true);
                 sprite_read_addr++;
                 sprite_counter++;
             } else {
                 start_cpu_cycle(true);
-                memory_manager_->read(read_address);
+                if (!skip_dummy_reads) {
+                    memory_manager_->read(read_address);
+                }
                 end_cpu_cycle(true);
             }
         } else {
@@ -514,10 +635,22 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
                 }
             } else {
                 start_cpu_cycle(true);
-                memory_manager_->read(read_address);
+                if (!skip_dummy_reads) {
+                    memory_manager_->read(read_address);
+                }
                 end_cpu_cycle(true);
             }
         }
+    }
+
+    if (std::getenv("EAR6_TRACE_DMA401X") != nullptr) {
+        fprintf(stderr,
+            "[EAR6_DMA401X] rd=%04X en=%d skip1=%d skipd=%d prev=%04X\n",
+            read_address,
+            enable_internal_reg_reads ? 1 : 0,
+            skip_first_input_clock ? 1 : 0,
+            skip_dummy_reads ? 1 : 0,
+            prev_read_address);
     }
     trace_cpu("DMA_END sprite_dma=%d dmc_dma=%d\n", sprite_dma_transfer_, dmc_dma_running_);
 }

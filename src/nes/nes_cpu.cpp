@@ -20,7 +20,7 @@ void NesCpu::trace_cpu(const char* fmt, ...) {
         return;
     }
 
-    fprintf(stderr, "[CPU] %12lu ", state_.cycle_count);
+    fprintf(stderr, "[CPU] %12llu ", (unsigned long long)state_.cycle_count);
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
@@ -258,7 +258,7 @@ uint8_t NesCpu::memory_read(uint16_t addr) {
     if (std::getenv("EAR6_TRACE_D131") != nullptr && g_exec_pc == 0xD131) {
         NesPpu* p = console_->get_ppu();
         fprintf(stderr,
-            "[EAR6_D131_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%lu\n",
+            "[EAR6_D131_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%llu\n",
             g_exec_pc,
             g_exec_op,
             addr,
@@ -266,12 +266,12 @@ uint8_t NesCpu::memory_read(uint16_t addr) {
             p ? p->get_frame_count() : 0,
             p ? p->get_scanline() : 0,
             p ? p->get_cycle() : 0,
-            state_.cycle_count);
+            (unsigned long long)state_.cycle_count);
     }
     if (std::getenv("EAR6_TRACE_C294") != nullptr && g_exec_pc == 0xC294) {
         NesPpu* p = console_->get_ppu();
         fprintf(stderr,
-            "[EAR6_C294_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%lu a=%02X x=%02X y=%02X\n",
+            "[EAR6_C294_READ] pc=%04X op=%02X addr=%04X val=%02X f=%u sl=%d cy=%d cpu=%llu a=%02X x=%02X y=%02X\n",
             g_exec_pc,
             g_exec_op,
             addr,
@@ -279,7 +279,7 @@ uint8_t NesCpu::memory_read(uint16_t addr) {
             p ? p->get_frame_count() : 0,
             p ? p->get_scanline() : 0,
             p ? p->get_cycle() : 0,
-            state_.cycle_count,
+            (unsigned long long)state_.cycle_count,
             state_.a,
             state_.x,
             state_.y);
@@ -352,11 +352,11 @@ void NesCpu::exec() {
     if (std::getenv("EAR6_TRACE_CPU_SEQ") != nullptr) {
         NesPpu* p = console_->get_ppu();
         fprintf(stderr,
-            "[EAR6_CPU_SEQ] f=%u sl=%d cy=%d cpu=%lu pc=%04X op=%02X a=%02X x=%02X y=%02X sp=%02X ps=%02X\n",
+            "[EAR6_CPU_SEQ] f=%u sl=%d cy=%d cpu=%llu pc=%04X op=%02X a=%02X x=%02X y=%02X sp=%02X ps=%02X\n",
             p ? p->get_frame_count() : 0,
             p ? p->get_scanline() : 0,
             p ? p->get_cycle() : 0,
-            state_.cycle_count,
+            (unsigned long long)state_.cycle_count,
             pc_before,
             opcode,
             state_.a,
@@ -371,48 +371,48 @@ void NesCpu::exec() {
     if (pc_before == 0xBADD) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[BADD] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[BADD] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
     if (pc_before == 0xB84A) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[B84A] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[B84A] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
     if (pc_before == 0xB85B) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[B85B] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[B85B] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
     if (pc_before == 0xB87D) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[B87D] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[B87D] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
     if (pc_before == 0xB880) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[B880] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[B880] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
     if (pc_before == 0xB885) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[B885] cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+            fprintf(stderr, "[B885] cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
     }
@@ -420,8 +420,8 @@ void NesCpu::exec() {
         console_->get_ppu()->get_frame_count() == 29) {
         uint8_t* iram = memory_manager_->get_internal_ram();
         NesPpu* p = console_->get_ppu();
-        fprintf(stderr, "[BADSEQ] BEFORE pc=%04X cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
-            pc_before, state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+        fprintf(stderr, "[BADSEQ] BEFORE pc=%04X cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
+            pc_before, (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
     }
@@ -451,8 +451,8 @@ void NesCpu::exec() {
         console_->get_ppu()->get_frame_count() == 29) {
         uint8_t* iram = memory_manager_->get_internal_ram();
         NesPpu* p = console_->get_ppu();
-        fprintf(stderr, "[BADSEQ] AFTER  pc=%04X cpu=%lu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
-            pc_before, state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
+        fprintf(stderr, "[BADSEQ] AFTER  pc=%04X cpu=%llu a=%02X x=%02X y=%02X sp=%02X ps=%02X zf5=%02X zf6=%02X zf7=%02X zf8=%02X f=%u sl=%d cy=%d\n",
+            pc_before, (unsigned long long)state_.cycle_count, state_.a, state_.x, state_.y, state_.sp, state_.ps,
             iram[0xF5], iram[0xF6], iram[0xF7], iram[0xF8],
             p->get_frame_count(), p->get_scanline(), p->get_cycle());
     }
@@ -471,8 +471,8 @@ void NesCpu::exec() {
         if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
         NesPpu* p = console_->get_ppu();
         if (p) {
-            fprintf(stderr, "[EAR6_EVT] IRQ_ENTRY cpu=%lu pc=%04X nmi=%d need_nmi=%d run_irq=%d prev_run=%d f=%u sl=%d cy=%d\n",
-                state_.cycle_count, state_.pc, (int)state_.nmi_flag, (int)need_nmi_, (int)run_irq_, (int)prev_run_irq_,
+            fprintf(stderr, "[EAR6_EVT] IRQ_ENTRY cpu=%llu pc=%04X nmi=%d need_nmi=%d run_irq=%d prev_run=%d f=%u sl=%d cy=%d\n",
+                (unsigned long long)state_.cycle_count, state_.pc, (int)state_.nmi_flag, (int)need_nmi_, (int)run_irq_, (int)prev_run_irq_,
                 p->get_frame_count(), p->get_scanline(), p->get_cycle());
         }
         }

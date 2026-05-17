@@ -398,7 +398,7 @@ Result: stashing debug changes restored expected mesen2 rendering.
 
 ### 2) Verified clean reference point
 
-- Known-good mesen2 commit for screenshot behavior: `adc959cfd121f17d25e81de3e3179a2b9b550fae`.
+- Known-good mesen2 commit for screenshot behavior: `9a9123dbfd95094a048aa080800238148cb02ffc`.
 - `master` diverged by adding CPU/PPU debug instrumentation + altered CLI export logic.
 - A debug snapshot was preserved for traceability: `a28ad818`.
 - Then cleanup commit kept only intended direction: deterministic CLI path cleanup + export focus.
@@ -495,6 +495,22 @@ These are intentionally verbose for root-cause work and should be gated/cleaned 
    - scroll/address transfer timing,
    - sprite/background priority interaction.
 4. Continue using narrow-window trace instead of broad hot-path logging.
+
+### Migration principle (added 2026-05-17)
+
+For ear6 <-> mesen2 migration/debug fixes, **every behavioral change must satisfy both checks before landing**:
+
+1. **Log-level confirmation**
+   - Reproduce mismatch with deterministic commands.
+   - Identify first divergence point in traces/dumps.
+   - Verify post-change improvement with the same measurement workflow.
+
+2. **Code-level confirmation**
+   - Confirm the expected behavior directly from mesen2 code path (not only inferred from logs).
+   - Confirm ear6 code currently differs at the same semantic point.
+   - Implement fix only after this mapping is explicit.
+
+Do **not** ship fixes that are only inferred from short-window trace differences or temporary local symptoms. If evidence is partial, keep the change as instrumentation only and continue bisection.
 
 ### Step 1: Enable CPU IRQ traces and compare
 

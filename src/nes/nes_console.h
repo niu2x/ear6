@@ -53,6 +53,7 @@ public:
     void set_button_state(int port, int button, bool pressed);
     void clear_input();
     const RomInfo& get_rom_info() const { return rom_info_; }
+    uint32_t get_last_completed_ppu_frame() const { return last_completed_ppu_frame_; }
 
 private:
     void init_components();
@@ -66,6 +67,7 @@ private:
     std::unique_ptr<BaseMapper> mapper_;
 
     RomInfo rom_info_;
+    uint32_t last_completed_ppu_frame_ = 0;
 };
 
 } // namespace ear6::nes

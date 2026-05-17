@@ -239,6 +239,7 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
             printf("[%d/%d] frame %d\n", i, frames, i);
         }
     }
+
     if (verbose) {
         printf("[%d/%d] done\n", frames, frames);
     }

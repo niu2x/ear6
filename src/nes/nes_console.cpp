@@ -120,6 +120,11 @@ void NesConsole::run_frame() {
     while (frame == ppu_->get_frame_count()) {
         cpu_->exec();
     }
+    if (ppu_->get_frame_count() > 0) {
+        last_completed_ppu_frame_ = ppu_->get_frame_count() - 1;
+    } else {
+        last_completed_ppu_frame_ = 0;
+    }
     apu_->end_frame();
     apu_->push_frame();
 }

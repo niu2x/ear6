@@ -313,6 +313,7 @@ void NesPpu::process_scanline_impl() {
 }
 
 void NesPpu::load_tile_info() {
+    const bool trace_f11 = std::getenv("VS_DMARIO_TRACE11") != nullptr && (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
     if (rendering_enabled_) {
         switch (cycle_ & 0x07) {
             case 1: {
@@ -322,18 +323,34 @@ void NesPpu::load_tile_info() {
                 high_bit_shift_ |= tile_.high_byte;
                 uint8_t tile_index = read_vram(get_nametable_addr());
                 tile_.tile_addr = (tile_index << 4) | (video_ram_addr_ >> 12) | control_.background_pattern_addr;
+                if (trace_f11) {
+                    fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=1 nt=%02X ta=%04X v=%04X t=%04X pprev=%u pcur=%u\n",
+                        scanline_, cycle_, tile_index, tile_.tile_addr, video_ram_addr_, tmp_video_ram_addr_, previous_tile_palette_, current_tile_palette_);
+                }
                 break;
             }
             case 3: {
                 uint8_t shift = ((video_ram_addr_ >> 4) & 0x04) | (video_ram_addr_ & 0x02);
                 tile_.palette_offset = ((read_vram(get_attribute_addr()) >> shift) & 0x03) << 2;
+                if (trace_f11) {
+                    fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=3 po=%u sh=%u v=%04X\n",
+                        scanline_, cycle_, tile_.palette_offset, shift, video_ram_addr_);
+                }
                 break;
             }
             case 5:
                 tile_.low_byte = read_vram(tile_.tile_addr);
+                if (trace_f11) {
+                    fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=5 lb=%02X ta=%04X\n",
+                        scanline_, cycle_, tile_.low_byte, tile_.tile_addr);
+                }
                 break;
             case 7:
                 tile_.high_byte = read_vram(tile_.tile_addr + 8);
+                if (trace_f11) {
+                    fprintf(stderr, "[EAR6_F11TL] sl=%d cy=%u st=7 hb=%02X ta=%04X\n",
+                        scanline_, cycle_, tile_.high_byte, tile_.tile_addr + 8);
+                }
                 break;
         }
     }
@@ -345,6 +362,7 @@ void NesPpu::shift_tile_registers() {
 }
 
 uint8_t NesPpu::get_pixel_color() {
+    const bool trace_f11 = std::getenv("VS_DMARIO_TRACE11") != nullptr && (frame_count_ == 11 || frame_count_ == 12) && scanline_ >= 2 && scanline_ <= 6 && cycle_ >= 72 && cycle_ <= 104;
     uint8_t offset = x_scroll_;
     uint8_t bg_color = 0;
     uint8_t sprite_bg_color = 0;
@@ -379,7 +397,16 @@ uint8_t NesPpu::get_pixel_color() {
             }
         }
     }
-    return ((offset + ((cycle_ - 1) & 0x07) < 8) ? previous_tile_palette_ : current_tile_palette_) + bg_color;
+    uint8_t out = ((offset + ((cycle_ - 1) & 0x07) < 8) ? previous_tile_palette_ : current_tile_palette_) + bg_color;
+    if (trace_f11) {
+        fprintf(stderr,
+            "[EAR6_F11PX] sl=%d cy=%u x=%d v=%04X t=%04X xs=%u l=%04X h=%04X prevp=%u curp=%u bg2=%u has_sp=%u spcnt=%u rd=%u uvd=%u uv=%04X wt=%u out=%u\n",
+            scanline_, cycle_, (int)cycle_ - 1, video_ram_addr_, tmp_video_ram_addr_, x_scroll_,
+            low_bit_shift_, high_bit_shift_, previous_tile_palette_, current_tile_palette_, sprite_bg_color,
+            has_sprite_[cycle_] ? 1 : 0, sprite_count_, rendering_enabled_ ? 1 : 0,
+            update_vram_addr_delay_, update_vram_addr_, write_toggle_ ? 1 : 0, out);
+    }
+    return out;
 }
 
 void NesPpu::set_bus_address(uint16_t addr) {

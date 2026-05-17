@@ -64,6 +64,12 @@ All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their 
 - **PPU model parity is incomplete**: Some VS/System and mapper-heavy titles still require tighter cycle-level parity with mesen2's interleaved model.
 - **Mapper-specific submapper logic is partial**: `RomInfo.submapper_id` exists and can be filled from NES DB, but mapper behavior must be implemented per mapper.
 
+## NES DB Asset Flow
+
+- `assets/nes/nes_db.txt` is the source-of-truth DB snapshot (from Mesen).
+- ear6 embeds this file at build time via `cmake/embed_nes_db.cmake`, generating `build/generated/nes_db_embedded.h`.
+- Runtime code (`apply_nesdb_overrides`) must consume embedded text, not filesystem reads, so native and wasm behavior stay consistent.
+
 
 ## Notes for AI Agent
 

@@ -916,6 +916,7 @@ xxd /tmp/test.ppm | head -20
 - **先做代码路径对照，再做日志推断**：先确认 Mesen2/ear6 对应代码语义，再用日志验证，不靠日志“猜行为”。
 - **区分“观测改动”和“行为改动”**：可先加 trace 收集证据，证据未闭环前不要同时做语义修复。
 - **NES DB 视为权威元数据**：mirroring/input/PPU model 等覆盖要做字段级映射与边界检查。
+- **NES DB 加载方式**：ear6 不在运行时读取外部 DB 文件。构建阶段会把 `assets/nes/nes_db.txt` 生成并嵌入为 `build/generated/nes_db_embedded.h`，`apply_nesdb_overrides()` 直接解析内嵌文本（兼容 wasm）。
 - **分层定位**：RGB 不一致 -> raw index -> 寄存器/事件时间线 -> 内存读写来源。
 - **修复后做定向回归**：除目标 ROM 外，至少回归 1-2 个同类 mapper 的已知正常 ROM。
 

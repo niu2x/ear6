@@ -173,7 +173,15 @@ struct RomInfo {
     enum class VsPpuModel {
         PPU_2C02 = 0,
         PPU_2C03 = 1,
-        PPU_2C04C = 2,
+        PPU_2C04A = 2,
+        PPU_2C04B = 3,
+        PPU_2C04C = 4,
+        PPU_2C04D = 5,
+        PPU_2C05A = 6,
+        PPU_2C05B = 7,
+        PPU_2C05C = 8,
+        PPU_2C05D = 9,
+        PPU_2C05E = 10,
     } vs_ppu_model = VsPpuModel::PPU_2C02;
 };
 

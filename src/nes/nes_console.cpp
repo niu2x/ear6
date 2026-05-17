@@ -199,15 +199,16 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
         info.submapper_id = entry.submapper;
     }
     if (entry.is_vs_system) {
-        info.is_vs_system = true;
+        // Keep standard control manager behavior aligned with mesen2-cli path.
+        // Do not force VsControlManager from DB system field.
         info.use_vs_palette = true;
     }
     if (entry.has_ppu_model) {
         if (entry.ppu_model == 1) {
             info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C03;
             info.use_vs_palette = true;
-        } else if (entry.ppu_model == 2) {
-            info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C04C;
+        } else if (entry.ppu_model >= 2 && entry.ppu_model <= 10) {
+            info.vs_ppu_model = static_cast<ear6::nes::RomInfo::VsPpuModel>(entry.ppu_model);
             info.use_vs_palette = true;
         }
     }

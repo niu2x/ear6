@@ -69,6 +69,27 @@ static const uint8_t PALETTE_LUT_2C04C[64] = {
     44,30,57,51,7,42,40,29,10,46,50,56,19,43,63,12
 };
 
+static const uint8_t PALETTE_LUT_2C04A[64] = {
+    53,35,22,34,28,9,29,21,32,0,39,5,4,40,8,32,
+    33,62,31,41,60,50,54,18,63,43,46,30,61,45,36,1,
+    14,49,51,42,44,12,27,20,46,7,52,6,19,2,38,46,
+    46,25,16,10,57,3,55,23,15,17,11,13,56,37,24,58
+};
+
+static const uint8_t PALETTE_LUT_2C04B[64] = {
+    46,39,24,57,58,37,28,49,22,19,56,52,32,35,60,11,
+    15,33,6,61,27,41,30,34,29,36,14,43,50,8,46,3,
+    4,54,38,51,17,31,16,2,20,63,0,9,18,46,40,32,
+    62,13,42,23,12,1,21,25,46,44,7,55,53,5,10,45
+};
+
+static const uint8_t PALETTE_LUT_2C04D[64] = {
+    24,3,28,40,46,53,1,23,16,31,42,14,54,55,11,57,
+    37,30,18,52,46,29,6,38,62,27,34,25,4,46,58,33,
+    5,10,7,2,19,20,0,21,12,61,17,15,13,56,45,36,
+    51,32,8,22,63,43,32,60,46,39,35,49,41,50,44,9
+};
+
 static const uint32_t PPU_RGB_2C03[64] = {
     0x6D6D6D, 0x002491, 0x0000DA, 0x6D48DA, 0x91006D, 0xB6006D, 0xB62400, 0x914800,
     0x6D4800, 0x244800, 0x006D24, 0x009100, 0x004848, 0x000000, 0x000000, 0x000000,
@@ -89,6 +110,46 @@ static const uint32_t PPU_RGB_2C04C[64] = {
     0x6DDA00, 0x91006D, 0x6DB6FF, 0xFF00FF, 0x006DDA, 0x919191, 0x000000, 0x6D2400,
     0x00FFFF, 0x480000, 0xB6FF48, 0xFFB6FF, 0x914800, 0x00FF00, 0xDADA00, 0x484848,
     0x006D24, 0x000000, 0xDAB6FF, 0xFFFF6D, 0x9100FF, 0x48FFDA, 0xFFDA00, 0x004848
+};
+
+static const uint32_t PPU_RGB_2C04A[64] = {
+    0xFFB6B6, 0xDA6DFF, 0xFF0000, 0x9191FF, 0x009191, 0x244800, 0x484848, 0xFF0091,
+    0xFFFFFF, 0x6D6D6D, 0xFFB600, 0xB6006D, 0x91006D, 0xDADA00, 0x6D4800, 0xFFFFFF,
+    0x6DB6FF, 0xDAB66D, 0x6D2400, 0x6DDA00, 0x91DAFF, 0xDAB6FF, 0xFFDA91, 0x0048FF,
+    0xFFDA00, 0x48FFDA, 0x000000, 0x480000, 0xDADADA, 0x919191, 0xFF00FF, 0x002491,
+    0x00006D, 0xB6DAFF, 0xFFB6FF, 0x00FF00, 0x00FFFF, 0x004848, 0x00B66D, 0xB600FF,
+    0x000000, 0x914800, 0xFF91FF, 0xB62400, 0x9100FF, 0x0000DA, 0xFF9100, 0x000000,
+    0x000000, 0x249100, 0xB6B6B6, 0x006D24, 0xB6FF48, 0x6D48DA, 0xFFFF00, 0xDA6D00,
+    0x004800, 0x006DDA, 0x009100, 0x242424, 0xFFFF6D, 0xFF6DFF, 0x916D00, 0x91FF6D
+};
+
+static const uint32_t PPU_RGB_2C04B[64] = {
+    0x000000, 0xFFB600, 0x916D00, 0xB6FF48, 0x91FF6D, 0xFF6DFF, 0x009191, 0xB6DAFF,
+    0xFF0000, 0x9100FF, 0xFFFF6D, 0xFF91FF, 0xFFFFFF, 0xDA6DFF, 0x91DAFF, 0x009100,
+    0x004800, 0x6DB6FF, 0xB62400, 0xDADADA, 0x00B66D, 0x6DDA00, 0x480000, 0x9191FF,
+    0x484848, 0xFF00FF, 0x00006D, 0x48FFDA, 0xDAB6FF, 0x6D4800, 0x000000, 0x6D48DA,
+    0x91006D, 0xFFDA91, 0xFF9100, 0xFFB6FF, 0x006DDA, 0x6D2400, 0xB6B6B6, 0x0000DA,
+    0xB600FF, 0xFFDA00, 0x6D6D6D, 0x244800, 0x0048FF, 0x000000, 0xDADA00, 0xFFFFFF,
+    0xDAB66D, 0x242424, 0x00FF00, 0xDA6D00, 0x004848, 0x002491, 0xFF0091, 0x249100,
+    0x000000, 0x00FFFF, 0x914800, 0xFFFF00, 0xFFB6B6, 0xB6006D, 0x006D24, 0x919191
+};
+
+static const uint32_t PPU_RGB_2C04D[64] = {
+    0x916D00, 0x6D48DA, 0x009191, 0xDADA00, 0x000000, 0xFFB6B6, 0x002491, 0xDA6D00,
+    0xB6B6B6, 0x6D2400, 0x00FF00, 0x00006D, 0xFFDA91, 0xFFFF00, 0x009100, 0xB6FF48,
+    0xFF6DFF, 0x480000, 0x0048FF, 0xFF91FF, 0x000000, 0x484848, 0xB62400, 0xFF9100,
+    0xDAB66D, 0x00B66D, 0x9191FF, 0x249100, 0x91006D, 0x000000, 0x91FF6D, 0x6DB6FF,
+    0xB6006D, 0x006D24, 0x914800, 0x0000DA, 0x9100FF, 0xB600FF, 0x6D6D6D, 0xFF0091,
+    0x004848, 0xDADADA, 0x006DDA, 0x004800, 0x242424, 0xFFFF6D, 0x919191, 0xFF00FF,
+    0xFFB6FF, 0xFFFFFF, 0x6D4800, 0xFF0000, 0xFFDA00, 0x48FFDA, 0xFFFFFF, 0x91DAFF,
+    0x000000, 0xFFB600, 0xDA6DFF, 0xB6DAFF, 0x6DDA00, 0xDAB6FF, 0x00FFFF, 0x244800
+};
+
+static const uint8_t PALETTE_LUT_2C05[64] = {
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+   16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
+   32,33,34,35,36,37,38,39,40,41,42,43,44,15,46,47,
+   48,49,50,51,52,53,54,55,56,57,58,59,60,15,62,63
 };
 
 NesSystem::NesSystem()
@@ -129,11 +190,41 @@ void NesSystem::convert_frame() {
     int num_pixels = 256 * 240;
     const auto& rom_info = console_->get_rom_info();
     const uint8_t* lut = PALETTE_LUT_2C02;
+    const uint32_t* ppu_rgb = nullptr;
     if (rom_info.use_vs_palette) {
-        if (rom_info.vs_ppu_model == nes::RomInfo::VsPpuModel::PPU_2C04C) {
-            lut = PALETTE_LUT_2C04C;
-        } else {
-            lut = PALETTE_LUT_2C03;
+        switch (rom_info.vs_ppu_model) {
+            case nes::RomInfo::VsPpuModel::PPU_2C03:
+                lut = PALETTE_LUT_2C03;
+                ppu_rgb = PPU_RGB_2C03;
+                break;
+            case nes::RomInfo::VsPpuModel::PPU_2C04A:
+                lut = PALETTE_LUT_2C04A;
+                ppu_rgb = PPU_RGB_2C04A;
+                break;
+            case nes::RomInfo::VsPpuModel::PPU_2C04B:
+                lut = PALETTE_LUT_2C04B;
+                ppu_rgb = PPU_RGB_2C04B;
+                break;
+            case nes::RomInfo::VsPpuModel::PPU_2C04C:
+                lut = PALETTE_LUT_2C04C;
+                ppu_rgb = PPU_RGB_2C04C;
+                break;
+            case nes::RomInfo::VsPpuModel::PPU_2C04D:
+                lut = PALETTE_LUT_2C04D;
+                ppu_rgb = PPU_RGB_2C04D;
+                break;
+            case nes::RomInfo::VsPpuModel::PPU_2C05A:
+            case nes::RomInfo::VsPpuModel::PPU_2C05B:
+            case nes::RomInfo::VsPpuModel::PPU_2C05C:
+            case nes::RomInfo::VsPpuModel::PPU_2C05D:
+            case nes::RomInfo::VsPpuModel::PPU_2C05E:
+                lut = PALETTE_LUT_2C05;
+                ppu_rgb = PPU_RGB_2C03;
+                break;
+            default:
+                lut = PALETTE_LUT_2C02;
+                ppu_rgb = nullptr;
+                break;
         }
     }
 
@@ -141,12 +232,8 @@ void NesSystem::convert_frame() {
         uint8_t raw_idx = src[i] & palette_ram_mask;
         uint8_t pal_idx = lut[raw_idx];
         uint32_t rgb;
-        if (rom_info.use_vs_palette) {
-            if (rom_info.vs_ppu_model == nes::RomInfo::VsPpuModel::PPU_2C04C) {
-                rgb = PPU_RGB_2C04C[raw_idx];
-            } else {
-                rgb = PPU_RGB_2C03[raw_idx];
-            }
+        if (rom_info.use_vs_palette && ppu_rgb != nullptr) {
+            rgb = ppu_rgb[raw_idx];
         } else {
             rgb = palette_[pal_idx];
         }
@@ -176,10 +263,22 @@ int NesSystem::step() {
             const auto& rom_info = console_->get_rom_info();
             const uint8_t* lut = PALETTE_LUT_2C02;
             if (rom_info.use_vs_palette) {
-                if (rom_info.vs_ppu_model == nes::RomInfo::VsPpuModel::PPU_2C04C) {
-                    lut = PALETTE_LUT_2C04C;
-                } else {
-                    lut = PALETTE_LUT_2C03;
+                switch (rom_info.vs_ppu_model) {
+                    case nes::RomInfo::VsPpuModel::PPU_2C03: lut = PALETTE_LUT_2C03; break;
+                    case nes::RomInfo::VsPpuModel::PPU_2C04A: lut = PALETTE_LUT_2C04A; break;
+                    case nes::RomInfo::VsPpuModel::PPU_2C04B: lut = PALETTE_LUT_2C04B; break;
+                    case nes::RomInfo::VsPpuModel::PPU_2C04C: lut = PALETTE_LUT_2C04C; break;
+                    case nes::RomInfo::VsPpuModel::PPU_2C04D: lut = PALETTE_LUT_2C04D; break;
+                    case nes::RomInfo::VsPpuModel::PPU_2C05A:
+                    case nes::RomInfo::VsPpuModel::PPU_2C05B:
+                    case nes::RomInfo::VsPpuModel::PPU_2C05C:
+                    case nes::RomInfo::VsPpuModel::PPU_2C05D:
+                    case nes::RomInfo::VsPpuModel::PPU_2C05E:
+                        lut = PALETTE_LUT_2C05;
+                        break;
+                    default:
+                        lut = PALETTE_LUT_2C02;
+                        break;
                 }
             }
             if (idx_fb) {

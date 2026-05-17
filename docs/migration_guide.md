@@ -75,6 +75,27 @@
 4. 若 `raw` 相同但 `rgb` 不同：查 LUT/palette/后处理路径
 5. 仅在前两步无法解释时，才深入 CPU/IRQ/DMA
 
+### G. Trace 开关基线（避免“日志干扰”与口径不一致）
+
+ear6 调试日志统一采用**两级开关**：
+
+1. 编译期开关：`EAR6_ENABLE_*`
+2. 运行期开关：`EAR6_TRACE_*`
+
+两者必须同时启用才会输出日志。常用组合：
+
+- `EAR6_ENABLE_CPU_TRACE` + `EAR6_TRACE_CPU`
+- `EAR6_ENABLE_PPU_TRACE` + `EAR6_TRACE_PPU`
+- `EAR6_ENABLE_CPU8448_TRACE` + `EAR6_TRACE_CPU8448`
+- `EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE` + `EAR6_TRACE_MINIMAL_BAD_WINDOW`
+- `EAR6_ENABLE_CYCLE_ALIGN_TRACE` + `EAR6_TRACE_CYCLE_ALIGN`
+- `EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE` + `EAR6_TRACE_EARLY_FRAME_SUMMARY`
+- `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
+- `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE`
+  - 可选：`EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`
+
+建议：做像素对比时默认关闭所有 trace，只在定位阶段开启最小必要日志组。
+
 ### Mesen2（正确的）
 ```
 CPU cycles 和 PPU cycles 是交织的，每个 PPU clock 单独执行：

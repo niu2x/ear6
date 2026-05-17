@@ -17,33 +17,20 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 
 ---
 
-## PPU Core Features (migration_guide.md §11)
+## PPU Core Features (Remaining)
 
-### 🔴 Critical (game-breaking without these)
+### 🔴 Critical (still open)
 
-- [ ] **`$2006` 3-cycle delay** — VRAM address update deferred by 3 PPU cycles (`UpdateState`)
-- [ ] **PPUADDR scroll glitch** — `$2006` write during rendering corrupts `v` register depending on cycle (257=full AND, cycle%8=0=partial AND, else=normal copy)
-- [ ] **`$2007` write masking during visible scanlines** — VRAM writes ignored during 0-239 when rendering on; writes LSB instead
-- [ ] **Rendering enable 1-cycle delay** — `prev_rendering_enabled` vs `rendering_enabled` has 1 PPU cycle latency
-- [ ] **`$2007` increment delay** — VRAM address auto-increment deferred (`_needVideoRamIncrement`)
+- [ ] **Cycle-accuracy drift in timing-sensitive titles** — architecture-level residual mismatch still appears in VS-class titles; keep migration/trace workflow focused on first-divergence at register/cycle level
 
 ### 🟡 High (affects compatibility)
 
-- [ ] **Sprite evaluation cycle-exact** — Mesen2 evaluates sprites across cycles 65-256, not in a single call
-- [ ] **OAM address reset** — `_spriteRamAddr = 0` during cycles 257-320
-- [ ] **OAM corruption** — PPU hardware bug corrupts OAM when rendering is toggled mid-frame
-- [ ] **OAM decay** — periodic OAM bit decay on NTSC, refresh on PAL
-- [ ] **Pre-render sprite dummy $FF** — pre-render line fetches dummy tiles (fixes Ninja Gaiden 3)
-- [ ] **Odd-frame cycle skip (NTSC)** — PPU skips cycle 339 on odd frames for Ppu2C02 only
-- [ ] **NMI `_preventVblFlag` edge case** — reading `$2002` at scanline 241 cycle 0 prevents next VBL
-- [ ] **First-frame PPU access restriction** — `RestrictPpuAccessOnFirstFrame` for `$2000`-`$2007` writes
-- [ ] **Grayscale + intensify bits** — must apply to framebuffer output, not just `$2007` reads
-- [ ] **`_paletteRamMask` & `_intensifyColorBits`** — emphasis encoding not written to framebuffer (missing 3 bits in pixel output)
-- [ ] **Open bus decay** — PPU open bus bits decay over time (set per register on write)
+- [ ] **First-frame PPU access restriction parity** — verify/port `RestrictPpuAccessOnFirstFrame` behavior for `$2000-$2007`
+- [ ] **Grayscale + intensify bits output parity** — verify full emphasis behavior in final framebuffer path vs Mesen2
+- [ ] **Open bus decay parity** — complete/verify decay semantics across PPU register interactions
 
 ### 🔵 Medium
 
-- [ ] **PAL / Dendy support** — 310 vs 262 scanlines, different master clock divider, OAM refresh behavior
 - [ ] **`$2004` open bus read** — precise read behavior during rendering (returns OAM copy buffer)
 - [ ] **Palette read open bus** — `palette_ram_mask & open_bus` high bit merging on `$2007` reads
 - [ ] **Memory read buffer corruption on palette reads** — `memory_read_buffer_` updated from mapper for $3F00+ addresses, should NOT be updated (internal PPU RAM)
@@ -52,15 +39,14 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 
 ## PPU: Additional Implementation Gaps
 
-- [ ] **`process_scanline_impl()` not called for scanline 240+** — Mesen2 calls `ProcessScanlineImpl()` for ALL scanlines; ear6 skips for `scanline >= 240`. This affects internal state transitions during VBlank (e.g., sprite evaluation PAL behavior).
-- [ ] **CPU/PPU master clock alignment** — `ppu_offset_` may need adjustment vs Mesen2's `_ppuOffset` to match exact dot timing
-- [ ] **`update_state()` called conditionally** — ear6 calls `update_state()` only when `need_state_update_`; Mesen2 calls `UpdateState()` every `exec()`. Missing updates for rendering state transitions that don't set `need_state_update_`.
+- [ ] **CPU/PPU master clock alignment** — `ppu_offset_` may still need adjustment vs Mesen2 `_ppuOffset` for exact dot timing
+- [ ] **PAL / Dendy parity** — scanline count and timing behavior still need validation against reference
 
 ---
 
 ## Mappers
 
-- [ ] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (mostly working, needs cycle-level verification vs batch-model artifacts)
+- [ ] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (mostly working, needs more cycle-level verification on edge timing)
 - [ ] **UNROM** (mapper 2) — Mega Man, Castlevania, Contra
 - [ ] **CNROM** (mapper 3) — Arkanoid, Mappy
 - [ ] **MMC3** (mapper 4) — SMB3, Ninja Gaiden, Super C, Megaman 2-6
@@ -77,7 +63,6 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **CHR-RAM/ROM page switching** — needs full 256-entry page table
 - [ ] **SRAM battery backup** — save game support
 - [ ] **`RomInfo` lacks `SubMapperID`** — required for mapper 002 submapper 2 bus conflict detection. Add field, parse from iNES 2.0 byte 15.
-- [ ] **MMC1 write timing guard** — `>= 2` guard on CPU cycles (already fixed per AGENTS.md) but may need re-verification with cycle-accurate PPU
 
 ---
 
@@ -91,7 +76,7 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **Sound Mixer** — channel mixing, DC filter, sample rate conversion
 - [ ] **DMC DMA** — cycle stealing during CPU idle
 - [ ] **PAL timing** — APU rate changes NTSC/PAL
-- [ ] **$4017 write = APU frame counter reset** — current NesPpu::write_ram 0x07 check only covers PPU registers; $4017 is also for APU frame counter
+- [ ] **$4017 write = APU frame counter reset** — verify frame-counter behavior/timing parity against Mesen2
 
 ---
 
@@ -110,7 +95,7 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **Game Genie / cheat codes**
 - [ ] **NSF player** — NES Sound Format playback
 - [ ] **FDS** — Famicom Disk System (extra mapper, disk rotation, audio)
-- [ ] **VS System / VS DualSystem** — arcade NES with coin input
+- [ ] **VS System / VS DualSystem** — arcade NES with coin input/device model coverage
 - [ ] **Expansion audio** — VRC6/VRC7/Namco163/Sunsoft5B
 - [ ] **HD Pack support** — high-resolution texture packs
 - [ ] **NTSC video filter** — blargg NTSC, Bisqwit NTSC
@@ -144,14 +129,4 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **blargg APU tests** — length counter, envelope, sweep, DMC
 - [ ] **Full compatibility suite** — 100+ popular ROMs
 - [ ] **Frame-by-frame trace compare** — script that runs ear6 and Mesen2 side-by-side for the same ROM, finds the first divergent PPU register event
-- [ ] **PPU cycle event logging infrastructure** — ✅ DONE. `trace_ppu()` (`src/nes/nes_ppu.cpp`) and `trace_cpu()` (`src/nes/nes_cpu.cpp`) now use two-level gating: compile-time `EAR6_ENABLE_*` macros + runtime `EAR6_TRACE_*` env vars (both required).
-- [ ] **Trace/Debug switch reference** — ✅ DONE. Current two-level controls:
-  - `EAR6_ENABLE_CPU_TRACE` + `EAR6_TRACE_CPU`
-  - `EAR6_ENABLE_PPU_TRACE` + `EAR6_TRACE_PPU`
-  - `EAR6_ENABLE_CPU8448_TRACE` + `EAR6_TRACE_CPU8448`
-  - `EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE` + `EAR6_TRACE_MINIMAL_BAD_WINDOW`
-  - `EAR6_ENABLE_CYCLE_ALIGN_TRACE` + `EAR6_TRACE_CYCLE_ALIGN`
-  - `EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE` + `EAR6_TRACE_EARLY_FRAME_SUMMARY`
-  - `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
-  - `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE` (optional: `EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`)
 - [ ] Build reusable first-divergence workflow script: compare raw index, mapped index, and final RGB in separate stages.

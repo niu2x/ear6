@@ -17,6 +17,24 @@ make cli -C ../mesen2/DesktopApp   # ONLY valid way to build mesen2-cli
 cmake --build build --target ear6   # rebuild catches compile errors
 ```
 
+## Debug Trace Controls (Two-Level Gating)
+
+All debug TRACE/LOG output must be enabled by both:
+1. compile-time macro (`EAR6_ENABLE_*`)
+2. runtime env var (`EAR6_TRACE_*`)
+
+If either is missing, no debug log is emitted.
+
+- `EAR6_ENABLE_CPU_TRACE` + `EAR6_TRACE_CPU`
+- `EAR6_ENABLE_PPU_TRACE` + `EAR6_TRACE_PPU`
+- `EAR6_ENABLE_CPU8448_TRACE` + `EAR6_TRACE_CPU8448`
+- `EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE` + `EAR6_TRACE_MINIMAL_BAD_WINDOW`
+- `EAR6_ENABLE_CYCLE_ALIGN_TRACE` + `EAR6_TRACE_CYCLE_ALIGN`
+- `EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE` + `EAR6_TRACE_EARLY_FRAME_SUMMARY`
+- `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
+- `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE`
+  - Optional: `EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`
+
 ## Naming
 
 - **Classes / type aliases**: PascalCase (`NesCpu`, `MapperType`)

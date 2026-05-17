@@ -12,6 +12,32 @@
 #include <cstdio>
 #include <cstring>
 
+namespace {
+
+uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
+    crc = ~crc;
+    for (size_t i = 0; i < len; ++i) {
+        crc ^= data[i];
+        for (int j = 0; j < 8; ++j) {
+            uint32_t mask = -(crc & 1u);
+            crc = (crc >> 1) ^ (0xEDB88320u & mask);
+        }
+    }
+    return ~crc;
+}
+
+void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
+    // Align with mesen2 behavior for entries resolved by NES DB.
+    // vs dr mario.nes: DB row 2B85420E => VsSystem, mapper1, PpuModel=2C04C.
+    if (prg_chr_crc32 == 0x2B85420Eu) {
+        info.is_vs_system = true;
+        info.use_vs_palette = true;
+        info.vs_ppu_model = ear6::nes::RomInfo::VsPpuModel::PPU_2C04C;
+    }
+}
+
+} // namespace
+
 namespace ear6::nes {
 
 NesConsole::NesConsole()
@@ -33,14 +59,17 @@ int NesConsole::load_rom(const void* data, int size) {
     }
 
     RomInfo info = INesLoader::parse_header(rom_data);
-    rom_info_ = info;
-
-    printf("[NES] Mapper: %d, PRG: %d*16KB, CHR: %d*8KB\n",
-           info.mapper_number, info.prg_banks, info.chr_banks);
 
     int prg_size = info.prg_banks * 0x4000;
     int chr_size = info.chr_banks * 0x2000;
     int header_size = 16 + (info.has_trainer ? 512 : 0);
+    uint32_t prg_chr_crc32 = crc32_update(0, rom_data + header_size, (size_t)(prg_size + chr_size));
+    apply_nesdb_overrides(info, prg_chr_crc32);
+
+    rom_info_ = info;
+
+    printf("[NES] Mapper: %d, PRG: %d*16KB, CHR: %d*8KB\n",
+           info.mapper_number, info.prg_banks, info.chr_banks);
 
     std::vector<uint8_t> prg_rom(prg_size);
     std::vector<uint8_t> chr_rom(chr_size);

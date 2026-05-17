@@ -156,6 +156,11 @@ struct RomInfo {
     bool has_trainer = false;
     bool is_vs_system = false;
     bool use_vs_palette = false;
+    enum class VsPpuModel {
+        PPU_2C02 = 0,
+        PPU_2C03 = 1,
+        PPU_2C04C = 2,
+    } vs_ppu_model = VsPpuModel::PPU_2C02;
 };
 
 } // namespace ear6::nes

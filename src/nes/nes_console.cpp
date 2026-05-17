@@ -77,7 +77,7 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
 
     if (!loaded) {
         loaded = true;
-        std::ifstream in("assets/nes/MesenNesDB.txt");
+        std::ifstream in("assets/nes/nes_db.txt");
         if (in) {
             std::string line;
             while (std::getline(in, line)) {

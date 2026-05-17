@@ -1,6 +1,6 @@
 ###################################################################################
 #
-# Mesen Game Database
+# NES Game Database (Source: Mesen)
 #
 # Automatically generated database based on Nestopia's DB and NesCartDB
 #

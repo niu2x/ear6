@@ -1,0 +1,10 @@
+mapper 1, at 30 frame
+
+Battle Stadium - Senbatsu Pro Yakyuu (J).nes       98.59%
+Battle Stadium - Senbatsu Pro Yakyuu (J).nes       98.59%
+
+
+mapper 0, at 30 frame
+
+Duck Hunt (JUE).nes                                71.77%
+Family BASIC (Ver 3) (J).nes                       99.59%

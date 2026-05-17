@@ -257,10 +257,15 @@ void NesPpu::process_scanline_impl() {
         }
 
         if (scanline_ >= 0) {
-            // DrawPixel — only write to framebuffer when rendering is enabled (matches Mesen2)
-            if (rendering_enabled_) {
+            // Match Mesen2 DefaultNesPpu::DrawPixel behavior:
+            // - When rendering is enabled, draw normal pixel pipeline output.
+            // - When rendering is disabled, still update output; if v is in $3F00-$3FFF,
+            //   output palette[v & 0x1F], otherwise output backdrop palette[0].
+            if (rendering_enabled_ || ((video_ram_addr_ & 0x3F00) != 0x3F00)) {
                 uint32_t color = get_pixel_color();
                 current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[color & 0x03 ? color : 0];
+            } else {
+                current_output_buffer_[(scanline_ << 8) + cycle_ - 1] = palette_ram_[video_ram_addr_ & 0x1F];
             }
 
             shift_tile_registers();

@@ -871,10 +871,6 @@ void NesPpu::set_control_register(uint8_t value) {
             allow_full_ppu_access_ ? 1 : 0,
             control_.background_pattern_addr);
     }
-    if (!allow_full_ppu_access_) {
-        return;
-    }
-
     uint8_t name_table = value & 0x03;
     uint16_t normal_addr = (tmp_video_ram_addr_ & ~0x0C00) | (name_table << 10);
     process_tmp_addr_scroll_glitch(normal_addr, console_->get_memory_manager()->get_open_bus() << 10, 0x0400);

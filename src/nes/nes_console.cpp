@@ -106,7 +106,7 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
 
                 if (!fields[FIELD_MAPPER].empty()) {
                     int mapper = std::atoi(fields[FIELD_MAPPER].c_str());
-                    if (mapper >= 0 && mapper < 65000) {
+                    if (mapper >= 0 && mapper < 1024) {
                         entry.has_mapper = true;
                         entry.mapper = mapper;
                     }

@@ -247,12 +247,16 @@ int NesConsole::load_rom(const void* data, int size) {
     }
 
     RomInfo info = INesLoader::parse_header(rom_data);
+    const int header_mapper_number = info.mapper_number;
 
     int prg_size = info.prg_banks * 0x4000;
     int chr_size = info.chr_banks * 0x2000;
     int header_size = 16 + (info.has_trainer ? 512 : 0);
     uint32_t prg_chr_crc32 = crc32_update(0, rom_data + header_size, (size_t)(prg_size + chr_size));
     apply_nesdb_overrides(info, prg_chr_crc32);
+    if (!MapperFactory::is_supported(info.mapper_number) && MapperFactory::is_supported(header_mapper_number)) {
+        info.mapper_number = header_mapper_number;
+    }
 
     rom_info_ = info;
 

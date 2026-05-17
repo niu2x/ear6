@@ -166,19 +166,6 @@ void NesPpu::exec() {
             TRACE_VS8448("exec.before_scanline_impl");
             process_scanline_impl();
             TRACE_VS8448("exec.after_scanline_impl");
-        } else if (cycle_ == 1 && scanline_ == (int)nmi_scanline_) {
-            if (!prevent_vbl_flag_) {
-                trace_ppu("VBL_SET\n");
-                status_flags_.vertical_blank = true;
-                #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
-                if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
-                uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
-                fprintf(stderr, "[EAR6_EVT] VBL_SET f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
-                }
-                #endif
-                begin_vblank();
-            }
-            prevent_vbl_flag_ = false;
         }
     } else {
         process_scanline_first_cycle();
@@ -239,7 +226,18 @@ void NesPpu::process_scanline_first_cycle() {
         send_frame();
         frame_count_++;
     } else if (scanline_ == 241) {
-        // NMI is now triggered in exec() at cycle 1 to match Mesen2 timing
+        if (!prevent_vbl_flag_) {
+            trace_ppu("VBL_SET\n");
+            status_flags_.vertical_blank = true;
+            #if defined(EAR6_ENABLE_CYCLE_ALIGN_TRACE)
+            if (std::getenv("EAR6_TRACE_CYCLE_ALIGN") != nullptr) {
+            uint64_t cpu_cycle = console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0;
+            fprintf(stderr, "[EAR6_EVT] VBL_SET f=%u sl=%d cy=%d cpu=%lu\n", frame_count_, scanline_, cycle_, cpu_cycle);
+            }
+            #endif
+            begin_vblank();
+        }
+        prevent_vbl_flag_ = false;
     }
     TRACE_VS8448("sl0.exit");
 }

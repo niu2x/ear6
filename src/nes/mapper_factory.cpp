@@ -9,6 +9,20 @@
 
 namespace ear6::nes {
 
+bool MapperFactory::is_supported(int mapper_number) {
+    switch (mapper_number) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+        case 7:
+            return true;
+        default:
+            return false;
+    }
+}
+
 BaseMapper* MapperFactory::create(int mapper_number) {
     printf("[MapperFactory] Creating mapper %d\n", mapper_number);
     switch (mapper_number) {

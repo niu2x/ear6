@@ -2,6 +2,8 @@
 #include "nes_ppu.h"
 
 #include <cstdlib>
+#include <cstdio>
+#include <string>
 
 namespace ear6 {
 
@@ -92,8 +94,13 @@ int NesSystem::step() {
     convert_frame();
 
     if (std::getenv("EAR6_PALETTE_LOG") != nullptr) {
+        uint32_t target_frame = 1;
+        if (const char* frame_env = std::getenv("EAR6_PALETTE_FRAME")) {
+            unsigned long v = std::strtoul(frame_env, nullptr, 10);
+            if (v > 0) target_frame = (uint32_t)v;
+        }
         auto* ppu = console_->get_ppu();
-        if (ppu && ppu->get_frame_count() <= 2) {
+        if (ppu && ppu->get_frame_count() == target_frame) {
             const uint16_t* idx_fb = console_->get_framebuffer();
             const auto& rom_info = console_->get_rom_info();
             const uint8_t* lut = PALETTE_LUT_2C02;
@@ -106,18 +113,20 @@ int NesSystem::step() {
             }
             if (idx_fb) {
                 fprintf(stderr,
-                    "[EAR6_IDX16_F1] %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                    "[EAR6_IDX16_F%u] %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                    target_frame,
                     idx_fb[0] & 0x3F, idx_fb[1] & 0x3F, idx_fb[2] & 0x3F, idx_fb[3] & 0x3F,
                     idx_fb[4] & 0x3F, idx_fb[5] & 0x3F, idx_fb[6] & 0x3F, idx_fb[7] & 0x3F,
                     idx_fb[8] & 0x3F, idx_fb[9] & 0x3F, idx_fb[10] & 0x3F, idx_fb[11] & 0x3F,
                     idx_fb[12] & 0x3F, idx_fb[13] & 0x3F, idx_fb[14] & 0x3F, idx_fb[15] & 0x3F);
 
                 fprintf(stderr,
-                    "[EAR6_IDX2RGB16_F1]"
+                    "[EAR6_IDX2RGB16_F%u]"
                     " %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X"
                     " %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X"
                     " %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X"
                     " %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X %02X>%02X>%06X\n",
+                    target_frame,
                     idx_fb[0] & 0x3F, lut[idx_fb[0] & 0x3F], palette_[lut[idx_fb[0] & 0x3F]],
                     idx_fb[1] & 0x3F, lut[idx_fb[1] & 0x3F], palette_[lut[idx_fb[1] & 0x3F]],
                     idx_fb[2] & 0x3F, lut[idx_fb[2] & 0x3F], palette_[lut[idx_fb[2] & 0x3F]],
@@ -137,11 +146,12 @@ int NesSystem::step() {
             }
 
             fprintf(stderr,
-                "[EAR6_RGB16_F1]"
+                "[EAR6_RGB16_F%u]"
                 " %02X%02X%02X %02X%02X%02X %02X%02X%02X %02X%02X%02X"
                 " %02X%02X%02X %02X%02X%02X %02X%02X%02X %02X%02X%02X"
                 " %02X%02X%02X %02X%02X%02X %02X%02X%02X %02X%02X%02X"
                 " %02X%02X%02X %02X%02X%02X %02X%02X%02X %02X%02X%02X\n",
+                target_frame,
                 rgba_framebuffer_[0], rgba_framebuffer_[1], rgba_framebuffer_[2],
                 rgba_framebuffer_[4], rgba_framebuffer_[5], rgba_framebuffer_[6],
                 rgba_framebuffer_[8], rgba_framebuffer_[9], rgba_framebuffer_[10],
@@ -159,7 +169,29 @@ int NesSystem::step() {
                 rgba_framebuffer_[56], rgba_framebuffer_[57], rgba_framebuffer_[58],
                 rgba_framebuffer_[60], rgba_framebuffer_[61], rgba_framebuffer_[62]);
 
-            fprintf(stderr, "[EAR6_PAL0_F1] %02X\n", ppu->get_palette_ram0() & 0x3F);
+            fprintf(stderr, "[EAR6_PAL0_F%u] %02X\n", target_frame, ppu->get_palette_ram0() & 0x3F);
+
+            const char* dump_prefix = std::getenv("EAR6_PALETTE_DUMP_PREFIX");
+            if (dump_prefix && idx_fb) {
+                std::string idx_path = std::string(dump_prefix) + "_idx_f" + std::to_string(target_frame) + ".txt";
+                std::string rgb_path = std::string(dump_prefix) + "_rgb_f" + std::to_string(target_frame) + ".txt";
+                FILE* f_idx = std::fopen(idx_path.c_str(), "w");
+                FILE* f_rgb = std::fopen(rgb_path.c_str(), "w");
+                if (f_idx && f_rgb) {
+                    for (int y = 0; y < 240; ++y) {
+                        for (int x = 0; x < 256; ++x) {
+                            int i = y * 256 + x;
+                            uint8_t raw = idx_fb[i] & 0x3F;
+                            uint8_t mapped = lut[raw];
+                            uint32_t rgb = palette_[mapped];
+                            std::fprintf(f_idx, "%d,%d,%02X,%02X\n", x, y, raw, mapped);
+                            std::fprintf(f_rgb, "%d,%d,%06X\n", x, y, rgb & 0xFFFFFF);
+                        }
+                    }
+                }
+                if (f_idx) std::fclose(f_idx);
+                if (f_rgb) std::fclose(f_rgb);
+            }
         }
     }
 

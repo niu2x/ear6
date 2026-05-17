@@ -5,21 +5,35 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdarg>
+#include <cstdlib>
 #include "nes_ppu.h"
 
 namespace ear6::nes {
 
-//#define ENABLE_PPU_TRACE
+#define ENABLE_PPU_TRACE
 #define VS8448_TRACE_MIN_FRAME 3
 #define VS8448_TRACE_MAX_FRAME 6
 #define VS8448_TRACE_MIN_SCANLINE 248
 #define VS8448_TRACE_MAX_SCANLINE 260
 //#define ENABLE_VS8448_TRACE
-#define ENABLE_EARLY_FRAME_SUMMARY_TRACE
-#define ENABLE_CYCLE_ALIGN_TRACE
+//#define ENABLE_EARLY_FRAME_SUMMARY_TRACE
+//#define ENABLE_CYCLE_ALIGN_TRACE
 #ifdef ENABLE_PPU_TRACE
 void NesPpu::trace_ppu(const char* fmt, ...) {
-    (void)fmt;
+    if (std::getenv("EAR6_TRACE_9_12") == nullptr) {
+        (void)fmt;
+        return;
+    }
+    if (frame_count_ < 9 || frame_count_ > 12) {
+        (void)fmt;
+        return;
+    }
+    fprintf(stderr, "[PPU] %6u %4d %4u %12lu ", frame_count_, scanline_, cycle_,
+        console_->get_cpu() ? console_->get_cpu()->get_cycle_count() : 0);
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    va_end(args);
 }
 #else
 void NesPpu::trace_ppu(const char* fmt, ...) { (void)fmt; }
@@ -690,6 +704,7 @@ void NesPpu::process_tmp_addr_scroll_glitch(uint16_t normal_addr, uint16_t value
 }
 
 void NesPpu::update_status_flag() {
+    trace_ppu("VBL_CLR\n");
     status_flags_.vertical_blank = false;
     console_->get_cpu()->clear_nmi_flag();
     if (scanline_ == (int)nmi_scanline_ && cycle_ == 0) {

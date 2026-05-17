@@ -8,17 +8,17 @@
 
 namespace ear6::nes {
 
-//#define ENABLE_CPU_TRACE
+#define ENABLE_CPU_TRACE
 #define CPU8448_FRAME_MIN 17
 #define CPU8448_FRAME_MAX 17
 #define CPU8448_SCANLINE_MIN 249
 #define CPU8448_SCANLINE_MAX 259
-#define ENABLE_CPU8448_TRACE
+//#define ENABLE_CPU8448_TRACE
 //#define ENABLE_CPU8448_TRACE
 #define CPU8448_PC_MIN 0xB840
 #define CPU8448_PC_MAX 0xB86C
-#define ENABLE_MINIMAL_BAD_WINDOW_TRACE
-#define ENABLE_CYCLE_ALIGN_TRACE
+//#define ENABLE_MINIMAL_BAD_WINDOW_TRACE
+//#define ENABLE_CYCLE_ALIGN_TRACE
 #ifdef ENABLE_CPU_TRACE
 void NesCpu::trace_cpu(const char* fmt, ...) {
     fprintf(stderr, "[CPU] %12lu ", state_.cycle_count);
@@ -47,6 +47,11 @@ static bool g_exec_trace_rw = false;
 #define TRACE_RW_PROBE(tag, addrv, valv) do { (void)tag; (void)addrv; (void)valv; } while (0)
 #define TRACE_BADSTEP(tag, pcv, opv) do { (void)tag; (void)pcv; (void)opv; } while (0)
 #else
+static NesCpu* g_probe_cpu = nullptr;
+static uint16_t g_probe_addr = 0;
+static uint16_t g_exec_pc = 0;
+static uint8_t g_exec_op = 0;
+static bool g_exec_trace_rw = false;
 #define TRACE_CPU8448(tag, pcv, opv) do {} while (0)
 #define TRACE_CPU8448_STATE(tag, pcv, opv) do {} while (0)
 #define TRACE_CPU8448_MEM(tag, addrv, valv) do {} while (0)
@@ -311,7 +316,6 @@ uint8_t NesCpu::get_operand_value() {
 
 void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
-    uint8_t x_before = state_.x;
     uint8_t opcode = get_op_code();
     #ifdef ENABLE_MINIMAL_BAD_WINDOW_TRACE
     if (pc_before == 0xBADD) {
@@ -405,7 +409,7 @@ void NesCpu::exec() {
         g_probe_cpu = nullptr;
     }
     g_exec_trace_rw = false;
-    TRACE_CPU8448_X("EXEC", pc_before, opcode, x_before, state_.x);
+    TRACE_CPU8448_X("EXEC", pc_before, opcode, state_.x, state_.x);
     TRACE_CPU8448_STATE("AFTER", pc_before, opcode);
     TRACE_BADSTEP("AFTER", pc_before, opcode);
 

@@ -446,6 +446,56 @@ This baseline was captured **before** final cleanup/alignment of all debug branc
 
 These are intentionally verbose for root-cause work and should be gated/cleaned in a follow-up once debugging ends.
 
+---
+
+## 2026-05-17 Update: NESDB/Palette Alignment Completed, Divergence Moved to Raw PPU Index
+
+### What was fixed in this session
+
+1. **Mapped `vs dr mario` using NESDB semantics** (critical):
+   - Mesen DB entry: `2B85420E,VsSystem,...,PpuModel=4` (`2C04C`).
+   - ear6 now applies per-ROM override for this CRC and uses VS path with `2C04C` LUT behavior.
+
+2. **Palette/LUT comparison tooling upgraded**:
+   - ear6 and mesen2 CLI can now dump full-frame per-pixel data (`x,y,raw_idx,mapped_idx` and `x,y,rgb`) for a target frame.
+   - Env knobs:
+     - ear6: `EAR6_PALETTE_LOG=1`, `EAR6_PALETTE_FRAME=<N>`, `EAR6_PALETTE_DUMP_PREFIX=/tmp/ear6`
+     - mesen2: `MESEN2_PALETTE_LOG=1`, `MESEN2_PALETTE_FRAME=<N>`, `MESEN2_PALETTE_DUMP_PREFIX=/tmp/mesen2`
+
+3. **First mismatch moved later**:
+   - Frame scan (`1..60`) now shows frames `1..10` at `100%` match.
+   - First mismatch is now frame `11` (was frame `1` before NESDB/LUT fixes).
+
+4. **`R$2002` -> `VBL_CLR` event ordering aligned in traces**:
+   - Added explicit ear6 trace in `update_status_flag()` for `VBL_CLR`.
+   - In key-event comparison (frames 9..12), the early frame-11 sequence now matches mesen2 through the prior mismatch point.
+
+### Current measured state (after fixes)
+
+- Frame 11 pixel match: `21.9906%` (`13511 / 61440`).
+- Frame 60 pixel match: `18.6312%`.
+- Full-frame dump comparison at frame 11:
+  - `raw_idx_match_pct = mapped_idx_match_pct = rgb_match_pct = 21.9906%`
+  - Therefore remaining mismatch is **not** palette/LUT; it is **raw PPU index generation divergence**.
+
+### High-value evidence (frame 11)
+
+- First raw-index mismatch pixel: `(x=80, y=2)`
+  - ear6 raw/mapped: `09 -> 2E`
+  - mesen2 raw/mapped: `04 -> 0B`
+- Dominant mismatch pairs are of form `ear6:2E` vs `mesen2:{0A,0B,11,15,...}` over large regions.
+
+### Next session start point
+
+1. Keep current NESDB/`2C04C` mapping behavior.
+2. Focus on **frame 11, early scanlines** (`y=2..6`) around the first mismatch (`x=80`).
+3. Compare state that feeds `GetPixelColor()` / `DrawPixel()` rather than palette mapping:
+   - background shift registers,
+   - tile/attribute fetch pipeline,
+   - scroll/address transfer timing,
+   - sprite/background priority interaction.
+4. Continue using narrow-window trace instead of broad hot-path logging.
+
 ### Step 1: Enable CPU IRQ traces and compare
 
 Already built into ear6 (`#define ENABLE_CPU_TRACE` in `src/nes/nes_cpu.cpp`).

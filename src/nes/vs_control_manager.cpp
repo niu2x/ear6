@@ -16,7 +16,7 @@ void VsControlManager::get_memory_ranges(MemoryRanges& ranges) {
     ranges.add_handler(MemoryOperation::WRITE, 0x4020, 0x5FFF);
 }
 
-uint8_t VsControlManager::read_ram(uint16_t addr) { fprintf(stderr, "[VSCM] read $%04X\n", addr);
+uint8_t VsControlManager::read_ram(uint16_t addr) {
     switch (addr) {
         case 0x4016: {
             uint8_t value = NesControlManager::read_ram(addr) & 0x65;

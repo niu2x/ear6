@@ -884,6 +884,41 @@ cmp /tmp/ear6_120.ppm /tmp/mesen2_120.ppm
 xxd /tmp/test.ppm | head -20
 ```
 
+---
+
+## 21. 修改 Mesen2 用于对照调试（构建与编辑规范）
+
+当你需要在 Mesen2 中加 trace 做对照时，遵循以下规则，避免不必要的大规模重编译：
+
+1. **优先只改 `.cpp`，尽量不改 `.h`**。
+   - Mesen2 头文件变更会触发大范围重编译，调试迭代会明显变慢。
+
+2. **Mesen2 CLI 只允许这条构建命令**：
+   - `make cli -C ../mesen2/DesktopApp`
+
+3. **不要删除 Mesen2 的 build 目录**。
+   - 全量重建代价很高（通常 >10 分钟），会打断迁移排查节奏。
+
+4. **需要强制重编某个文件时，只删对应单个 `.o` 文件**。
+   - 例如：
+   ```bash
+   rm -f build-Release/x86_64-PC-Linux/MesenRT/CMakeFiles/MesenLib.dir/Core/NES/NesPpu.cpp.o
+   make cli -C ../mesen2/DesktopApp
+   ```
+   - 这样 CMake 会仅重编目标文件并重链接。
+
+5. **若必须改 `.h`（如 `SettingTypes.h`）**：
+   - 尽量控制改动范围，只触发必要的 `.cpp` 级联重编；
+   - 若无法避免，接受这次构建会变慢。
+
+### 补充调试原则（避免误判）
+
+- **先做代码路径对照，再做日志推断**：先确认 Mesen2/ear6 对应代码语义，再用日志验证，不靠日志“猜行为”。
+- **区分“观测改动”和“行为改动”**：可先加 trace 收集证据，证据未闭环前不要同时做语义修复。
+- **NES DB 视为权威元数据**：mirroring/input/PPU model 等覆盖要做字段级映射与边界检查。
+- **分层定位**：RGB 不一致 -> raw index -> 寄存器/事件时间线 -> 内存读写来源。
+- **修复后做定向回归**：除目标 ROM 外，至少回归 1-2 个同类 mapper 的已知正常 ROM。
+
 ## 20. 迁移教训与反思
 
 ### 2026-05-15：MMC1 写入时序守卫 — 批量模型 vs 交织模型的潜藏差异

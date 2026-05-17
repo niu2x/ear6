@@ -194,7 +194,7 @@ static bool is_known(SystemHint h) {
 }
 
 static int cmd_screenshot(const char* rom_path, int frames, const char* output,
-                          bool verbose, SystemHint system_hint) {
+                          bool verbose, bool auto_start_sequence, SystemHint system_hint) {
     std::vector<uint8_t> rom;
     if (!load_file(rom_path, rom)) return 1;
 
@@ -225,15 +225,14 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
 
     for (int i = 0; i < frames; ++i) {
         ear6_step(ctx);
-
-        // Press Start after frame 30 completes, release after frame 35 completes
-        // (matches mesen2-cli timing: notification callback fires after each frame)
-        if (i == 28) {
-            ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
-            if (verbose) printf("[%d/%d] press Start\n", i, frames);
-        } else if (i == 33) {
-            ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
-            if (verbose) printf("[%d/%d] release Start\n", i, frames);
+        if (auto_start_sequence) {
+            if (i == 28) {
+                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
+                if (verbose) printf("[%d/%d] press Start\n", i, frames);
+            } else if (i == 33) {
+                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
+                if (verbose) printf("[%d/%d] release Start\n", i, frames);
+            }
         }
         if (verbose && (i % 60 == 0 || i == frames - 1)) {
             printf("[%d/%d] frame %d\n", i, frames, i);
@@ -384,19 +383,6 @@ static int cmd_record(const char* rom_path, int frames, const char* output,
     }
 
     for (int i = 0; i < frames; ++i) {
-        // Press Start 3 times, each for 10 frames, 60 frames apart
-        if (i < 3 * 60) {
-            int block = i / 60;
-            int offset = i - block * 60;
-            if (offset == 0) {
-                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 1);
-                if (verbose) printf("[%d/%d] press Start\n", i, frames);
-            } else if (offset == 10) {
-                ear6_nes_set_button_state(ctx, EAR6_NES_BUTTON_START, 0);
-                if (verbose) printf("[%d/%d] release Start\n", i, frames);
-            }
-        }
-
         ear6_step(ctx);
 
         if (verbose && (i % 60 == 0 || i == frames - 1)) {
@@ -471,6 +457,7 @@ static int dispatch_screenshot(const std::vector<std::string>& args,
         ("frames,f", po::value<int>()->default_value(60), "Number of frames to run")
         ("output,o", po::value<std::string>()->default_value("out.ppm"), "Output PPM screenshot")
         ("verbose,v", po::bool_switch(), "Print frame info")
+        ("auto-start-sequence", po::bool_switch(), "Enable automatic Start key sequence (press at frame 29, release at frame 34)")
         ("rom", po::value<std::string>(), "ROM file path");
 
     po::positional_options_description pos;
@@ -504,6 +491,7 @@ static int dispatch_screenshot(const std::vector<std::string>& args,
         vm["frames"].as<int>(),
         vm["output"].as<std::string>().c_str(),
         vm["verbose"].as<bool>(),
+        vm["auto-start-sequence"].as<bool>(),
         system_hint
     );
 }

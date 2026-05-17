@@ -1,72 +1,47 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { TitleBar } from './TitleBar'
-import { TabBar } from './TabBar'
-import { CrtScreen } from './CrtScreen'
-import { ControlBar } from './ControlBar'
-import { StatusBar } from './StatusBar'
-import type { SystemType, Ear6Module } from './types'
-import { SYSTEM_IDS } from './types'
+import { useState, useRef, useEffect } from 'react'
+import type { Ear6Module } from './types'
 import './App.css'
 
-interface SystemContext {
-  ctx: number
-  romPtr: number
-  romSize: number
-  romName: string
-}
-
-function createSystemContexts(mod: Ear6Module): Record<SystemType, SystemContext> {
-  const create = (sys: SystemType): SystemContext => {
-    try {
-      const ctx = mod._ear6_web_create(SYSTEM_IDS[sys])
-      return { ctx, romPtr: 0, romSize: 0, romName: '' }
-    } catch {
-      return { ctx: 0, romPtr: 0, romSize: 0, romName: '' }
-    }
-  }
-  return {
-    nes: create('nes'),
-    test: create('test'),
-    flash: create('flash'),
-  }
-}
+const SYSTEM_NES = 1
 
 function App() {
   const modRef = useRef<Ear6Module | null>(null)
-  const contextsRef = useRef<Record<SystemType, SystemContext> | null>(null)
-  const isRunningRef = useRef(false)
-  const activeCtxRef = useRef(0)
+  const ctxRef = useRef(0)
+  const runningRef = useRef(false)
+  const romDataRef = useRef<Uint8Array | null>(null)
+  const frameIdRef = useRef(0)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const screenRef = useRef<HTMLDivElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const fpsCountRef = useRef(0)
+  const fpsTimeRef = useRef(0)
 
   const [ready, setReady] = useState(false)
-  const [activeSystem, setActiveSystem] = useState<SystemType>('nes')
   const [isRunning, setIsRunning] = useState(false)
-  const [statusText, setStatusText] = useState('就绪')
+  const [statusText, setStatusText] = useState('Ready')
   const [fps, setFps] = useState(0)
   const [romName, setRomName] = useState('')
   const [hasRom, setHasRom] = useState(false)
-  const [isTransitioning, setIsTransitioning] = useState(false)
-  const [flashAnim, setFlashAnim] = useState(false)
-  const [wakeAnim, setWakeAnim] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
 
-  useEffect(() => { isRunningRef.current = isRunning }, [isRunning])
+  useEffect(() => { runningRef.current = isRunning }, [isRunning])
 
   useEffect(() => {
     window.createEar6().then(mod => {
       modRef.current = mod
-      contextsRef.current = createSystemContexts(mod)
-      activeCtxRef.current = contextsRef.current.nes.ctx
+      ctxRef.current = mod._ear6_web_create(SYSTEM_NES)
       setReady(true)
     })
+
+    return () => {
+      if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
+      const mod = modRef.current
+      if (mod && ctxRef.current) mod._ear6_web_destroy(ctxRef.current)
+    }
   }, [])
 
   useEffect(() => {
-    if (contextsRef.current) {
-      activeCtxRef.current = contextsRef.current[activeSystem].ctx
-    }
-  }, [activeSystem])
-
-  useEffect(() => {
-    const KEY_MAP: Record<string, number> = {
+    const keyMap: Record<string, number> = {
       ArrowUp:    4,
       ArrowDown:  5,
       ArrowLeft:  6,
@@ -79,11 +54,11 @@ function App() {
     }
 
     const handleKey = (pressed: number) => (e: KeyboardEvent) => {
-      const button = KEY_MAP[e.code]
+      const button = keyMap[e.code]
       if (button === undefined) return
       e.preventDefault()
       const mod = modRef.current
-      const ctx = contextsRef.current?.nes.ctx
+      const ctx = ctxRef.current
       if (mod && ctx) {
         mod._ear6_web_nes_set_button_state(ctx, button, pressed)
       }
@@ -99,140 +74,151 @@ function App() {
     }
   }, [])
 
-  const handleOpenRom = useCallback(async () => {
+  useEffect(() => {
     const mod = modRef.current
-    if (!mod) return
+    if (!mod || !ctxRef.current || !canvasRef.current) return
+    const canvas = canvasRef.current
+    const draw = (time: number) => {
+      if (runningRef.current) {
+        mod._ear6_web_step(ctxRef.current)
+      }
+      const ptr = mod._ear6_web_get_framebuffer(ctxRef.current)
+      const w = mod._ear6_web_get_frame_width(ctxRef.current)
+      const h = mod._ear6_web_get_frame_height(ctxRef.current)
+      if (ptr && w > 0 && h > 0) {
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w
+          canvas.height = h
+        }
+        const c2d = canvas.getContext('2d')
+        if (c2d) {
+          const imageData = c2d.createImageData(w, h)
+          const src = new Uint8Array(mod.HEAPU8.buffer, ptr, w * h * 4)
+          imageData.data.set(src)
+          c2d.putImageData(imageData, 0, 0)
+        }
 
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.nes,.rom,.bin'
-    input.onchange = async () => {
-      const file = input.files?.[0]
-      if (!file) return
-      setStatusText('加载中...')
+        if (screenRef.current) {
+          const maxW = screenRef.current.clientWidth
+          const maxH = screenRef.current.clientHeight
+          const scale = Math.min(maxW / w, maxH / h)
+          canvas.style.width = `${Math.floor(w * scale)}px`
+          canvas.style.height = `${Math.floor(h * scale)}px`
+        }
+      }
 
-      const data = await file.arrayBuffer()
-      const bytes = new Uint8Array(data)
-      const ptr = mod._malloc(bytes.length)
-      mod.HEAPU8.set(bytes, ptr)
-
-      const sys = contextsRef.current![activeSystem]
-      if (sys.romPtr) mod._free(sys.romPtr)
-      sys.romPtr = ptr
-      sys.romSize = bytes.length
-      sys.romName = file.name
-
-      mod._ear6_web_load(sys.ctx, ptr, bytes.length)
-      mod._ear6_web_step(sys.ctx)
-
-      setRomName(file.name)
-      setHasRom(true)
-      setIsRunning(false)
-      setStatusText('就绪')
+      if (time - fpsTimeRef.current >= 1000) {
+        setFps(fpsCountRef.current)
+        fpsCountRef.current = 0
+        fpsTimeRef.current = time
+      }
+      if (runningRef.current) fpsCountRef.current += 1
+      frameIdRef.current = requestAnimationFrame(draw)
     }
-    input.click()
-  }, [activeSystem])
+    frameIdRef.current = requestAnimationFrame(draw)
+  }, [ready])
 
-  const handleReset = useCallback(() => {
+  const openRom = async () => {
     const mod = modRef.current
-    const sys = contextsRef.current![activeSystem]
-    if (!mod || !sys.romPtr) return
+    const input = fileInputRef.current
+    if (!mod || !input || !ctxRef.current) return
+    const file = input.files?.[0]
+    if (!file) return
+    setStatusText('Loading ROM...')
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    romDataRef.current = bytes
+    const ptr = mod._malloc(bytes.length)
+    mod.HEAPU8.set(bytes, ptr)
+    mod._ear6_web_load(ctxRef.current, ptr, bytes.length)
+    mod._free(ptr)
+    mod._ear6_web_step(ctxRef.current)
+    setHasRom(true)
+    setRomName(file.name)
+    setIsRunning(true)
+    setStatusText('Running')
+  }
 
+  const toggleRun = () => {
+    if (!hasRom) return
+    const next = !isRunning
+    setIsRunning(next)
+    setStatusText(next ? 'Running' : 'Paused')
+  }
+
+  const resetRom = () => {
+    const mod = modRef.current
+    const data = romDataRef.current
+    if (!mod || !data || !ctxRef.current) return
+    const ptr = mod._malloc(data.length)
+    mod.HEAPU8.set(data, ptr)
+    mod._ear6_web_load(ctxRef.current, ptr, data.length)
+    mod._free(ptr)
+    mod._ear6_web_step(ctxRef.current)
     setIsRunning(false)
-    setStatusText('已重置')
-    mod._ear6_web_load(sys.ctx, sys.romPtr, sys.romSize)
-    mod._ear6_web_step(sys.ctx)
+    setStatusText('Reset complete')
+  }
 
-    setFlashAnim(true)
-    setTimeout(() => setFlashAnim(false), 150)
-  }, [activeSystem])
-
-  const handleTogglePlay = useCallback(() => {
-    const sys = contextsRef.current![activeSystem]
-    if (!modRef.current || !sys.romPtr) return
-
-    const nextRunning = !isRunning
-    setIsRunning(nextRunning)
-    setStatusText(nextRunning ? '运行中' : '已暂停')
-
-    if (nextRunning) {
-      setWakeAnim(true)
-      setTimeout(() => setWakeAnim(false), 300)
+  const toggleFullscreen = () => {
+    if (!screenRef.current) return
+    if (!document.fullscreenElement) {
+      screenRef.current.requestFullscreen().catch(() => setStatusText('Fullscreen blocked'))
+    } else {
+      document.exitFullscreen()
     }
-  }, [activeSystem, isRunning])
-
-  const handleTabChange = useCallback((system: SystemType) => {
-    if (system === activeSystem || isTransitioning) return
-
-    setIsTransitioning(true)
-    setTimeout(() => {
-      setActiveSystem(system)
-      const sys = contextsRef.current![system]
-      setRomName(sys.romName ?? '')
-      setHasRom(!!sys.romPtr)
-      setIsRunning(false)
-      setStatusText(sys.romPtr ? '已暂停' : '就绪')
-
-      requestAnimationFrame(() => {
-        setIsTransitioning(false)
-      })
-    }, 200)
-  }, [activeSystem, isTransitioning])
-
-  const handleRegionChange = useCallback((region: number) => {
-    const mod = modRef.current
-    const sys = contextsRef.current!.nes
-    if (mod && sys.ctx) {
-      mod._ear6_web_nes_set_region(sys.ctx, region)
-    }
-  }, [])
-
-  const titleStatus: 'idle' | 'running' | 'paused' = isRunning
-    ? 'running'
-    : hasRom
-      ? 'paused'
-      : 'idle'
+  }
 
   if (!ready) {
     return (
       <div className="app">
         <div className="loading-screen">
-          <div className="loading-text">INITIALIZING</div>
-          <div className="loading-cursor">&#x258D;</div>
+          <div className="loading-text">Initializing Ear6...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="app" data-system={activeSystem}>
-      <TitleBar status={titleStatus} system={activeSystem} isRunning={isRunning} />
-      <TabBar
-        active={activeSystem}
-        onChange={handleTabChange}
-        isTransitioning={isTransitioning}
-      />
-      <CrtScreen
-        modRef={modRef}
-        activeCtxRef={activeCtxRef}
-        isRunningRef={isRunningRef}
-        isTransitioning={isTransitioning}
-        hasRom={hasRom}
-        flashAnim={flashAnim}
-        wakeAnim={wakeAnim}
-        onFps={setFps}
-      />
-      <ControlBar
-        activeSystem={activeSystem}
-        hasRom={hasRom}
-        isRunning={isRunning}
-        romName={romName}
-        onOpenRom={handleOpenRom}
-        onReset={handleReset}
-        onTogglePlay={handleTogglePlay}
-        onRegionChange={handleRegionChange}
-      />
-      <StatusBar status={statusText} fps={fps} />
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <span className={`dot ${isRunning ? 'running' : hasRom ? 'paused' : ''}`}></span>
+          <strong>Ear6 Emulator</strong>
+        </div>
+        <span className="rom-label">{romName || 'No ROM loaded'}</span>
+      </header>
+
+      <section className="toolbar">
+        <input ref={fileInputRef} type="file" accept=".nes,.rom,.bin" onChange={openRom} hidden />
+        <button onClick={() => fileInputRef.current?.click()}>Open ROM</button>
+        <button onClick={resetRom} disabled={!hasRom}>Reset</button>
+        <button className="primary" onClick={toggleRun} disabled={!hasRom}>{isRunning ? 'Pause' : 'Run'}</button>
+        <button className="secondary" onClick={toggleFullscreen}>Fullscreen</button>
+        <button onClick={() => setShowHelp(true)}>How to Play</button>
+      </section>
+
+      <main ref={screenRef} className="screen-wrap">
+        <div className="screen-box">
+          <canvas ref={canvasRef}></canvas>
+          {!hasRom && <div className="standby">LOAD A ROM TO START</div>}
+        </div>
+      </main>
+
+      <footer className="status-bar">
+        <span>Status: {statusText}</span>
+        <span>FPS: {fps}</span>
+      </footer>
+
+      {showHelp && (
+        <div className="modal-backdrop" onClick={() => setShowHelp(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <strong>Controls</strong>
+              <button onClick={() => setShowHelp(false)}>Close</button>
+            </div>
+            <p>Arrow keys: D-Pad, Z: A, X: B, Enter: Start, Shift: Select.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

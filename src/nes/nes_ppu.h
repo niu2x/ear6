@@ -30,6 +30,8 @@ public:
     int get_scanline() const { return scanline_; }
     int get_cycle() const { return cycle_; }
     uint8_t get_palette_ram0() const { return palette_ram_[0]; }
+    uint8_t get_palette_ram_mask() const { return palette_ram_mask_; }
+    uint16_t get_intensify_color_bits() const { return intensify_color_bits_; }
     uint16_t* get_framebuffer() { return framebuffer_; }
     const uint16_t* get_framebuffer() const { return framebuffer_; }
     uint8_t* get_oam() { return sprite_ram_; }

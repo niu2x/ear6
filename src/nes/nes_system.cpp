@@ -7,6 +7,36 @@
 
 namespace ear6 {
 
+static uint32_t apply_emphasis_to_rgb(uint32_t rgb, uint16_t intensify_color_bits, uint8_t raw_idx) {
+    if ((intensify_color_bits & 0x1C0) == 0 || (raw_idx & 0x0F) > 0x0D) {
+        return rgb;
+    }
+
+    double red = static_cast<double>((rgb >> 16) & 0xFF);
+    double green = static_cast<double>((rgb >> 8) & 0xFF);
+    double blue = static_cast<double>(rgb & 0xFF);
+
+    if (intensify_color_bits & 0x040) {
+        green *= 0.84;
+        blue *= 0.84;
+    }
+    if (intensify_color_bits & 0x080) {
+        red *= 0.84;
+        blue *= 0.84;
+    }
+    if (intensify_color_bits & 0x100) {
+        red *= 0.84;
+        green *= 0.84;
+    }
+
+    uint8_t r = static_cast<uint8_t>(red > 255.0 ? 255.0 : red);
+    uint8_t g = static_cast<uint8_t>(green > 255.0 ? 255.0 : green);
+    uint8_t b = static_cast<uint8_t>(blue > 255.0 ? 255.0 : blue);
+    return (static_cast<uint32_t>(r) << 16)
+        | (static_cast<uint32_t>(g) << 8)
+        | static_cast<uint32_t>(b);
+}
+
 static const uint32_t DEFAULT_NES_PALETTE[64] = {
     0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E, 0x6E0040, 0x6C0600, 0x561D00,
     0x333500, 0x0B4800, 0x005200, 0x004F08, 0x00404D, 0x000000, 0x000000, 0x000000,
@@ -89,6 +119,13 @@ const uint8_t* NesSystem::get_framebuffer() const {
 void NesSystem::convert_frame() {
     const uint16_t* src = console_->get_framebuffer();
     if (!src) return;
+    auto* ppu = console_->get_ppu();
+    uint8_t palette_ram_mask = 0x3F;
+    uint16_t intensify_color_bits = 0;
+    if (ppu) {
+        palette_ram_mask = ppu->get_palette_ram_mask();
+        intensify_color_bits = ppu->get_intensify_color_bits();
+    }
     int num_pixels = 256 * 240;
     const auto& rom_info = console_->get_rom_info();
     const uint8_t* lut = PALETTE_LUT_2C02;
@@ -101,7 +138,7 @@ void NesSystem::convert_frame() {
     }
 
     for (int i = 0; i < num_pixels; ++i) {
-        uint8_t raw_idx = src[i] & 0x3F;
+        uint8_t raw_idx = src[i] & palette_ram_mask;
         uint8_t pal_idx = lut[raw_idx];
         uint32_t rgb;
         if (rom_info.use_vs_palette) {
@@ -113,6 +150,7 @@ void NesSystem::convert_frame() {
         } else {
             rgb = palette_[pal_idx];
         }
+        rgb = apply_emphasis_to_rgb(rgb, intensify_color_bits, raw_idx);
         rgba_framebuffer_[i * 4 + 0] = static_cast<uint8_t>((rgb >> 16) & 0xFF);
         rgba_framebuffer_[i * 4 + 1] = static_cast<uint8_t>((rgb >> 8) & 0xFF);
         rgba_framebuffer_[i * 4 + 2] = static_cast<uint8_t>(rgb & 0xFF);

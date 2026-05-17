@@ -25,6 +25,21 @@ configure_file(
     "${CMAKE_BINARY_DIR}/ear6/version.h"
 )
 
+set(EAR6_NES_DB_TXT "${CMAKE_SOURCE_DIR}/assets/nes/nes_db.txt")
+set(EAR6_NES_DB_EMBEDDED_H "${CMAKE_BINARY_DIR}/generated/nes_db_embedded.h")
+
+add_custom_command(
+    OUTPUT "${EAR6_NES_DB_EMBEDDED_H}"
+    COMMAND ${CMAKE_COMMAND}
+        -DINPUT_FILE=${EAR6_NES_DB_TXT}
+        -DOUTPUT_FILE=${EAR6_NES_DB_EMBEDDED_H}
+        -P "${CMAKE_SOURCE_DIR}/cmake/embed_nes_db.cmake"
+    DEPENDS "${EAR6_NES_DB_TXT}" "${CMAKE_SOURCE_DIR}/cmake/embed_nes_db.cmake"
+    VERBATIM
+)
+
+add_custom_target(ear6_generate_nes_db_header DEPENDS "${EAR6_NES_DB_EMBEDDED_H}")
+
 # ==================== 库构建 ====================
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
@@ -61,11 +76,15 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/vs_control_manager.cpp
     src/nes/nes_console.cpp
     src/nes/nes_system.cpp
+    "${EAR6_NES_DB_EMBEDDED_H}"
 )
+
+add_dependencies(ear6 ear6_generate_nes_db_header)
 
 target_include_directories(ear6 PUBLIC
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
     $<INSTALL_INTERFACE:include>
 )
 

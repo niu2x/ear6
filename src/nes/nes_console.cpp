@@ -9,10 +9,10 @@
 #include "base_mapper.h"
 #include "ines_loader.h"
 #include "mapper_factory.h"
+#include "nes_db_embedded.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -77,86 +77,84 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
 
     if (!loaded) {
         loaded = true;
-        std::ifstream in("assets/nes/nes_db.txt");
-        if (in) {
-            std::string line;
-            while (std::getline(in, line)) {
-                if (line.empty() || line[0] == '#') {
-                    continue;
-                }
-
-                std::vector<std::string> fields;
-                std::stringstream ss(line);
-                std::string part;
-                while (std::getline(ss, part, ',')) {
-                    fields.push_back(part);
-                }
-
-                if (fields.size() < 14) {
-                    continue;
-                }
-
-                uint32_t crc = static_cast<uint32_t>(std::strtoul(fields[0].c_str(), nullptr, 16));
-                if (crc == 0) {
-                    continue;
-                }
-
-                NesDbEntry entry;
-                entry.is_vs_system = (fields[FIELD_SYSTEM] == "VsSystem");
-
-                if (!fields[FIELD_MAPPER].empty()) {
-                    int mapper = std::atoi(fields[FIELD_MAPPER].c_str());
-                    if (mapper >= 0 && mapper < 1024) {
-                        entry.has_mapper = true;
-                        entry.mapper = mapper;
-                    }
-                }
-
-                if (!fields[FIELD_BATTERY].empty()) {
-                    entry.has_battery = true;
-                    entry.battery = (std::atoi(fields[FIELD_BATTERY].c_str()) != 0);
-                }
-
-                if (fields.size() > FIELD_BUS_CONFLICTS && !fields[FIELD_BUS_CONFLICTS].empty()) {
-                    entry.has_bus_conflicts = true;
-                    int bc = std::atoi(fields[FIELD_BUS_CONFLICTS].c_str());
-                    if (bc == 1) {
-                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::YES;
-                    } else if (bc == 0) {
-                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::NO;
-                    } else {
-                        entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::DEFAULT;
-                    }
-                }
-
-                if (fields.size() > FIELD_SUB_MAPPER && !fields[FIELD_SUB_MAPPER].empty()) {
-                    entry.has_submapper = true;
-                    entry.submapper = std::atoi(fields[FIELD_SUB_MAPPER].c_str());
-                }
-
-                if (!fields[FIELD_INPUT_TYPE].empty()) {
-                    entry.has_input_type = true;
-                    entry.input_type = std::atoi(fields[FIELD_INPUT_TYPE].c_str());
-                }
-                if (fields.size() > FIELD_MIRRORING && !fields[FIELD_MIRRORING].empty()) {
-                    const std::string& m = fields[FIELD_MIRRORING];
-                    if (m == "h") {
-                        entry.has_mirroring = true;
-                        entry.mirroring = ear6::nes::MirroringType::HORIZONTAL;
-                    } else if (m == "v") {
-                        entry.has_mirroring = true;
-                        entry.mirroring = ear6::nes::MirroringType::VERTICAL;
-                    } else if (m == "4") {
-                        entry.has_mirroring = true;
-                        entry.mirroring = ear6::nes::MirroringType::FOUR_SCREENS;
-                    }
-                }
-                if (fields.size() > FIELD_PPU_MODEL && !fields[FIELD_PPU_MODEL].empty()) {
-                    entry.has_ppu_model = true;
-                    entry.ppu_model = std::atoi(fields[FIELD_PPU_MODEL].c_str());
-                }
-                db[crc] = entry;
+        std::istringstream in(get_embedded_nes_db_text());
+        std::string line;
+        while (std::getline(in, line)) {
+            if (line.empty() || line[0] == '#') {
+                continue;
             }
+
+            std::vector<std::string> fields;
+            std::stringstream ss(line);
+            std::string part;
+            while (std::getline(ss, part, ',')) {
+                fields.push_back(part);
+            }
+
+            if (fields.size() < 14) {
+                continue;
+            }
+
+            uint32_t crc = static_cast<uint32_t>(std::strtoul(fields[0].c_str(), nullptr, 16));
+            if (crc == 0) {
+                continue;
+            }
+
+            NesDbEntry entry;
+            entry.is_vs_system = (fields[FIELD_SYSTEM] == "VsSystem");
+
+            if (!fields[FIELD_MAPPER].empty()) {
+                int mapper = std::atoi(fields[FIELD_MAPPER].c_str());
+                if (mapper >= 0 && mapper < 1024) {
+                    entry.has_mapper = true;
+                    entry.mapper = mapper;
+                }
+            }
+
+            if (!fields[FIELD_BATTERY].empty()) {
+                entry.has_battery = true;
+                entry.battery = (std::atoi(fields[FIELD_BATTERY].c_str()) != 0);
+            }
+
+            if (fields.size() > FIELD_BUS_CONFLICTS && !fields[FIELD_BUS_CONFLICTS].empty()) {
+                entry.has_bus_conflicts = true;
+                int bc = std::atoi(fields[FIELD_BUS_CONFLICTS].c_str());
+                if (bc == 1) {
+                    entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::YES;
+                } else if (bc == 0) {
+                    entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::NO;
+                } else {
+                    entry.bus_conflicts = ear6::nes::RomInfo::BusConflictType::DEFAULT;
+                }
+            }
+
+            if (fields.size() > FIELD_SUB_MAPPER && !fields[FIELD_SUB_MAPPER].empty()) {
+                entry.has_submapper = true;
+                entry.submapper = std::atoi(fields[FIELD_SUB_MAPPER].c_str());
+            }
+
+            if (!fields[FIELD_INPUT_TYPE].empty()) {
+                entry.has_input_type = true;
+                entry.input_type = std::atoi(fields[FIELD_INPUT_TYPE].c_str());
+            }
+            if (fields.size() > FIELD_MIRRORING && !fields[FIELD_MIRRORING].empty()) {
+                const std::string& m = fields[FIELD_MIRRORING];
+                if (m == "h") {
+                    entry.has_mirroring = true;
+                    entry.mirroring = ear6::nes::MirroringType::HORIZONTAL;
+                } else if (m == "v") {
+                    entry.has_mirroring = true;
+                    entry.mirroring = ear6::nes::MirroringType::VERTICAL;
+                } else if (m == "4") {
+                    entry.has_mirroring = true;
+                    entry.mirroring = ear6::nes::MirroringType::FOUR_SCREENS;
+                }
+            }
+            if (fields.size() > FIELD_PPU_MODEL && !fields[FIELD_PPU_MODEL].empty()) {
+                entry.has_ppu_model = true;
+                entry.ppu_model = std::atoi(fields[FIELD_PPU_MODEL].c_str());
+            }
+            db[crc] = entry;
         }
     }
 

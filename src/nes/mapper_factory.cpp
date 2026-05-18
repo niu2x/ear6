@@ -5,6 +5,7 @@
 #include "mapper_003.h"
 #include "mapper_004.h"
 #include "mapper_005.h"
+#include "mapper_006.h"
 #include "mapper_007.h"
 #include <cstdio>
 
@@ -18,6 +19,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 3:
         case 4:
         case 5:
+        case 6:
         case 7:
             return true;
         default:
@@ -40,6 +42,8 @@ BaseMapper* MapperFactory::create(int mapper_number) {
             return new Mapper004();
         case 5:
             return new Mapper005();
+        case 6:
+            return new Mapper006();
         case 7:
             return new Mapper007();
         default:

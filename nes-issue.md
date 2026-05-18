@@ -1,88 +1,91 @@
 # NES Issues (Frame 30)
 
+> Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
+> one-frame capture timing offset on a full-screen solid-color transition
+> (ear6 frame 31 matches mesen2 frame 30 at 100%). This entry is a
+> frame-gating artifact in the current comparator, not a confirmed core
+> rendering mismatch.
+
 ## Mapper 0
+
+- Total: 62 ROMs
+- Perfect: 60 (96.8%)
+- Partial: 1 (1.6%)
+- None (0%): 1 (1.6%)
 
 | ROM | Match |
 |---|---:|
+| `Antarctic Adventure (J).nes` | 0.00% |
 | `Family BASIC (Ver 3) (J).nes` | 99.59% |
 
 ## Mapper 1
 
+- Total: 117 ROMs
+- Perfect: 116 (99.1%)
+- Partial: 1 (0.9%)
+- None (0%): 0 (0.0%)
+
 | ROM | Match |
 |---|---:|
-| `Battle Stadium - Senbatsu Pro Yakyuu (J).nes` | 98.59% |
-| `Bloody Warriors - Shan Goo No Gyakushuu (J).nes` | 99.92% |
 | `vs dr mario.nes` | 97.43% |
 
 ## Mapper 2
 
 - Total: 43 ROMs
-- Perfect: 42 (97.7%)
+- Perfect: 43 (100.0%)
 - Partial: 0 (0.0%)
-- None (0%): 1 (2.3%)
+- None (0%): 0 (0.0%)
 
 | ROM | Match |
 |---|---:|
-| `Dragon Quest 3 (J).nes` | 0.00% |
+| (none) | 100.00% all |
 
 ## Mapper 3
 
 - Total: 24 ROMs
-- Perfect: 19 (79.2%)
-- Partial: 2 (8.3%)
-- None (0%): 3 (12.5%)
+- Perfect: 22 (91.7%)
+- Partial: 1 (4.2%)
+- None (0%): 1 (4.2%)
 
 | ROM | Match |
 |---|---:|
-| `Argus (J).nes` | 0.00% |
 | `Atlantis No Nazo (J).nes` | 83.63% |
-| `Buggy Popper (J).nes` | 0.00% |
 | `Choplifter (J).nes` | 0.00% |
-| `Meikyuu Kumikyoku (J).nes` | 71.01% |
 
 ## Mapper 4
 
 - Total: 107 ROMs
-- Perfect: 74 (69.2%)
-- Partial: 13 (12.1%)
-- None (0%): 14 (13.1%)
+- Perfect: 83 (77.6%)
+- Partial: 16 (15.0%)
+- None (0%): 2 (1.9%)
 - E6 Crash: 6 (5.6%)
 
 | ROM | Match |
 |---|---:|
 | `Aa! Yakyuu Jinsei Itchokusen (J).nes` | E6-KO |
 | `America Oudan Ultra Quiz - Shijou Saidai No Tatakai (J).nes` | E6-KO |
-| `Babel No Tou (J).nes` | 32.81% |
+| `Babel No Tou (J).nes` | 81.81% |
 | `Capcom 30-in-1 [p][!].nes` | 0.00% |
 | `Captain Tsubasa Vol 2 - Super Striker (J).nes` | 98.12% |
+| `Chronicle of the Radia War (J).nes` | 0.00% |
 | `Cross Fire (J).nes` | 95.65% |
+| `Dark Lord (J).nes` | 99.99% |
 | `Destiny of an Emperor 2 (j).nes` | E6-KO |
 | `Doki! Doki! Yuuenchi (J).nes` | 50.15% |
 | `Double Moon Densetsu (J).nes` | E6-KO |
 | `Downtown - Nekketsu Koushin Kyoku - Soreyuke Daiundoukai (J).nes` | 79.03% |
-| `Dragon Buster 2 - Yami No Fuuin (J).nes` | 0.00% |
-| `Dragon Slayer 4 - Drasle Family (J).nes` | 0.00% |
-| `Family Boxing (J).nes` | 0.00% |
-| `Family Circuit (J).nes` | 0.00% |
-| `Family Jockey (J).nes` | 55.49% |
-| `Family Mahjong (J).nes` | 0.00% |
-| `Family Mahjong 2 - Shanghai E No Michi (J).nes` | 0.00% |
-| `Family Pinball (J).nes` | 0.00% |
-| `Family Stadium '87 - Pro Yakyuu (J).nes` | 0.00% |
-| `Family Stadium '88 - Pro Yakyuu (J).nes` | 0.00% |
-| `Family Stadium '89 - Kaimakuban!! (J).nes` | 0.00% |
-| `Family Stadium - Pro Yakyuu (J).nes` | 0.00% |
-| `Family Tennis (J).nes` | 0.00% |
+| `Family Mahjong (J).nes` | 84.98% |
+| `Family Pinball (J).nes` | 85.13% |
+| `Family Stadium - Pro Yakyuu (J).nes` | 99.70% |
 | `Final Fantasy 3 (J).nes` | E6-KO |
-| `Fuzzical Fighter (J).nes` | 85.25% |
+| `Fuzzical Fighter (J).nes` | 85.26% |
 | `JURASSIC.NES` | 74.69% |
 | `KICKMAST.NES` | 96.36% |
 | `MARIO3.NES` | 69.34% |
 | `Ningen Heiki - Dead Fox (J).nes` | 91.44% |
-| `Super Mario Bros 3 (J).nes` | 58.12% |
+| `Super Mario Bros 3 (J).nes` | 58.11% |
 | `Wily & Light No Rockboard - That's Paradise (J).nes` | E6-KO |
 | `ddz.nes` | 97.02% |
-| `jafy.nes` | 0.00% |
 
 ## Mapper 7
 

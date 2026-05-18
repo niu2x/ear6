@@ -27,6 +27,8 @@ public:
     virtual bool has_cpu_clock_hook() { return false; }
     virtual bool has_vram_address_hook() { return false; }
     virtual void notify_vram_address_change(uint16_t addr) { (void)addr; }
+    virtual bool has_custom_vram_read() { return false; }
+    virtual uint8_t read_vram_custom(uint16_t addr) { return read_vram(addr); }
 
     // CPU memory
     uint8_t read_ram(uint16_t addr) override;

@@ -32,6 +32,7 @@ public:
     uint8_t get_palette_ram0() const { return palette_ram_[0]; }
     uint8_t get_palette_ram_mask() const { return palette_ram_mask_; }
     uint16_t get_intensify_color_bits() const { return intensify_color_bits_; }
+    bool is_large_sprites() const { return control_.large_sprites; }
     uint16_t* get_framebuffer() { return framebuffer_; }
     const uint16_t* get_framebuffer() const { return framebuffer_; }
     uint8_t* get_oam() { return sprite_ram_; }

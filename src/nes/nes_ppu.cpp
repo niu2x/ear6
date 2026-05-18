@@ -541,7 +541,7 @@ void NesPpu::set_bus_address(uint16_t addr) {
 
 uint8_t NesPpu::read_vram(uint16_t addr) {
     set_bus_address(addr);
-    uint8_t v = mapper_->read_vram(addr);
+    uint8_t v = mapper_->has_custom_vram_read() ? mapper_->read_vram_custom(addr) : mapper_->read_vram(addr);
     if (std::getenv("EAR6_TRACE_NTADDR") != nullptr) {
         uint16_t a = addr & 0x3FFF;
         if (a == 0x21E2 || a == 0x21E3 || a == 0x25E2 || a == 0x25E3 || a == 0x29E2 || a == 0x29E3 || a == 0x2DE2 || a == 0x2DE3) {

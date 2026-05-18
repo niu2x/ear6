@@ -1,6 +1,6 @@
 # NES Issues (Frame 30)
 
-100% mappers: 2, 5, 10
+100% mappers: 2, 5, 10, 15
 
 > Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
 > one-frame capture timing offset on a full-screen solid-color transition

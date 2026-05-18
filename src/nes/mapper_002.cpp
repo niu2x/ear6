@@ -13,11 +13,6 @@ void Mapper002::init(const RomInfo& info,
 
     work_ram_.resize(0x2000, 0);
 
-    if (chr_rom_size_ == 0) {
-        chr_rom_.resize(0x2000, 0);
-        chr_rom_size_ = 0x2000;
-    }
-
     set_mirroring_type(info.mirroring);
 
     set_cpu_memory_mapping(0x6000, 0x7FFF, work_ram_.data(), 0, 0x2000);

@@ -277,6 +277,11 @@ int NesConsole::load_rom(const void* data, int size) {
     }
     mapper_->init(info, prg_rom, chr_rom);
 
+    // Initialize CHR RAM when no CHR ROM present (matches Mesen2's BaseMapper::Initialize)
+    if (!mapper_->has_chr_rom()) {
+        mapper_->initialize_chr_ram();
+    }
+
     // Create core components
     memory_manager_.reset(new NesMemoryManager(this, mapper_.get()));
     cpu_.reset(new NesCpu(this));

@@ -53,6 +53,9 @@ public:
     void set_ppu_memory_mapping(uint16_t start, uint16_t end, uint16_t page_number,
                                 ChrMemoryType type = ChrMemoryType::DEFAULT,
                                 int8_t access_type = -1);
+    void set_ppu_memory_mapping(uint16_t start, uint16_t end,
+                                ChrMemoryType type, uint32_t source_offset,
+                                int8_t access_type = -1);
     void set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
                                     uint32_t source_offset, uint32_t source_size,
                                     int8_t access_type = -1);
@@ -69,6 +72,13 @@ public:
     virtual uint16_t get_prg_page_size() = 0;
     virtual uint16_t get_chr_page_size() = 0;
 
+    // CHR RAM support (matches Mesen2's BaseMapper interface)
+    virtual uint32_t get_chr_ram_size() { return 0x2000; }
+    virtual uint16_t get_chr_ram_page_size() { return get_chr_page_size(); }
+    bool has_chr_rom() const { return chr_rom_size_ > 0; }
+    bool has_chr_ram() const { return chr_ram_size_ > 0; }
+    void initialize_chr_ram(int32_t chr_ram_size = -1);
+
     void set_has_bus_conflicts(bool enabled) { has_bus_conflicts_ = enabled; }
 
 protected:
@@ -79,8 +89,10 @@ protected:
     // PRG data
     std::vector<uint8_t> prg_rom_;
     std::vector<uint8_t> chr_rom_;
+    std::vector<uint8_t> chr_ram_;
     uint32_t prg_size_ = 0;
     uint32_t chr_rom_size_ = 0;
+    uint32_t chr_ram_size_ = 0;
 
     // Page tables (256 entries each)
     uint8_t* prg_pages_[0x100] = {};

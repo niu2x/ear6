@@ -104,13 +104,79 @@ void BaseMapper::select_prg_page_4x(uint16_t slot, uint16_t page, PrgMemoryType 
     select_prg_page_2x(slot + 2, page + 2, type);
 }
 
+void BaseMapper::initialize_chr_ram(int32_t size) {
+    uint32_t default_size = get_chr_ram_size();
+    chr_ram_size_ = (size >= 0) ? (uint32_t)size : default_size;
+    if (chr_ram_size_ > 0) {
+        chr_ram_.resize(chr_ram_size_, 0);
+    }
+}
+
 void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint16_t page_number,
                                          ChrMemoryType type, int8_t access_type) {
-    (void)type;
-    uint32_t page_size = get_chr_page_size();
-    uint8_t* source = chr_rom_.data();
-    uint32_t source_offset = (uint32_t)page_number * page_size;
-    set_ppu_memory_mapping(start, end, source, source_offset, page_size, access_type);
+    if (type == ChrMemoryType::DEFAULT) {
+        type = (chr_rom_size_ > 0) ? ChrMemoryType::CHR_ROM : ChrMemoryType::CHR_RAM;
+    }
+
+    uint32_t page_size;
+    uint32_t page_count;
+    switch (type) {
+        case ChrMemoryType::CHR_ROM:
+            page_size = get_chr_page_size();
+            page_count = (chr_rom_size_ > 0) ? (chr_rom_size_ / page_size) : 0;
+            break;
+        case ChrMemoryType::CHR_RAM: {
+            if (chr_ram_size_ == 0) {
+                initialize_chr_ram();
+            }
+            page_size = get_chr_ram_page_size();
+            page_count = (chr_ram_size_ > 0) ? (chr_ram_size_ / page_size) : 0;
+            break;
+        }
+        default:
+            return;
+    }
+
+    if (page_count > 0) {
+        page_number %= page_count;
+    }
+
+    set_ppu_memory_mapping(start, end, type, (uint32_t)page_number * page_size, access_type);
+}
+
+void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end,
+                                         ChrMemoryType type, uint32_t source_offset,
+                                         int8_t access_type) {
+    uint8_t* source = nullptr;
+    uint32_t source_size = 0;
+
+    switch (type) {
+        case ChrMemoryType::CHR_ROM:
+            source = chr_rom_.data();
+            source_size = chr_rom_size_;
+            break;
+        case ChrMemoryType::CHR_RAM:
+            source = chr_ram_.data();
+            source_size = chr_ram_size_;
+            break;
+        default:
+            break;
+    }
+
+    int first_slot = start >> 8;
+    int slot_count = ((int)end - (int)start + 1) >> 8;
+    for (int i = 0; i < slot_count; i++) {
+        int slot = first_slot + i;
+        uint32_t offset = source_offset + (uint32_t)i * 0x100;
+        if (source && source_size > 0 && offset < source_size) {
+            chr_pages_[slot] = source + offset;
+            chr_memory_access_[slot] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
+            chr_memory_type_[slot] = type;
+        } else {
+            chr_pages_[slot] = nullptr;
+            chr_memory_access_[slot] = NO_ACCESS;
+        }
+    }
 }
 
 void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
@@ -122,7 +188,6 @@ void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* s
     for (uint16_t i = start; i <= end; i++) {
         chr_pages_[i] = source + source_offset;
         chr_memory_access_[i] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
-        chr_memory_type_[i] = ChrMemoryType::CHR_ROM;
         source_offset += 0x100;
     }
 }

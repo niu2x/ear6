@@ -20,6 +20,8 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 4:
         case 5:
         case 6:
+        case 8:
+        case 17:
         case 7:
             return true;
         default:
@@ -43,6 +45,10 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 5:
             return new Mapper005();
         case 6:
+            return new Mapper006();
+        case 8:
+            return new Mapper006();
+        case 17:
             return new Mapper006();
         case 7:
             return new Mapper007();

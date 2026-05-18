@@ -19,11 +19,27 @@ void Mapper006::init(const RomInfo& info,
     ffe_alt_mode_ = true;
 
     add_register_range(0x42FE, 0x42FF, MemoryOperation::WRITE);
-    add_register_range(0x4501, 0x4503, MemoryOperation::WRITE);
-    add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
+    add_register_range(0x4501, 0x4517, MemoryOperation::WRITE);
 
-    select_prg_page_2x(0, 0);
-    select_prg_page_2x(1, 14);
+    switch (rom_info_.mapper_number) {
+        case 6:
+            add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
+            select_prg_page_2x(0, 0);
+            select_prg_page_2x(1, 14);
+            break;
+        case 8:
+            add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
+            select_prg_page_4x(0, 0);
+            break;
+        case 17:
+            select_prg_page_4x(0, (uint16_t)-4);
+            break;
+        default:
+            add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
+            select_prg_page_2x(0, 0);
+            select_prg_page_2x(1, 14);
+            break;
+    }
 }
 
 void Mapper006::process_cpu_clock() {
@@ -67,13 +83,47 @@ void Mapper006::write_register(uint16_t addr, uint8_t value) {
             break;
     }
 
-    if (addr >= 0x8000) {
-        uint8_t chr_bank = value;
-        if (has_chr_ram() || ffe_alt_mode_) {
-            select_prg_page_2x(0, (value & 0xFC) >> 1);
-            chr_bank = value & 0x03;
+    if (rom_info_.mapper_number == 6) {
+        if (addr >= 0x8000) {
+            uint8_t chr_bank = value;
+            if (has_chr_ram() || ffe_alt_mode_) {
+                select_prg_page_2x(0, (value & 0xFC) >> 1);
+                chr_bank = value & 0x03;
+            }
+            select_chr_page_8x(0, chr_bank << 3);
         }
-        select_chr_page_8x(0, chr_bank << 3);
+        return;
+    }
+
+    if (rom_info_.mapper_number == 8) {
+        if (addr >= 0x8000) {
+            select_prg_page_2x(0, (value & 0xF8) >> 2);
+            select_chr_page_8x(0, (value & 0x07) << 3);
+        }
+        return;
+    }
+
+    if (rom_info_.mapper_number == 17) {
+        switch (addr) {
+            case 0x4504:
+            case 0x4505:
+            case 0x4506:
+            case 0x4507:
+                select_prg_page((uint16_t)(addr - 0x4504), value);
+                break;
+            case 0x4510:
+            case 0x4511:
+            case 0x4512:
+            case 0x4513:
+            case 0x4514:
+            case 0x4515:
+            case 0x4516:
+            case 0x4517:
+                select_chr_page((uint16_t)(addr - 0x4510), value);
+                break;
+            default:
+                break;
+        }
     }
 }
 

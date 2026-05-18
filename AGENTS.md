@@ -85,6 +85,32 @@ All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their 
 - Runtime code (`apply_nesdb_overrides`) must consume embedded text, not filesystem reads, so native and wasm behavior stay consistent.
 
 
+## Debugging with GDB (Lesson Learned)
+
+**Never guess — use GDB.** When facing hangs/crashes:
+1. Build debug: `cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug && cmake --build build`
+2. Run under GDB: `gdb --args ./build/ear6-cli <rom>`
+3. On hang: Ctrl+C, then `bt` to get the full call chain
+4. On crash: `run` lets it crash, then `bt` shows where
+
+**Example** — infinite recursion in `read_register(0xFFFA)`:
+The hang was `read_register → BaseMapper::read_ram → is_read_register_addr_ true → read_register → ...`
+A single GDB `bt` would have shown this loop instantly, instead of 2 hours of guessing.
+
+**Useful GDB commands for this project:**
+- `bt` — backtrace (shows the call chain)
+- `frame N` — switch to frame N
+- `p variable` — print variable
+- `p/x variable` — print in hex
+- `info functions <regex>` — find function addresses
+- `b file.cpp:line` — set breakpoint
+- `b funcname` — set breakpoint on function
+- `watch variable` — break when variable changes
+- `c` — continue
+- `n` — step over, `s` — step into
+- `finish` — run until current function returns
+- `l` — list source near current line
+
 ## Notes for AI Agent
 
 - **NEVER auto-commit.** Only commit when the user explicitly asks with `/commit` or says "commit". All changes should remain unstaged/untracked until the user requests a commit.

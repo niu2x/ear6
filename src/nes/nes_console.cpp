@@ -33,6 +33,7 @@ uint32_t crc32_update(uint32_t crc, const uint8_t* data, size_t len) {
 }
 
 void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
+    printf("apply_nesdb_overrides crc=0x%08x\n", prg_chr_crc32);
     enum NesDbField {
         FIELD_CRC = 0,
         FIELD_SYSTEM = 1,

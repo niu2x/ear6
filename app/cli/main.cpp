@@ -2,6 +2,7 @@
 #include <ear6/nes.h>
 
 #include <boost/program_options.hpp>
+#include <openssl/md5.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -16,6 +17,15 @@ namespace po = boost::program_options;
 // -----------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------
+
+static void md5_hex(const uint8_t* data, size_t len, char out[33]) {
+    unsigned char digest[MD5_DIGEST_LENGTH];
+    MD5(data, len, digest);
+    for (int i = 0; i < 16; i++) {
+        sprintf(out + i * 2, "%02x", digest[i]);
+    }
+    out[32] = '\0';
+}
 
 static void write_ppm(const char* path, const uint8_t* fb, int w, int h) {
     FILE* f = fopen(path, "wb");
@@ -194,7 +204,8 @@ static bool is_known(SystemHint h) {
 }
 
 static int cmd_screenshot(const char* rom_path, int frames, const char* output,
-                          bool verbose, bool auto_start_sequence, SystemHint system_hint) {
+                          bool verbose, bool auto_start_sequence, bool md5_mode,
+                          SystemHint system_hint) {
     std::vector<uint8_t> rom;
     if (!load_file(rom_path, rom)) return 1;
 
@@ -247,12 +258,31 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
     int w = ear6_get_frame_width(ctx);
     int h = ear6_get_frame_height(ctx);
 
-    if (fb && w > 0 && h > 0) {
-        write_ppm(output, fb, w, h);
-    } else {
+    if (!fb || w <= 0 || h <= 0) {
         fprintf(stderr, "Error: no framebuffer data\n");
         ear6_destroy(ctx);
         return 1;
+    }
+
+    if (md5_mode) {
+        // Build PPM in memory, compute MD5, print hash
+        char hdr[64];
+        int hdr_len = snprintf(hdr, sizeof(hdr), "P6\n%d %d\n255\n", w, h);
+        size_t ppm_size = (size_t)hdr_len + (size_t)w * (size_t)h * 3;
+        uint8_t* ppm = (uint8_t*)malloc(ppm_size);
+        memcpy(ppm, hdr, hdr_len);
+        for (int i = 0; i < w * h; i++) {
+            ppm[hdr_len + i * 3 + 0] = fb[i * 4 + 0];
+            ppm[hdr_len + i * 3 + 1] = fb[i * 4 + 1];
+            ppm[hdr_len + i * 3 + 2] = fb[i * 4 + 2];
+        }
+
+        char hash[33];
+        md5_hex(ppm, ppm_size, hash);
+        free(ppm);
+        printf("%s\n", hash);
+    } else {
+        write_ppm(output, fb, w, h);
     }
 
     ear6_destroy(ctx);
@@ -456,6 +486,7 @@ static int dispatch_screenshot(const std::vector<std::string>& args,
         ("help,h", "Show this help")
         ("frames,f", po::value<int>()->default_value(60), "Number of frames to run")
         ("output,o", po::value<std::string>()->default_value("out.ppm"), "Output PPM screenshot")
+        ("md5", po::bool_switch(), "Print PPM MD5 hash to stdout instead of writing file")
         ("verbose,v", po::bool_switch(), "Print frame info")
         ("auto-start-sequence", po::bool_switch(), "Enable automatic Start key sequence (press at frame 29, release at frame 34)")
         ("rom", po::value<std::string>(), "ROM file path");
@@ -492,6 +523,7 @@ static int dispatch_screenshot(const std::vector<std::string>& args,
         vm["output"].as<std::string>().c_str(),
         vm["verbose"].as<bool>(),
         vm["auto-start-sequence"].as<bool>(),
+        vm["md5"].as<bool>(),
         system_hint
     );
 }

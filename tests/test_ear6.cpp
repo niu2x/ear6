@@ -2,7 +2,9 @@
 
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <gtest/gtest.h>
+#include <openssl/md5.h>
 
 TEST(Ear6Create, TestSystemSuccess) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
@@ -112,4 +114,57 @@ TEST(Ear6Create, DestroyNullIsSafe) {
 
 TEST(Ear6Test, TestFunction) {
     EXPECT_EQ(ear6_test(), 42);
+}
+
+// -----------------------------------------------------------------------
+// Regression: Choplifter (J).nes — ear6 correct, Mesen2 has this bug
+// -----------------------------------------------------------------------
+
+static std::string ppm_md5(const uint8_t* rgba, int w, int h) {
+    char hdr[64];
+    int hdr_len = snprintf(hdr, sizeof(hdr), "P6\n%d %d\n255\n", w, h);
+    size_t ppm_size = (size_t)hdr_len + (size_t)w * (size_t)h * 3;
+
+    // Build PPM in memory, compute MD5 directly
+    uint8_t* ppm = (uint8_t*)malloc(ppm_size);
+    memcpy(ppm, hdr, hdr_len);
+    for (int i = 0; i < w * h; i++) {
+        ppm[hdr_len + i * 3 + 0] = rgba[i * 4 + 0];
+        ppm[hdr_len + i * 3 + 1] = rgba[i * 4 + 1];
+        ppm[hdr_len + i * 3 + 2] = rgba[i * 4 + 2];
+    }
+
+    unsigned char digest[MD5_DIGEST_LENGTH];
+    MD5(ppm, ppm_size, digest);
+    free(ppm);
+
+    char hex[33];
+    for (int i = 0; i < 16; i++) {
+        snprintf(hex + i * 2, 3, "%02x", digest[i]);
+    }
+    return std::string(hex, 32);
+}
+
+TEST(ChoplifterRegression, Frame30) {
+    std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/Choplifter (J).nes";
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+
+    int rc = ear6_load(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+
+    for (int i = 0; i < 30; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    ASSERT_EQ(ear6_get_frame_width(ctx), 256);
+    ASSERT_EQ(ear6_get_frame_height(ctx), 240);
+
+    std::string hash = ppm_md5(fb, 256, 240);
+    EXPECT_EQ(hash, "ad2d0044501aca97ef186404d2af1248");
+
+    ear6_destroy(ctx);
 }

@@ -128,5 +128,8 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **blargg PPU tests** — palette, sprite, vblank, scroll
 - [ ] **blargg APU tests** — length counter, envelope, sweep, DMC
 - [ ] **Full compatibility suite** — 100+ popular ROMs
+- [x] **Choplifter (J).nes** — permanent regression test (mapper 3, CNROM).
+      ear6 transitions to game screen at frame 6 (blue sky); Mesen2 is
+      stuck on title screen past 600 frames. ear6 is **correct** here.
 - [ ] **Frame-by-frame trace compare** — script that runs ear6 and Mesen2 side-by-side for the same ROM, finds the first divergent PPU register event
 - [ ] Build reusable first-divergence workflow script: compare raw index, mapped index, and final RGB in separate stages.

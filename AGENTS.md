@@ -17,6 +17,14 @@ make cli -C ../mesen2/DesktopApp   # ONLY valid way to build mesen2-cli
 cmake --build build --target ear6   # rebuild catches compile errors
 ```
 
+## Test
+
+```bash
+cmake -B build -DEAR6_BUILD_TESTS=ON && cmake --build build --target ear6-test
+./build/ear6-test                    # run all tests
+./build/ear6-test --gtest_filter=Choplifter*   # single test suite
+```
+
 ## Migration Notes
 
 - NES <-> Mesen2 migration workflow, debug methodology, trace gating, and Mesen2-specific build/edit rules are maintained in `docs/migration_guide.md`.

@@ -1,4 +1,5 @@
 find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(OpenSSL REQUIRED)
 
 add_executable(ear6-cli
     main.cpp
@@ -7,6 +8,7 @@ add_executable(ear6-cli
 target_link_libraries(ear6-cli PRIVATE
     ear6
     Boost::program_options
+    OpenSSL::Crypto
 )
 
 cxx_project_preset(ear6-cli)

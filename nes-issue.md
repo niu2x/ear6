@@ -6,6 +6,12 @@
 > frame-gating artifact in the current comparator, not a confirmed core
 > rendering mismatch.
 
+> ⚠️ **Choplifter (J).nes** at `0.00%` is the **opposite** case: ear6 correctly
+> transitions to the game screen by frame 6 (blue sky), while Mesen2 remains
+> stuck on the title screen (dark green) past 600+ frames. This is a confirmed
+> **Mesen2 bug** — ear6's rendering is correct. Keep this ROM as a permanent
+> regression test (see `docs/TODO.md` Testing section).
+
 ## Mapper 0
 
 - Total: 62 ROMs

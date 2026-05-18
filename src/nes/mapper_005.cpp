@@ -208,6 +208,7 @@ void Mapper005::set_extended_ram_mode(uint8_t mode) {
 uint8_t Mapper005::read_vram_custom(uint16_t addr) {
     addr &= 0x3FFF;
 
+
     const bool is_nt_fetch = addr >= 0x2000 && addr <= 0x2FFF && (addr & 0x03FF) < 0x03C0;
     if (is_nt_fetch) {
         split_in_split_region_ = false;
@@ -487,7 +488,11 @@ uint8_t Mapper005::read_register(uint16_t addr) {
                 console_->get_cpu()->clear_irq_source(IRQSource::EXTERNAL);
             }
             update_chr_banks(true);
-            return BaseMapper::read_ram(addr);
+            // Read directly to avoid recursion (BaseMapper::read_ram would loop back here)
+            if (prg_memory_access_[addr >> 8] & READ) {
+                return prg_pages_[addr >> 8][(uint8_t)addr];
+            }
+            return console_->get_memory_manager()->get_open_bus();
         default:
             break;
     }

@@ -77,6 +77,14 @@ void BaseMapper::set_cpu_memory_mapping(uint16_t start, uint16_t end, int16_t pa
     (void)type;
     uint32_t page_size = get_prg_page_size();
     uint8_t* source = prg_rom_.data();
+    if (prg_size_ > 0) {
+        uint32_t max_page = prg_size_ / page_size;
+        if (page_number < 0) {
+            page_number = (int16_t)(max_page + page_number);
+        } else {
+            page_number %= (int16_t)max_page;
+        }
+    }
     uint32_t source_offset = (uint32_t)page_number * page_size;
     set_cpu_memory_mapping(start, end, source, source_offset, page_size, access_type);
 }

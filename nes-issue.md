@@ -1,5 +1,7 @@
 # NES Issues (Frame 30)
 
+100% mappers: 2, 5
+
 > Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
 > one-frame capture timing offset on a full-screen solid-color transition
 > (ear6 frame 31 matches mesen2 frame 30 at 100%). This entry is a
@@ -34,17 +36,6 @@
 | ROM | Match |
 |---|---:|
 | `vs dr mario.nes` | 97.43% |
-
-## Mapper 2
-
-- Total: 43 ROMs
-- Perfect: 43 (100.0%)
-- Partial: 0 (0.0%)
-- None (0%): 0 (0.0%)
-
-| ROM | Match |
-|---|---:|
-| (none) | 100.00% all |
 
 ## Mapper 3
 
@@ -94,6 +85,5 @@
 - None (0%): 0 (0.0%)
 
 | ROM | Match |
-|---|---:|
+|---|---:|---:|
 | `Battletoads Double Dragon (U).nes` | 99.93% |
-| `Densetsu No Kishi - Elrond (J).nes` | 100.00% |

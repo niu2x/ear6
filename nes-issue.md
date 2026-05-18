@@ -60,38 +60,27 @@
 
 ## Mapper 4
 
-- Total: 107 ROMs
-- Perfect: 83 (77.6%)
-- Partial: 16 (15.0%)
-- None (0%): 2 (1.9%)
-- E6 Crash: 6 (5.6%)
+- Total: 89 ROMs
+- Perfect: 75 (84.3%)
+- Partial: 14 (15.7%)
+- None (0%): 0 (0.0%)
+- E6 Crash: 0 (0.0%)
 
 | ROM | Match |
 |---|---:|
-| `Aa! Yakyuu Jinsei Itchokusen (J).nes` | E6-KO |
-| `America Oudan Ultra Quiz - Shijou Saidai No Tatakai (J).nes` | E6-KO |
 | `Babel No Tou (J).nes` | 81.81% |
-| `Capcom 30-in-1 [p][!].nes` | 0.00% |
 | `Captain Tsubasa Vol 2 - Super Striker (J).nes` | 98.12% |
-| `Chronicle of the Radia War (J).nes` | 0.00% |
 | `Cross Fire (J).nes` | 95.65% |
 | `Dark Lord (J).nes` | 99.99% |
-| `Destiny of an Emperor 2 (j).nes` | E6-KO |
 | `Doki! Doki! Yuuenchi (J).nes` | 50.15% |
-| `Double Moon Densetsu (J).nes` | E6-KO |
 | `Downtown - Nekketsu Koushin Kyoku - Soreyuke Daiundoukai (J).nes` | 79.03% |
 | `Family Mahjong (J).nes` | 84.98% |
 | `Family Pinball (J).nes` | 85.13% |
 | `Family Stadium - Pro Yakyuu (J).nes` | 99.70% |
-| `Final Fantasy 3 (J).nes` | E6-KO |
 | `Fuzzical Fighter (J).nes` | 85.26% |
-| `JURASSIC.NES` | 74.69% |
 | `KICKMAST.NES` | 96.36% |
-| `MARIO3.NES` | 69.34% |
 | `Ningen Heiki - Dead Fox (J).nes` | 91.44% |
 | `Super Mario Bros 3 (J).nes` | 58.11% |
-| `Wily & Light No Rockboard - That's Paradise (J).nes` | E6-KO |
-| `ddz.nes` | 97.02% |
 
 ## Mapper 7
 

@@ -25,6 +25,12 @@ cmake -B build -DEAR6_BUILD_TESTS=ON && cmake --build build --target ear6-test
 ./build/ear6-test --gtest_filter=Choplifter*   # single test suite
 ```
 
+**ROM directory**: Tests search `assets/nes/rom/`. Actual ROMs are organized under
+`assets/nes/roms/mapper_N/`. Create a symlink if needed:
+```bash
+mkdir -p assets/nes/rom && ln -sf ../roms/mapper_3/Choplifter\ \(J\).nes assets/nes/rom/
+```
+
 ## Migration Notes
 
 - NES <-> Mesen2 migration workflow, debug methodology, trace gating, and Mesen2-specific build/edit rules are maintained in `docs/migration_guide.md`.

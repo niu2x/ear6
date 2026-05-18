@@ -4,7 +4,7 @@
 #include <cstring>
 #include <string>
 #include <gtest/gtest.h>
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 
 TEST(Ear6Create, TestSystemSuccess) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
@@ -134,8 +134,25 @@ static std::string ppm_md5(const uint8_t* rgba, int w, int h) {
         ppm[hdr_len + i * 3 + 2] = rgba[i * 4 + 2];
     }
 
-    unsigned char digest[MD5_DIGEST_LENGTH];
-    MD5(ppm, ppm_size, digest);
+    unsigned char digest[EVP_MAX_MD_SIZE] = {};
+    unsigned int digest_len = 0;
+
+    EVP_MD_CTX* md_ctx = EVP_MD_CTX_new();
+    if (!md_ctx) {
+        free(ppm);
+        return std::string();
+    }
+
+    if (EVP_DigestInit_ex(md_ctx, EVP_md5(), nullptr) != 1
+        || EVP_DigestUpdate(md_ctx, ppm, ppm_size) != 1
+        || EVP_DigestFinal_ex(md_ctx, digest, &digest_len) != 1
+        || digest_len != 16) {
+        EVP_MD_CTX_free(md_ctx);
+        free(ppm);
+        return std::string();
+    }
+
+    EVP_MD_CTX_free(md_ctx);
     free(ppm);
 
     char hex[33];
@@ -147,6 +164,11 @@ static std::string ppm_md5(const uint8_t* rgba, int w, int h) {
 
 TEST(ChoplifterRegression, Frame30) {
     std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/Choplifter (J).nes";
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);

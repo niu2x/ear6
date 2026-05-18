@@ -118,12 +118,26 @@ endif()
 
 if(EAR6_BUILD_TESTS)
     enable_testing()
-    find_package(GTest REQUIRED)
+    find_package(GTest QUIET)
+    set(EAR6_GTEST_LIB GTest::GTest)
+    set(EAR6_GTEST_MAIN_LIB GTest::Main)
+    if(NOT GTest_FOUND)
+        include(FetchContent)
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(googletest)
+        set(EAR6_GTEST_LIB gtest)
+        set(EAR6_GTEST_MAIN_LIB gtest_main)
+    endif()
     find_package(OpenSSL REQUIRED)
     add_executable(ear6-test tests/test_ear6.cpp)
     target_compile_definitions(ear6-test PRIVATE EAR6_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     target_include_directories(ear6-test PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
-    target_link_libraries(ear6-test PRIVATE ear6 GTest::GTest GTest::Main OpenSSL::Crypto)
+    target_link_libraries(ear6-test PRIVATE ear6 ${EAR6_GTEST_LIB} ${EAR6_GTEST_MAIN_LIB} OpenSSL::Crypto)
     add_test(NAME ear6-test COMMAND ear6-test)
 endif()
 

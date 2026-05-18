@@ -60,16 +60,17 @@
 
 ## Mapper 4
 
-- Total: 89 ROMs
-- Perfect: 75 (84.3%)
-- Partial: 14 (15.7%)
-- None (0%): 0 (0.0%)
-- E6 Crash: 0 (0.0%)
+- Total: 107 ROMs
+- Perfect: 89 (83.2%)
+- Partial: 16 (15.0%)
+- None (0%): 2 (1.9%)
 
 | ROM | Match |
 |---|---:|
 | `Babel No Tou (J).nes` | 81.81% |
+| `Capcom 30-in-1 [p][!].nes` | 0.00% |
 | `Captain Tsubasa Vol 2 - Super Striker (J).nes` | 98.12% |
+| `Chronicle of the Radia War (J).nes` | 0.00% |
 | `Cross Fire (J).nes` | 95.65% |
 | `Dark Lord (J).nes` | 99.99% |
 | `Doki! Doki! Yuuenchi (J).nes` | 50.15% |
@@ -78,19 +79,21 @@
 | `Family Pinball (J).nes` | 85.13% |
 | `Family Stadium - Pro Yakyuu (J).nes` | 99.70% |
 | `Fuzzical Fighter (J).nes` | 85.26% |
+| `JURASSIC.NES` | 74.69% |
 | `KICKMAST.NES` | 96.36% |
+| `MARIO3.NES` | 69.34% |
 | `Ningen Heiki - Dead Fox (J).nes` | 91.44% |
 | `Super Mario Bros 3 (J).nes` | 58.11% |
+| `ddz.nes` | 97.02% |
 
 ## Mapper 7
 
 - Total: 2 ROMs
-- Perfect: 0 (0.0%)
-- Partial: 0 (0.0%)
+- Perfect: 1 (50.0%)
+- Partial: 1 (50.0%)
 - None (0%): 0 (0.0%)
-- E6 Crash: 2 (100.0%)
 
 | ROM | Match |
 |---|---:|
-| `Battletoads Double Dragon (U).nes` | E6-KO |
-| `Densetsu No Kishi - Elrond (J).nes` | E6-KO |
+| `Battletoads Double Dragon (U).nes` | 99.93% |
+| `Densetsu No Kishi - Elrond (J).nes` | 100.00% |

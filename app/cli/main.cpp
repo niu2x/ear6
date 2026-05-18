@@ -2,7 +2,7 @@
 #include <ear6/nes.h>
 
 #include <boost/program_options.hpp>
-#include <openssl/md5.h>
+#include <openssl/evp.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -19,10 +19,30 @@ namespace po = boost::program_options;
 // -----------------------------------------------------------------------
 
 static void md5_hex(const uint8_t* data, size_t len, char out[33]) {
-    unsigned char digest[MD5_DIGEST_LENGTH];
-    MD5(data, len, digest);
-    for (int i = 0; i < 16; i++) {
-        sprintf(out + i * 2, "%02x", digest[i]);
+    unsigned char digest[EVP_MAX_MD_SIZE];
+    unsigned int digest_len = 0;
+
+    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+    if (!ctx) {
+        out[0] = '\0';
+        return;
+    }
+
+    if (EVP_DigestInit_ex(ctx, EVP_md5(), nullptr) != 1
+        || EVP_DigestUpdate(ctx, data, len) != 1
+        || EVP_DigestFinal_ex(ctx, digest, &digest_len) != 1
+        || digest_len != 16) {
+        EVP_MD_CTX_free(ctx);
+        out[0] = '\0';
+        return;
+    }
+
+    EVP_MD_CTX_free(ctx);
+
+    static constexpr char HEX[] = "0123456789abcdef";
+    for (unsigned int i = 0; i < digest_len; ++i) {
+        out[i * 2] = HEX[(digest[i] >> 4) & 0x0F];
+        out[i * 2 + 1] = HEX[digest[i] & 0x0F];
     }
     out[32] = '\0';
 }

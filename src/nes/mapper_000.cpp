@@ -28,15 +28,8 @@ void Mapper000::init(const RomInfo& info,
     }
 
     if (chr_is_ram_) {
-        chr_rom_.resize(0x2000, 0);
-        // Map CHR RAM as writable
-        uint8_t* source = chr_rom_.data();
-        for (int i = 0; i < 8; i++) {
-            chr_pages_[i] = source + i * 0x400;
-            chr_memory_access_[i] = READ_WRITE;
-            chr_memory_type_[i] = ChrMemoryType::CHR_RAM;
-        }
-        set_ppu_memory_mapping(0x0000, 0x1FFF, source, 0, 0x2000, READ_WRITE);
+        initialize_chr_ram(0x2000);
+        set_ppu_memory_mapping(0x0000, 0x1FFF, 0, ChrMemoryType::CHR_RAM, READ_WRITE);
     } else {
         // NROM CHR ROM is a single fixed 8KB window.
         set_ppu_memory_mapping(0x0000, 0x1FFF, 0, ChrMemoryType::CHR_ROM, READ);
@@ -46,7 +39,7 @@ void Mapper000::init(const RomInfo& info,
 void Mapper000::reset(bool soft_reset) {
     (void)soft_reset;
     if (chr_is_ram_) {
-        memset(chr_rom_.data(), 0, chr_rom_.size());
+        memset(chr_ram_.data(), 0, chr_ram_.size());
     }
 }
 

@@ -9,6 +9,14 @@ BaseMapper::BaseMapper() {
     nametable_ram_ = new uint8_t[NAMETABLE_SIZE * 4];
     memset(nametable_ram_, 0, NAMETABLE_SIZE * 4);
     nt_ram_size_ = NAMETABLE_SIZE * 4;
+
+    for (uint16_t i = 0; i < 0x100; i++) {
+        prg_pages_[i] = nullptr;
+        chr_pages_[i] = nullptr;
+        prg_memory_access_[i] = NO_ACCESS;
+        chr_memory_access_[i] = NO_ACCESS;
+        chr_memory_type_[i] = ChrMemoryType::DEFAULT;
+    }
 }
 
 BaseMapper::~BaseMapper() {
@@ -190,12 +198,18 @@ void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end,
 void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
                                          uint32_t source_offset, uint32_t source_size,
                                          int8_t access_type) {
-    (void)source_size;
+    start &= 0x3FFF;
+    end &= 0x3FFF;
     start >>= 8;
     end >>= 8;
     for (uint16_t i = start; i <= end; i++) {
-        chr_pages_[i] = source + source_offset;
-        chr_memory_access_[i] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
+        if (source && source_offset < source_size) {
+            chr_pages_[i] = source + source_offset;
+            chr_memory_access_[i] = (access_type < 0) ? READ_WRITE : static_cast<MemoryAccessType>(access_type);
+        } else {
+            chr_pages_[i] = nullptr;
+            chr_memory_access_[i] = NO_ACCESS;
+        }
         source_offset += 0x100;
     }
 }

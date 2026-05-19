@@ -26,6 +26,7 @@ private:
     uint8_t irq_counter_ = 0;
     bool irq_reload_ = false;
     bool irq_enabled_ = false;
+    bool force_mmc3_rev_a_irqs_ = false;
     uint8_t prg_mode_ = 0;
     uint8_t chr_mode_ = 0;
     uint8_t current_register_ = 0;

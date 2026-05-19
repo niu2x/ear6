@@ -49,7 +49,7 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (mostly working, needs more cycle-level verification on edge timing)
 - [ ] **UNROM** (mapper 2) — Mega Man, Castlevania, Contra
 - [ ] **CNROM** (mapper 3) — Arkanoid, Mappy
-- [ ] **MMC3** (mapper 4) — SMB3, Ninja Gaiden, Super C, Megaman 2-6
+- [ ] **MMC3** (mapper 4) — SMB3, Ninja Gaiden, Super C, Megaman 2-6 (IRQ notification architecture fixed; Rev A IRQ supported; SMB3 scrolling bug still open — see ROM-Specific Regressions)
 - [ ] **MMC5** (mapper 5) — Castlevania 3, Just Breed
 - [ ] **AxROM** (mapper 7) — Battletoads, Marble Madness
 - [ ] **MMC3 variant** — MMC6 (StarTropics), clone mappers
@@ -58,7 +58,7 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 - [ ] **FDS** (mapper 0xFFFF) — Disk System (Zelda, Metroid JP)
 - [ ] **Namco163** (mapper 19/210) — Splatterhouse, Dragon Spirit
 - [ ] **Sunsoft 5B** (mapper 69/68) — Gimmick!, Batman
-- [ ] **MMC3 IRQ counter** — scanline IRQ for split-screen
+- [ ] **MMC3 IRQ counter** — scanline IRQ for split-screen (notification architecture fixed; Rev A IRQ supported; batch-model A12 count may still diverge from cycle-interleaved model)
 - [ ] **Bus conflict** — ANROM/GXROM/CNROM bus conflict behavior
 - [ ] **CHR-RAM/ROM page switching** — needs full 256-entry page table
 - [ ] **SRAM battery backup** — save game support
@@ -107,6 +107,22 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 ---
 
 ## ROM-Specific Regressions
+
+### Super Mario Bros. 3 (J) — MMC3 (mapper 4)
+
+- [ ] **Scrolling / vertical offset bug** — status bar split is misaligned; game area scrolls incorrectly relative to Mesen2 reference.
+  - **Root cause**: MMC3 IRQ scanline counter fires at wrong scanline → CHR bank switch happens too early/late → wrong tile data for status bar vs game area.
+  - **Fixes applied** (not yet sufficient):
+    - Moved VRAM address notification from `BaseMapper::read_vram`/`write_vram` to `NesPpu::set_bus_address`, matching Mesen2's single-notification-point architecture. This fixes 5 paths where A12 transitions were missed (scanline first cycle, VRAM address increment, delayed address update, rendering disable).
+    - Fixed extra sprite tile loads to go through `NesPpu::read_vram` instead of direct `mapper_->read_vram`, ensuring A12 notification for sprite fetches.
+    - Added MMC3 Rev A IRQ support (`force_mmc3_rev_a_irqs_` from ROM DB chip string "MMC3A"). Not relevant for SMB3 (Rev B), but needed for other MMC3A games.
+    - Added `chip` field to `RomInfo` and NES DB parser for mapper variant detection.
+  - **Remaining investigation needed**:
+    - PPU cycle-level interleaving: ear6 processes PPU rendering in batch per CPU cycle, while Mesen2 interleaves at master-clock granularity. This may cause A12 rising edge count differences during scanlines with mixed NT/AT/pattern fetches.
+    - Verify exact A12 transition count per scanline matches Mesen2 for SMB3's scroll register setup sequence.
+    - Compare IRQ counter value at each scanline boundary between ear6 and Mesen2 using trace output.
+  - **Priority**: 🔴 CRITICAL — affects one of the most popular NES titles.
+  - **ROM**: `Super Mario Bros 3 (J).nes` (mapper 4, MMC3B, PRG 256KB + CHR 256KB + battery)
 
 ### FDS BIOS (NROM mapper 0)
 - [ ] Missing FDS hardware stub → wrong palette values. Reads `$4024-$403F` return open bus (0x00) → BIOS takes wrong code path.

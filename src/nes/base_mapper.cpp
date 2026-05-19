@@ -230,9 +230,6 @@ void BaseMapper::select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType 
 
 uint8_t BaseMapper::read_vram(uint16_t addr) {
     addr &= 0x3FFF;
-    if (has_vram_address_hook()) {
-        notify_vram_address_change(addr);
-    }
     if (chr_memory_access_[addr >> 8] & READ) {
         return chr_pages_[addr >> 8][(uint8_t)addr];
     }
@@ -241,9 +238,6 @@ uint8_t BaseMapper::read_vram(uint16_t addr) {
 
 void BaseMapper::write_vram(uint16_t addr, uint8_t value) {
     addr &= 0x3FFF;
-    if (has_vram_address_hook()) {
-        notify_vram_address_change(addr);
-    }
     if (chr_memory_access_[addr >> 8] & WRITE) {
         chr_pages_[addr >> 8][(uint8_t)addr] = value;
     }

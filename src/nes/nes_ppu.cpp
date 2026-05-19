@@ -537,6 +537,9 @@ uint8_t NesPpu::get_pixel_color() {
 
 void NesPpu::set_bus_address(uint16_t addr) {
     ppu_bus_address_ = addr;
+    if (mapper_->has_vram_address_hook()) {
+        mapper_->notify_vram_address_change(addr & 0x3FFF);
+    }
 }
 
 uint8_t NesPpu::read_vram(uint16_t addr) {
@@ -1161,8 +1164,8 @@ void NesPpu::load_sprite(uint8_t sprite_y, uint8_t tile_index, uint8_t attribute
         info.horizontal_mirror = h_mirror;
         info.palette_offset = ((attributes & 0x03) << 2) | 0x10;
         if (extra_sprite) {
-            info.low_byte = mapper_->read_vram(tile_addr);
-            info.high_byte = mapper_->read_vram(tile_addr + 8);
+            info.low_byte = read_vram(tile_addr);
+            info.high_byte = read_vram(tile_addr + 8);
         } else {
             fetch_last = false;
             info.low_byte = read_vram(tile_addr);

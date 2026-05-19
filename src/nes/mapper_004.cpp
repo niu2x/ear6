@@ -27,6 +27,8 @@ void Mapper004::init(const RomInfo& info,
 
     work_ram_.resize(0x2000, 0);
 
+    force_mmc3_rev_a_irqs_ = (info.chip.size() >= 5 && info.chip.substr(0, 5) == "MMC3A");
+
     irq_reload_value_ = 0;
     irq_counter_ = 0;
     irq_reload_ = false;
@@ -51,14 +53,21 @@ bool Mapper004::is_a12_rising_edge(uint16_t addr) {
 
 void Mapper004::notify_vram_address_change(uint16_t addr) {
     if (is_a12_rising_edge(addr)) {
+        uint8_t prev_counter = irq_counter_;
         if (irq_counter_ == 0 || irq_reload_) {
             irq_counter_ = irq_reload_value_;
         } else {
             irq_counter_--;
         }
 
-        if (irq_counter_ == 0 && irq_enabled_) {
-            console_->get_cpu()->set_irq_source(IRQSource::EXTERNAL);
+        if (force_mmc3_rev_a_irqs_) {
+            if ((prev_counter > 0 || irq_reload_) && irq_counter_ == 0 && irq_enabled_) {
+                console_->get_cpu()->set_irq_source(IRQSource::EXTERNAL);
+            }
+        } else {
+            if (irq_counter_ == 0 && irq_enabled_) {
+                console_->get_cpu()->set_irq_source(IRQSource::EXTERNAL);
+            }
         }
         irq_reload_ = false;
     }

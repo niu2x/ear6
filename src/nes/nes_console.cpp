@@ -71,6 +71,7 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
         bool is_vs_system = false;
         bool has_mirroring = false;
         ear6::nes::MirroringType mirroring = ear6::nes::MirroringType::HORIZONTAL;
+        std::string chip;
     };
 
     static bool loaded = false;
@@ -155,6 +156,9 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
                 entry.has_ppu_model = true;
                 entry.ppu_model = std::atoi(fields[FIELD_PPU_MODEL].c_str());
             }
+            if (fields.size() > FIELD_CHIP && !fields[FIELD_CHIP].empty()) {
+                entry.chip = fields[FIELD_CHIP];
+            }
             db[crc] = entry;
         }
     }
@@ -196,6 +200,9 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
     }
     if (entry.has_submapper) {
         info.submapper_id = entry.submapper;
+    }
+    if (!entry.chip.empty()) {
+        info.chip = entry.chip;
     }
     if (entry.is_vs_system) {
         // Keep standard control manager behavior aligned with mesen2-cli path.

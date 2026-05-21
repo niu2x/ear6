@@ -190,3 +190,32 @@ TEST(ChoplifterRegression, Frame30) {
 
     ear6_destroy(ctx);
 }
+
+TEST(Smb3Regression, Frame60) {
+    std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/mapper_4/Super Mario Bros 3 (J).nes";
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+
+    int rc = ear6_load(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+
+    for (int i = 0; i < 60; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    ASSERT_EQ(ear6_get_frame_width(ctx), 256);
+    ASSERT_EQ(ear6_get_frame_height(ctx), 240);
+
+    std::string hash = ppm_md5(fb, 256, 240);
+    EXPECT_EQ(hash, "c7fe4fa1b152edab3028fd62572209ea");
+
+    ear6_destroy(ctx);
+}

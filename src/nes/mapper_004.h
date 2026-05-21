@@ -36,7 +36,7 @@ private:
     bool wram_write_protected_ = false;
     uint8_t reg_a000_ = 0;
 
-    uint8_t a12_low_counter_ = 0;
+    uint64_t a12_low_clock_ = 0;
 
     std::vector<uint8_t> work_ram_;
 };

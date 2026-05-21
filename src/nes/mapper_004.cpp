@@ -1,6 +1,7 @@
 #include "nes_console.h"
 #include "nes_cpu.h"
 #include "nes_memory_manager.h"
+#include "nes_ppu.h"
 #include "mapper_004.h"
 
 namespace ear6::nes {
@@ -42,12 +43,16 @@ void Mapper004::init(const RomInfo& info,
 }
 
 bool Mapper004::is_a12_rising_edge(uint16_t addr) {
+    constexpr uint64_t MMC3_A12_FILTER_CPU_CYCLES = 3;
     if (addr & 0x1000) {
-        bool rising_edge = a12_low_counter_ > 0;
-        a12_low_counter_ = 0;
+        bool rising_edge = a12_low_clock_ > 0 &&
+            (console_->get_cpu()->get_cycle_count() - a12_low_clock_) >= MMC3_A12_FILTER_CPU_CYCLES;
+        a12_low_clock_ = 0;
         return rising_edge;
     }
-    a12_low_counter_++;
+    if (a12_low_clock_ == 0) {
+        a12_low_clock_ = console_->get_cpu()->get_cycle_count();
+    }
     return false;
 }
 

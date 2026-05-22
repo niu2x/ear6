@@ -17,7 +17,6 @@
 
 | ROM | Match |
 |---:|---:|
-| `Antarctic Adventure (J).nes` | 100.00% |
 | `Family BASIC (Ver 3) (J).nes` | 99.59% |
 
 ## Mapper 1

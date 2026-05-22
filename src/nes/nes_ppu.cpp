@@ -922,10 +922,13 @@ void NesPpu::process_tmp_addr_scroll_glitch(uint16_t normal_addr, uint16_t value
 
 void NesPpu::update_status_flag() {
     trace_ppu("VBL_CLR\n");
+    bool vbl_was_set = status_flags_.vertical_blank;
     status_flags_.vertical_blank = false;
     console_->get_cpu()->clear_nmi_flag();
     if (scanline_ == (int)nmi_scanline_ && cycle_ == 0) {
-        prevent_vbl_flag_ = true;
+        if (!vbl_was_set) {
+            prevent_vbl_flag_ = true;
+        }
     }
 }
 

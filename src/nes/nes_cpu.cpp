@@ -188,19 +188,14 @@ void NesCpu::start_cpu_cycle(bool for_read) {
 }
 
 void NesCpu::end_cpu_cycle(bool for_read) {
-    // Sample NMI flag before PPU sync (1-cycle pipeline delay, matching real 2A03).
-    // The NMI pin is sampled at the rising edge of φ2 and latched; the CPU checks
-    // the latched value on the NEXT cycle, not the one where the PPU asserts it.
-    uint8_t nmi_sampled = state_.nmi_flag;
-
     master_clock_ += for_read ? (end_clock_count_ + 1) : (end_clock_count_ - 1);
     console_->get_ppu()->run(master_clock_ - ppu_offset_);
 
     prev_need_nmi_ = need_nmi_;
-    if (!prev_nmi_flag_ && nmi_sampled) {
+    if (!prev_nmi_flag_ && state_.nmi_flag) {
         need_nmi_ = true;
     }
-    prev_nmi_flag_ = nmi_sampled;
+    prev_nmi_flag_ = state_.nmi_flag;
 
     prev_run_irq_ = run_irq_;
     run_irq_ = ((state_.irq_flag & irq_mask_) > 0 && !check_flag(PSFlags::INTERRUPT));

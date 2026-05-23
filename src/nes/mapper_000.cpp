@@ -17,6 +17,11 @@ void Mapper000::init(const RomInfo& info,
 
     set_mirroring_type(info.mirroring);
 
+    if (info.work_ram_size > 0) {
+        work_ram_.resize(info.work_ram_size * 1024, 0);
+        set_cpu_memory_mapping(0x6000, 0x7FFF, work_ram_.data(), 0, work_ram_.size(), READ_WRITE);
+    }
+
     if (prg_size_ >= 0x8000) {
         // 32KB PRG: page 0 at $8000, page 1 at $C000
         set_cpu_memory_mapping(0x8000, 0xBFFF, 0, PrgMemoryType::PRG_ROM);
@@ -59,9 +64,8 @@ uint8_t Mapper000::read_ram(uint16_t addr) {
 }
 
 void Mapper000::write_ram(uint16_t addr, uint8_t value) {
-    // NROM doesn't have writable registers
-    (void)addr;
-    (void)value;
+    // NROM doesn't have writable registers, but may have work RAM at $6000
+    BaseMapper::write_ram(addr, value);
 }
 
 } // namespace ear6::nes

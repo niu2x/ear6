@@ -35,6 +35,7 @@ public:
     void set_cli_exp_bit3_mode(bool enabled) { cli_exp_bit3_mode_ = enabled; }
 
 protected:
+    virtual uint8_t get_active_keys(uint8_t row, uint8_t column);
     void apply_write(uint8_t value);
 
     NesConsole* console_ = nullptr;
@@ -46,6 +47,11 @@ protected:
     bool strobe_ = false;
     bool port2_zapper_enabled_ = false;
     bool cli_exp_bit3_mode_ = false;
+
+    // FamilyBasicKeyboard state
+    uint8_t kb_row_ = 0;
+    uint8_t kb_column_ = 0;
+    bool kb_enabled_ = false;
 };
 
 } // namespace ear6::nes

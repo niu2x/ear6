@@ -169,6 +169,7 @@ struct RomInfo {
     MirroringType mirroring = MirroringType::HORIZONTAL;
     bool has_trainer = false;
     int submapper_id = 0;
+    int work_ram_size = 0;
     std::string chip;
     bool is_vs_system = false;
     bool use_vs_palette = false;

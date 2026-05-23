@@ -15,6 +15,9 @@ void NesControlManager::reset(bool soft) {
         controller_read_pos_[i] = 0;
     }
     strobe_ = false;
+    kb_row_ = 0;
+    kb_column_ = 0;
+    kb_enabled_ = false;
 }
 
 void NesControlManager::set_button_state(int port, int button, bool pressed) {
@@ -67,6 +70,9 @@ uint8_t NesControlManager::read_ram(uint16_t addr) {
         if (cli_exp_bit3_mode_) {
             result |= 0x08;
         }
+        if (kb_enabled_) {
+            result |= ((~get_active_keys(kb_row_, kb_column_)) << 1) & 0x1E;
+        }
     }
     if (std::getenv("EAR6_TRACE_4017") != nullptr && addr == 0x4017) {
         fprintf(stderr, "[EAR6_4017] zapper=0 val=%02X serial=%d pos=%d\n", result, serial_bit, controller_read_pos_[1]);
@@ -91,6 +97,20 @@ void NesControlManager::apply_write(uint8_t value) {
         controller_read_pos_[0] = 0;
         controller_read_pos_[1] = 0;
     }
+
+    // FamilyBasicKeyboard: $4016 write
+    // Bit 0: reset row to 0
+    // Bit 1: column select; rising edge increments row
+    // Bit 2: enable
+    uint8_t prev_column = kb_column_;
+    kb_column_ = (value & 0x02) >> 1;
+    if (!kb_column_ && prev_column) {
+        kb_row_ = (kb_row_ + 1) % 10;
+    }
+    if (value & 0x01) {
+        kb_row_ = 0;
+    }
+    kb_enabled_ = (value & 0x04) != 0;
 }
 
 void NesControlManager::process_writes() {
@@ -109,6 +129,12 @@ void NesControlManager::update_input_state() {}
 uint8_t NesControlManager::get_open_bus_mask(uint8_t port) {
     (void)port;
     return 0xE0;
+}
+
+uint8_t NesControlManager::get_active_keys(uint8_t row, uint8_t column) {
+    (void)row;
+    (void)column;
+    return 0; // No keys pressed by default
 }
 
 } // namespace ear6::nes

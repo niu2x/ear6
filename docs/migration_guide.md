@@ -122,7 +122,11 @@ cmake -B build -DEAR6_ENABLE_CPU_SEQ_TRACE=OFF   # ear6
 ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
 ```
 
-> 注：这两个 trace 都是**每 CPU 指令**输出一行到 stderr，性能开销约 5µs/条指令（`getenv` 缓存 + 一次 fprintf），仅在调试短序列时使用。
+> ⚠️ 性能与 I/O 陷阱：
+>
+> - **ear6** 输出到 stderr，性能开销约 5µs/条指令（含一次 `fprintf`）。31 帧约 290k 行，可以接受。
+> - **Mesen2** 曾经也输出到 stderr。但当 stderr 被设为无缓冲（`setbuf(stderr, NULL)`）时，每条指令都触发一次 `write()` 系统调用，导致约 17 帧后模拟线程不再调用 `RunFrame()`，无法捕获 18+ 帧的 trace。
+>   2026-05 修复为写入文件 `/tmp/mesen2_cpu_seq.txt`，并使用 1MB 缓冲区（`setvbuf(fp, NULL, _IOFBF, 1024*1024)`），不再出现截断问题。
 
 #### 操作步骤
 
@@ -131,25 +135,26 @@ ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
    EAR6_TRACE_CPU_SEQ=1 ./build/app/cli/ear6-cli screenshot -f <N> <rom> -o /dev/null 2>/tmp/e_trace.txt
    ```
 
-2. **在 Mesen2 开启 trace**：
+2. **在 Mesen2 开启 trace**（trace 自动写入文件，无需 stderr 重定向）：
    ```bash
    LD_LIBRARY_PATH=../mesen2/dist/x86_64-PC-Linux/lib \
        MESEN2_TRACE_CPU_SEQ=1 \
        ../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot \
-       -f <N> <rom> -o /dev/null 2>/tmp/m_trace.txt
+       -f <N> <rom> -o /dev/null
+   # Trace 输出在 /tmp/mesen2_cpu_seq.txt，不是 stderr！
    ```
 
 3. **对齐帧计数**：两个 trace 的 `f=` 都从 1 开始。确认前几帧 entry 数量一致，验证对齐：
    ```bash
    grep -c '\[EAR6_CPU_SEQ\] f=1' /tmp/e_trace.txt
-   grep -c '\[MESEN2_CPU_SEQ\] f=1' /tmp/m_trace.txt
+   grep -c '\[MESEN2_CPU_SEQ\] f=1' /tmp/mesen2_cpu_seq.txt
    ```
 
 4. **逐帧对比 entry 总数**：若某帧总数不同，就是第一个分歧帧：
    ```bash
    for f in $(seq 1 31); do
        ec=$(grep -c "f=$f " /tmp/e_trace.txt)
-       mc=$(grep -c "f=$f " /tmp/m_trace.txt)
+       mc=$(grep -c "f=$f " /tmp/mesen2_cpu_seq.txt)
        [ "$ec" != "$mc" ] && echo "Frame $f: ear6=$ec mesen2=$mc DIVERGE"
    done
    ```
@@ -157,7 +162,7 @@ ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
 5. **定位首个不同指令**：对分歧帧做逐行 diff，过滤掉 cpu 周期号（容许时序偏移）：
    ```bash
    awk '/\[EAR6_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/e_trace.txt > /tmp/e_f17.txt
-   awk '/\[MESEN2_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/m_trace.txt > /tmp/m_f17.txt
+   awk '/\[MESEN2_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/mesen2_cpu_seq.txt > /tmp/m_f17.txt
    diff /tmp/e_f17.txt /tmp/m_f17.txt | head -20
    ```
 
@@ -175,6 +180,40 @@ ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
 
 - 某些 PPU 寄存器读取（如 `$2002`）会返回当前 PPU 状态并清除标志，CPU trace 不会记录内存读写值，需结合 PPU trace 判断。
 - 若两个模拟器的 CPU trace entry 数目一致但画面仍有差异，问题在 PPU 或渲染路径，不需继续深追 CPU。
+
+#### 实战案例：Family BASIC V3 逐指令调试
+
+以下是从 1632 像素差异到 0 差异的三个根因，展示了 CPU trace 对比的实际使用方式。
+
+##### 案例 1：`$4017` 读返回值不同
+
+- **现象**：帧 19 首个 CPU trace 差异出现在 `LDA $4017` 后，ear6 的 A=0x40，mesen2 的 A=0x5E。
+- **根因**：Family BASIC 使用 Famicom 键盘（FamilyBasicKeyboard）。当键盘无按键时，`$4017` 的 bit 1-4 为 1（`0x1E`）。ear6 完全没有键盘模拟，只返回 open bus + 串行手柄位（`0x40`）。
+- **修复**：`NesControlManager` 添加 FamilyBasicKeyboard 协议支持：`$4016` 写解析 bit 0-2（行/列/使能），`$4017` 读时 OR 入键盘数据 `((~get_active_keys) << 1) & 0x1E`。
+
+##### 案例 2：`$6000` 读返回 open bus 而非初始化 RAM
+
+- **现象**：帧 19 `LDA $6000` 后 ear6 的 A=0x60（open bus）= 0x60，mesen2 的 A=0x00。
+- **根因**：NES DB 指定 Work RAM size = 8KB，ear6 的 `RomInfo` 没有 `work_ram_size` 字段，NES DB 解析也未使用该值。Mapper 000 未创建 work RAM，导致 `$6000` 读返回地址 hi-byte（`$60`）对应的 open bus。
+- **修复**：`RomInfo` 新增 `work_ram_size`，NES DB 解析 `FIELD_WORK_RAM_SIZE`，Mapper 000 按 size 创建 buffer 并映射 `$6000-$7FFF`。
+
+##### 案例 3：`Mapper000::write_ram` 为空函数
+
+- **现象**：帧 19 `STA $6000` 写入 `0x19` 后，后续 `CMP $6000` 本该相等，但 ear6 的 Z 标志为 0。
+- **根因**：`Mapper000::write_ram` 是空函数（注释"`NROM doesn't have writable registers`"），即使映射了 WRITE 权限的 work RAM，写入也被静默忽略。
+- **修复**：改为调用 `BaseMapper::write_ram(addr, value)`，基类已正确处理带 WRITE 权限页面的写入。
+
+##### 总结流程
+
+遇到 CPU trace 第一个差异时，分析思路：
+
+1. 取 ear6 和 mesen2 在差异指令前的寄存器状态（来自 trace）
+2. 确定差异点：是 A/X/Y/PS 不同？还是 PC/opcode 不同？
+3. 从差异点向上追溯查原因：
+   - 如果寄存器值不同：是前一条指令的运算结果不同（算数/逻辑/内存读）？
+   - 如果是内存读得到的值不同：是哪个地址？该地址由谁管理（RAM/mapper/APU/PPU/控制管理器）？
+   - 如果是控制流不同（PC/分支）：是 PS 标志不同？是哪个比较/条件指令导致的？
+4. 在 ear6 中添加该地址的运行时 trace（gate 在 env var 下），确认 ear6 和 mesen2 返回的值
 
 ### Mesen2（正确的）
 ```

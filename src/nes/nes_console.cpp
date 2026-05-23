@@ -71,6 +71,7 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
         bool is_vs_system = false;
         bool has_mirroring = false;
         ear6::nes::MirroringType mirroring = ear6::nes::MirroringType::HORIZONTAL;
+        int work_ram_size = 0;
         std::string chip;
     };
 
@@ -139,6 +140,9 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
                 entry.has_input_type = true;
                 entry.input_type = std::atoi(fields[FIELD_INPUT_TYPE].c_str());
             }
+            if (fields.size() > FIELD_WORK_RAM_SIZE && !fields[FIELD_WORK_RAM_SIZE].empty()) {
+                entry.work_ram_size = std::atoi(fields[FIELD_WORK_RAM_SIZE].c_str());
+            }
             if (fields.size() > FIELD_MIRRORING && !fields[FIELD_MIRRORING].empty()) {
                 const std::string& m = fields[FIELD_MIRRORING];
                 if (m == "h") {
@@ -191,6 +195,9 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
     }
     if (entry.has_mapper) {
         info.mapper_number = entry.mapper;
+    }
+    if (entry.work_ram_size > 0) {
+        info.work_ram_size = entry.work_ram_size;
     }
     if (entry.has_battery) {
         info.has_battery = entry.battery;

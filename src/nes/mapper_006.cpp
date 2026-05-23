@@ -94,11 +94,7 @@ void Mapper006::write_register(uint16_t addr, uint8_t value) {
         if (addr >= 0x8000) {
             uint8_t chr_bank = value;
             if (has_chr_ram() || ffe_alt_mode_) {
-                // Mesen2: SelectPrgPage2x(0, (value & 0xFC) >> 1) maps $8000-$BFFF as 16KB window
-                // ear6's select_prg_page_2x only maps 1 slot for page_size==0x2000, so use 2 calls
-                uint16_t prg_page = (value & 0xFC) >> 1;
-                select_prg_page(0, prg_page);
-                select_prg_page(1, prg_page + 1);
+                select_prg_page_2x(0, (value & 0xFC) >> 1);
                 chr_bank = value & 0x03;
             }
             select_chr_page_8x(0, chr_bank << 3);
@@ -107,15 +103,10 @@ void Mapper006::write_register(uint16_t addr, uint8_t value) {
     }
 
     if (rom_info_.mapper_number == 8) {
-        if (addr >= 0x8000) {
-            // Same SelectPrgPage2x fix: use 2 individual calls
-            {
-                uint16_t prg_page = (value & 0xF8) >> 2;
-                select_prg_page(0, prg_page);
-                select_prg_page(1, prg_page + 1);
+            if (addr >= 0x8000) {
+                select_prg_page_2x(0, (value & 0xF8) >> 2);
+                select_chr_page_8x(0, (value & 0x07) << 3);
             }
-            select_chr_page_8x(0, (value & 0x07) << 3);
-        }
         return;
     }
 

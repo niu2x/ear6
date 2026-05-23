@@ -110,9 +110,7 @@ void BaseMapper::select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType typ
 
 void BaseMapper::select_prg_page_2x(uint16_t slot, uint16_t page, PrgMemoryType type) {
     select_prg_page(slot, page, type);
-    if (get_prg_page_size() < 0x2000) {
-        select_prg_page(slot + 1, page + 1, type);
-    }
+    select_prg_page(slot + 1, page + 1, type);
 }
 
 void BaseMapper::select_prg_page_4x(uint16_t slot, uint16_t page, PrgMemoryType type) {

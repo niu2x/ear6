@@ -2,17 +2,11 @@
 
 100% mappers: 0, 2, 5, 10, 15
 
-> Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
-> one-frame capture timing offset on a full-screen solid-color transition
-> (ear6 frame 31 matches mesen2 frame 30 at 100%). This entry is a
-> frame-gating artifact in the current comparator, not a confirmed core
-> rendering mismatch.
-
-> ⚠️ **Choplifter (J).nes** at `0.00%` is the **opposite** case: ear6 correctly
-> transitions to the game screen by frame 6 (blue sky), while Mesen2 remains
-> stuck on the title screen (dark green) past 600+ frames. This is a confirmed
-> **Mesen2 bug** — ear6's rendering is correct. Keep this ROM as a permanent
-> regression test (see `docs/TODO.md` Testing section).
+> ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
+> ear6 渲染正常（第 6 帧进入游戏画面）。
+> 该 ROM 在 mesen2 的 NES DB 中原被标记为 mapper 6（commit `0322dba` 修正为 mapper 3），
+> 修正后渲染正确。推测 NES DB 中该条目的 mapper 字段存在错误。
+> ear6 已将该 ROM 纳入永久回归测试。
 
 ## Mapper 1
 

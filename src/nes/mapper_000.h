@@ -18,7 +18,6 @@ public:
 
 private:
     bool chr_is_ram_ = false;
-    std::vector<uint8_t> work_ram_;
 };
 
 } // namespace ear6::nes

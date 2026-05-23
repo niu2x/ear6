@@ -282,6 +282,11 @@ int NesConsole::load_rom(const void* data, int size) {
     std::memcpy(prg_rom.data(), rom_data + header_size, prg_size);
     std::memcpy(chr_rom.data(), rom_data + header_size + prg_size, chr_size);
 
+    std::vector<uint8_t> trainer_data;
+    if (info.has_trainer && size >= header_size) {
+        trainer_data.assign(rom_data + 16, rom_data + 16 + 512);
+    }
+
     mapper_.reset(MapperFactory::create(info.mapper_number));
     mapper_->initialize(this);
     if (rom_info_.bus_conflicts == RomInfo::BusConflictType::YES) {
@@ -289,7 +294,13 @@ int NesConsole::load_rom(const void* data, int size) {
     } else if (rom_info_.bus_conflicts == RomInfo::BusConflictType::NO) {
         mapper_->set_has_bus_conflicts(false);
     }
+    mapper_->init_work_ram(info);
     mapper_->init(info, prg_rom, chr_rom);
+
+    if (!trainer_data.empty()) {
+        mapper_->apply_trainer_data(trainer_data);
+    }
+    mapper_->setup_default_work_ram();
 
     // Initialize CHR RAM when no CHR ROM present (matches Mesen2's BaseMapper::Initialize)
     if (!mapper_->has_chr_rom()) {

@@ -126,6 +126,40 @@ void BaseMapper::initialize_chr_ram(int32_t size) {
     }
 }
 
+void BaseMapper::setup_default_work_ram() {
+    if (rom_info_.has_battery && save_ram_size_ > 0) {
+        set_cpu_memory_mapping(0x6000, 0x7FFF, save_ram_.data(), 0, save_ram_size_, READ_WRITE);
+    } else if (work_ram_size_ > 0) {
+        set_cpu_memory_mapping(0x6000, 0x7FFF, work_ram_.data(), 0, work_ram_size_, READ_WRITE);
+    }
+}
+
+void BaseMapper::apply_trainer_data(const std::vector<uint8_t>& trainer_data) {
+    if (trainer_data.size() != 512) return;
+    if (work_ram_size_ >= 0x2000) {
+        memcpy(work_ram_.data() + 0x1000, trainer_data.data(), 512);
+    } else if (save_ram_size_ >= 0x2000) {
+        memcpy(save_ram_.data() + 0x1000, trainer_data.data(), 512);
+    }
+}
+
+void BaseMapper::init_work_ram(const RomInfo& info) {
+    if (info.has_battery) {
+        save_ram_size_ = get_save_ram_size();
+        save_ram_.resize(save_ram_size_, 0);
+        has_default_work_ram_ = save_ram_size_ > 0;
+    } else {
+        work_ram_size_ = get_work_ram_size();
+        work_ram_.resize(work_ram_size_, 0);
+        has_default_work_ram_ = work_ram_size_ > 0;
+    }
+    if (info.work_ram_size > 0) {
+        work_ram_size_ = info.work_ram_size * 1024;
+        work_ram_.resize(work_ram_size_, 0);
+        has_default_work_ram_ = true;
+    }
+}
+
 void BaseMapper::set_ppu_memory_mapping(uint16_t start, uint16_t end, uint16_t page_number,
                                          ChrMemoryType type, int8_t access_type) {
     if (type == ChrMemoryType::DEFAULT) {

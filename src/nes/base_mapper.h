@@ -81,6 +81,13 @@ public:
     bool has_chr_ram() const { return chr_ram_size_ > 0; }
     void initialize_chr_ram(int32_t chr_ram_size = -1);
 
+    // Work RAM / Save RAM support (matches Mesen2's BaseMapper interface)
+    virtual uint32_t get_work_ram_size() { return 0x2000; }
+    virtual uint32_t get_save_ram_size() { return 0x2000; }
+    void setup_default_work_ram();
+    void apply_trainer_data(const std::vector<uint8_t>& trainer_data);
+    void init_work_ram(const RomInfo& info);
+
     void set_has_bus_conflicts(bool enabled) { has_bus_conflicts_ = enabled; }
 
 protected:
@@ -92,9 +99,14 @@ protected:
     std::vector<uint8_t> prg_rom_;
     std::vector<uint8_t> chr_rom_;
     std::vector<uint8_t> chr_ram_;
+    std::vector<uint8_t> work_ram_;
+    std::vector<uint8_t> save_ram_;
     uint32_t prg_size_ = 0;
     uint32_t chr_rom_size_ = 0;
     uint32_t chr_ram_size_ = 0;
+    uint32_t work_ram_size_ = 0;
+    uint32_t save_ram_size_ = 0;
+    bool has_default_work_ram_ = false;
 
     // Page tables (256 entries each)
     uint8_t* prg_pages_[0x100] = {};

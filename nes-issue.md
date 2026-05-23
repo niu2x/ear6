@@ -14,12 +14,6 @@
 > **Mesen2 bug** — ear6's rendering is correct. Keep this ROM as a permanent
 > regression test (see `docs/TODO.md` Testing section).
 
-## Mapper 0 ✅
-
-- Total: 62 ROMs
-- Perfect: 62 (100%)
-- Partial: 0 (0.0%)
-
 ## Mapper 1
 
 - Total: 117 ROMs

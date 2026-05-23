@@ -1,6 +1,6 @@
 # NES Issues (Frame 30)
 
-100% mappers: 2, 5, 10, 15
+100% mappers: 0, 2, 5, 10, 15
 
 > Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
 > one-frame capture timing offset on a full-screen solid-color transition
@@ -14,16 +14,11 @@
 > **Mesen2 bug** — ear6's rendering is correct. Keep this ROM as a permanent
 > regression test (see `docs/TODO.md` Testing section).
 
-## Mapper 0
+## Mapper 0 ✅
 
 - Total: 62 ROMs
-- Perfect: 60 (96.8%)
-- Partial: 1 (1.6%)
-- None (0%): 1 (1.6%)
-
-| ROM | Match |
-|---:|---:|
-| `Family BASIC (Ver 3) (J).nes` | 99.59% |
+- Perfect: 62 (100%)
+- Partial: 0 (0.0%)
 
 ## Mapper 1
 

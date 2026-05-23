@@ -1,6 +1,6 @@
 # NES Issues (Frame 30)
 
-100% mappers: 0, 2
+100% mappers: 0, 1, 2
 
 > ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
 > ear6 渲染正常（第 6 帧进入游戏画面）。
@@ -10,16 +10,17 @@
 
 ## Mapper 1
 
-- Total: 109 ROMs (frame 30/60)
-- Perfect: 107/108 (98.2%/99.1%)
-- Partial: 2/1 (1.8%/0.9%)
+- Total: 117 ROMs (frame 30/60)
+- Perfect: 117/117 (100.0%/100.0%)
+- Partial: 0/0 (0.0%/0.0%)
 - None (0%): 0/0 (0.0%/0.0%)
 
-| ROM | f=30 | f=60 |
-|---|---:|---:|
-| `Battle Stadium - Senbatsu Pro Yakyuu (J).nes` | 98.59% | 100.00% |
-| `Bloody Warriors - Shan Goo No Gyakushuu (J).nes` | 99.92% | 100.00% |
-| `Best Play - Pro Yakyuu '90 (J).nes` | 100.00% | 98.85% |
+> 以下 3 个 ROM 原本存在 `.sav` 文件，mesen2 启动时通过 `LoadBattery` 加载非零的 save RAM 数据，
+> 而 ear6 默认将 save RAM 全零初始化。删除 `.sav` 后两个模拟器均从全零开始，输出一致。
+>
+> - `Battle Stadium - Senbatsu Pro Yakyuu (J).nes` — f=30: 98.59% → **100%**
+> - `Bloody Warriors - Shan Goo No Gyakushuu (J).nes` — f=30: 99.92% → **100%**
+> - `Best Play - Pro Yakyuu '90 (J).nes` — f=60: 98.85% → **100%**
 
 ## Mapper 3
 

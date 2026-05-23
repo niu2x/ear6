@@ -389,3 +389,137 @@ TEST_P(Mapper0RegressionTest, Frame) {
 
 INSTANTIATE_TEST_SUITE_P(Mapper0Regression, Mapper0RegressionTest,
     ::testing::ValuesIn(kMapper0Tests));
+
+// -----------------------------------------------------------------------
+// Regression: Mapper 2 ROMs — verified 100% pixel match vs mesen2
+// -----------------------------------------------------------------------
+
+struct Mapper2TestEntry {
+    const char* filename;
+    int frame;
+    const char* expected_md5;
+};
+
+static const Mapper2TestEntry kMapper2Tests[] = {
+    {"1943 (J).nes", 30, "965c77555160562a3483f22c06994bed"},
+    {"1943 (J).nes", 60, "965c77555160562a3483f22c06994bed"},
+    {"1944.nes", 30, "155a3d96f6955c993ba99177ab3d9a46"},
+    {"1944.nes", 60, "155a3d96f6955c993ba99177ab3d9a46"},
+    {"Aigiina No Yogen (J).nes", 30, "088990aa4a1af2ff87b8314a94b1bf9f"},
+    {"Aigiina No Yogen (J).nes", 60, "f45ef4c7b77532014aac2ca7030a7e47"},
+    {"Akumajou Dracula (J).nes", 30, "6e34b03fd62b7a62f687cbe2e0c49e51"},
+    {"Akumajou Dracula (J).nes", 60, "6e34b03fd62b7a62f687cbe2e0c49e51"},
+    {"Arctic (Trained) (J).nes", 30, "b73cbffb79ab04407dfe4867fc704d76"},
+    {"Arctic (Trained) (J).nes", 60, "bebf26ce5906dfdc3f2e389c82eb2a81"},
+    {"Argos No Senshi (J).nes", 30, "9aa8b5a651c60fd844629cc468727609"},
+    {"Argos No Senshi (J).nes", 60, "9aa8b5a651c60fd844629cc468727609"},
+    {"Athena (J).nes", 30, "04a75ece8549771335d877ad14238460"},
+    {"Athena (J).nes", 60, "04a75ece8549771335d877ad14238460"},
+    {"Attack Animal Gakuen (J).nes", 30, "897548b57c4bfa8c195e2c66a3b6d076"},
+    {"Attack Animal Gakuen (J).nes", 60, "55f099cb44b741c8651032478d72c487"},
+    {"Ballblazer (J).nes", 30, "6d0b49264a2fb511788d893803344a1f"},
+    {"Ballblazer (J).nes", 60, "6d0b49264a2fb511788d893803344a1f"},
+    {"Bat & Tery (J).nes", 30, "51ab1d6b18d89ef0963261b6b1e7fa4b"},
+    {"Bat & Tery (J).nes", 60, "51ab1d6b18d89ef0963261b6b1e7fa4b"},
+    {"Black Bass 2, The (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Black Bass 2, The (J).nes", 60, "e92ebb417bbd40324e934f4a67879813"},
+    {"Black Bass, The (J).nes", 30, "e71759ab985a3d046c54a4af9b39a40b"},
+    {"Black Bass, The (J).nes", 60, "e71759ab985a3d046c54a4af9b39a40b"},
+    {"Bomber King (J).nes", 30, "47bd5b932e45f27aade7f359a823246b"},
+    {"Bomber King (J).nes", 60, "36e5dcacf7a341e2b4f754bf818405b9"},
+    {"Booby Kids (J).nes", 30, "ac09475740e7d08519f3d5229befc90d"},
+    {"Booby Kids (J).nes", 60, "f465624ede13a28fe0babd9b18a411cf"},
+    {"CONTRA.NES", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"CONTRA.NES", 60, "d09226018aea34fa8b4e5b18645a6d54"},
+    {"Chester Field (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Chester Field (J).nes", 60, "862e47e1fa18b006b5ccb830e0fcadf3"},
+    {"City Adventure Touch - Mystery of Triangle (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"City Adventure Touch - Mystery of Triangle (J).nes", 60, "cf5c5ff145139dcd2ffec86eec506678"},
+    {"Commando (J).nes", 30, "aeb437756d95e9244e57402f679d6cba"},
+    {"Commando (J).nes", 60, "aeb437756d95e9244e57402f679d6cba"},
+    {"Daiva - Imperial of Nirsartia (J).nes", 30, "c8915d839e980095bb6eb8896230643f"},
+    {"Daiva - Imperial of Nirsartia (J).nes", 60, "555efd9b6d1f775806a52f639891f29b"},
+    {"Dragon Quest 2 (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Dragon Quest 2 (J).nes", 60, "1c97d38520e9ede727a8a9b19df69933"},
+    {"Dragon Quest 3 (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Dragon Quest 3 (J).nes", 60, "67242f79197c9e7df88704c2ccc5ac96"},
+    {"Dragon Unit (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Dragon Unit (J).nes", 60, "40a9f161a1494894fc744bc69217c7ae"},
+    {"Duck Tales 2 (J).nes", 30, "3b2518d191dbc2c3f241a4d51e2abf29"},
+    {"Duck Tales 2 (J).nes", 60, "3b2518d191dbc2c3f241a4d51e2abf29"},
+    {"Ernarc No Zaihou (J).nes", 30, "c84d66c3b3214cea4b8bd20960214f09"},
+    {"Ernarc No Zaihou (J).nes", 60, "304ab55c88527637e86eb4146087f84a"},
+    {"Esper Bouken Tai (J).nes", 30, "58c18263cdad56593c3c78eb7ca831f3"},
+    {"Esper Bouken Tai (J).nes", 60, "58c18263cdad56593c3c78eb7ca831f3"},
+    {"Flying Hero (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Flying Hero (J).nes", 60, "83c65b414ac1a30bb8c56f3d20f3ba70"},
+    {"Foton (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Foton (J).nes", 60, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"GUNSMOKE.NES", 30, "27e59ab79afdc13481761edf35a5f394"},
+    {"GUNSMOKE.NES", 60, "e87069baac22cfe155995c9354d3af13"},
+    {"Ikari (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Ikari (J).nes", 60, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Jackal (U).nes", 30, "320e09f46b510f202f952727ea5bdd65"},
+    {"Jackal (U).nes", 60, "320e09f46b510f202f952727ea5bdd65"},
+    {"Makaimura (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Makaimura (J).nes", 60, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Moero Twinbee (J).nes", 30, "3031c641fcdc7e87e47c7ca9df85cdd7"},
+    {"Moero Twinbee (J).nes", 60, "3031c641fcdc7e87e47c7ca9df85cdd7"},
+    {"Nekketsu Kouha - Kunio Kun (J).nes", 30, "83b9c8fc8cbf2c6af2f343934b461732"},
+    {"Nekketsu Kouha - Kunio Kun (J).nes", 60, "83b9c8fc8cbf2c6af2f343934b461732"},
+    {"Puyo Puyo (J).nes", 30, "441003a5ae2ae49d035773c95d4feb76"},
+    {"Puyo Puyo (J).nes", 60, "7e3000f32e9abe246f1a6fd9825bbdbe"},
+    {"RXHPUS.nes", 30, "846cc844ca40ab46372852dae776a8af"},
+    {"RXHPUS.nes", 60, "846cc844ca40ab46372852dae776a8af"},
+    {"Rainbow Islands - The Story of Bubble Bobble 2 (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Rainbow Islands - The Story of Bubble Bobble 2 (J).nes", 60, "010ff406efb407b28c185bbdca3a4a11"},
+    {"Rush'n Attack (U).nes", 30, "eb682b3dda40a0b1584062439d4d3058"},
+    {"Rush'n Attack (U).nes", 60, "778e1ebd72bab9d86ad61e5c088af6c3"},
+    {"Saiyuuki World (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Saiyuuki World (J).nes", 60, "84d48c37bf0285efb9f780b857a03adf"},
+    {"Shanghai (J).nes", 30, "eec7dc494e33e01df58cb77919807b77"},
+    {"Shanghai (J).nes", 60, "eec7dc494e33e01df58cb77919807b77"},
+    {"Shanghai 2 (J).nes", 30, "3fa9569e92d6f7e6f212bfcafa2c30c8"},
+    {"Shanghai 2 (J).nes", 60, "3fa9569e92d6f7e6f212bfcafa2c30c8"},
+    {"Top Gun (JE).nes", 30, "477e6fb210dd0da41147ba7c0835fbf1"},
+    {"Top Gun (JE).nes", 60, "477e6fb210dd0da41147ba7c0835fbf1"},
+    {"rainbowisland.nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"rainbowisland.nes", 60, "06fb028b9ad832a7666ab4f7c0e2fb4e"},
+    {"sidepoo1.nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"sidepoo1.nes", 60, "659325fd9ba6c26eee8db5e6ba48b8b7"},
+};
+
+class Mapper2RegressionTest : public ::testing::TestWithParam<Mapper2TestEntry> {};
+
+TEST_P(Mapper2RegressionTest, Frame) {
+    const auto& param = GetParam();
+    std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/mapper_2/" + param.filename;
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+
+    int rc = ear6_load(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+
+    for (int i = 0; i < param.frame; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    ASSERT_EQ(ear6_get_frame_width(ctx), 256);
+    ASSERT_EQ(ear6_get_frame_height(ctx), 240);
+
+    std::string hash = ppm_md5(fb, 256, 240);
+    EXPECT_EQ(hash, param.expected_md5);
+
+    ear6_destroy(ctx);
+}
+
+INSTANTIATE_TEST_SUITE_P(Mapper2Regression, Mapper2RegressionTest,
+    ::testing::ValuesIn(kMapper2Tests));

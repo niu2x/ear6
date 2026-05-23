@@ -1,6 +1,6 @@
 # NES Issues (Frame 30)
 
-100% mappers: 0, 2, 5, 10, 15
+100% mappers: 0, 2
 
 > ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
 > ear6 渲染正常（第 6 帧进入游戏画面）。

@@ -14,6 +14,8 @@ message(STATUS "Build for ${CMAKE_SYSTEM_NAME}")
 option(EAR6_BUILD_DESKTOP "Build desktop app (Windows/macOS/Linux, requires Qt6)" ON)
 option(EAR6_BUILD_WEB "Build web app (requires Emscripten)" OFF)
 
+option(EAR6_ENABLE_CPU_SEQ_TRACE "Enable per-instruction CPU trace (compile gate for EAR6_TRACE_CPU_SEQ env)" ON)
+
 # ==================== 依赖查找 ====================
 
 find_package(Threads REQUIRED)
@@ -96,6 +98,10 @@ target_include_directories(ear6 PUBLIC
 )
 
 target_link_libraries(ear6 PRIVATE Threads::Threads)
+
+if(EAR6_ENABLE_CPU_SEQ_TRACE)
+    target_compile_definitions(ear6 PRIVATE EAR6_ENABLE_CPU_SEQ_TRACE)
+endif()
 
 cxx_project_preset(ear6)
 warning_as_error_enable(ear6)

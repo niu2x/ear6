@@ -354,6 +354,7 @@ uint8_t NesCpu::get_operand_value() {
 void NesCpu::exec() {
     uint16_t pc_before = state_.pc;
     uint8_t opcode = get_op_code();
+#ifdef EAR6_ENABLE_CPU_SEQ_TRACE
     if (std::getenv("EAR6_TRACE_CPU_SEQ") != nullptr) {
         NesPpu* p = console_->get_ppu();
         fprintf(stderr,
@@ -370,6 +371,7 @@ void NesCpu::exec() {
             state_.sp,
             state_.ps);
     }
+#endif
     #if defined(EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE)
     const bool minimal_bad_window_trace_enabled = std::getenv("EAR6_TRACE_MINIMAL_BAD_WINDOW") != nullptr;
     if (minimal_bad_window_trace_enabled) {

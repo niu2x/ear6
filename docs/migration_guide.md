@@ -93,8 +93,88 @@ ear6 调试日志统一采用**两级开关**：
 - `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
 - `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE`
   - 可选：`EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`
+- `EAR6_ENABLE_CPU_SEQ_TRACE` + `EAR6_TRACE_CPU_SEQ`
 
 建议：做像素对比时默认关闭所有 trace，只在定位阶段开启最小必要日志组。
+
+Mesen2 侧采用同样模式：`ENABLE_CPU_SEQ_TRACE`（编译期）+ `MESEN2_TRACE_CPU_SEQ`（运行期 env var）。
+
+### H. CPU 指令级对比（双模拟器 Trace 方法论）
+
+当画面差异无法通过 PPU/寄存器层面解释时，最后的手段是**逐指令对比 CPU 执行序列**。
+
+#### 开合原则
+
+```
+双开关（编译期 + 运行期），默认关闭，只在对齐阶段开启。
+```
+
+**编译期开关**（CMake option，默认 ON —— Trace 代码始终编译，仅由 runtime env var 控制是否输出）：
+
+| 项目 | CMake option | 编译期宏 | 运行期 env var |
+|------|-------------|---------|---------------|
+| ear6 | `EAR6_ENABLE_CPU_SEQ_TRACE` (def=ON) | `EAR6_ENABLE_CPU_SEQ_TRACE` | `EAR6_TRACE_CPU_SEQ` |
+| Mesen2 | `ENABLE_CPU_SEQ_TRACE` (def=ON) | `ENABLE_CPU_SEQ_TRACE` | `MESEN2_TRACE_CPU_SEQ` |
+
+如需关闭编译（零开销），使用：
+```bash
+cmake -B build -DEAR6_ENABLE_CPU_SEQ_TRACE=OFF   # ear6
+ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
+```
+
+> 注：这两个 trace 都是**每 CPU 指令**输出一行到 stderr，性能开销约 5µs/条指令（`getenv` 缓存 + 一次 fprintf），仅在调试短序列时使用。
+
+#### 操作步骤
+
+1. **在 ear6 开启 trace**：
+   ```bash
+   EAR6_TRACE_CPU_SEQ=1 ./build/app/cli/ear6-cli screenshot -f <N> <rom> -o /dev/null 2>/tmp/e_trace.txt
+   ```
+
+2. **在 Mesen2 开启 trace**：
+   ```bash
+   LD_LIBRARY_PATH=../mesen2/dist/x86_64-PC-Linux/lib \
+       MESEN2_TRACE_CPU_SEQ=1 \
+       ../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot \
+       -f <N> <rom> -o /dev/null 2>/tmp/m_trace.txt
+   ```
+
+3. **对齐帧计数**：两个 trace 的 `f=` 都从 1 开始。确认前几帧 entry 数量一致，验证对齐：
+   ```bash
+   grep -c '\[EAR6_CPU_SEQ\] f=1' /tmp/e_trace.txt
+   grep -c '\[MESEN2_CPU_SEQ\] f=1' /tmp/m_trace.txt
+   ```
+
+4. **逐帧对比 entry 总数**：若某帧总数不同，就是第一个分歧帧：
+   ```bash
+   for f in $(seq 1 31); do
+       ec=$(grep -c "f=$f " /tmp/e_trace.txt)
+       mc=$(grep -c "f=$f " /tmp/m_trace.txt)
+       [ "$ec" != "$mc" ] && echo "Frame $f: ear6=$ec mesen2=$mc DIVERGE"
+   done
+   ```
+
+5. **定位首个不同指令**：对分歧帧做逐行 diff，过滤掉 cpu 周期号（容许时序偏移）：
+   ```bash
+   awk '/\[EAR6_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/e_trace.txt > /tmp/e_f17.txt
+   awk '/\[MESEN2_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/m_trace.txt > /tmp/m_f17.txt
+   diff /tmp/e_f17.txt /tmp/m_f17.txt | head -20
+   ```
+
+   首个 diff 行的 PC、opcode、寄存器的值会直接指出分歧原因。
+
+#### 输出格式
+
+每条 trace 行格式完全一致（便于 diff）：
+
+```
+[EMULATOR_CPU_SEQ] f=N sl=S cy=C cpu=U pc=XXXX op=XX a=XX x=XX y=XX sp=XX ps=XX
+```
+
+#### 已知局限性
+
+- 某些 PPU 寄存器读取（如 `$2002`）会返回当前 PPU 状态并清除标志，CPU trace 不会记录内存读写值，需结合 PPU trace 判断。
+- 若两个模拟器的 CPU trace entry 数目一致但画面仍有差异，问题在 PPU 或渲染路径，不需继续深追 CPU。
 
 ### Mesen2（正确的）
 ```

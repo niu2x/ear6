@@ -215,6 +215,40 @@ ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
    - 如果是控制流不同（PC/分支）：是 PS 标志不同？是哪个比较/条件指令导致的？
 4. 在 ear6 中添加该地址的运行时 trace（gate 在 env var 下），确认 ear6 和 mesen2 返回的值
 
+### I. NES DB 未命中排查（CRC 计算差异导致 mapper 不同）
+
+当两个模拟器对同一 ROM 使用不同 mapper 时，除非你有充分理由，**否则必然是 NES DB 的 CRC 计算方式或 DB 条目本身有问题**。
+
+**症状**：ear6 `[NES] Mapper: X` 与 mesen2 实际使用的 mapper 不同，导致从第 1 帧起 CPU trace 就完全不一致，像素差异 100%。
+
+**常见原因**：ROM 文件尾部存在填充数据（如空格 0x20、零字节 0x00 等），两个模拟器的 CRC 计算范围不同：
+- **ear6**（修复前）：只 CRC `prg_size + chr_size` 字节（按 iNES header 的 bank 数计算）
+- **mesen2**：CRC 整个文件除去 header 后的全部剩余数据
+
+**操作步骤**：
+
+1. 确认 mesen2 实际使用的 mapper：在 `MapperFactory.cpp` 的 `InitializeFromFile()` 中添加 `fprintf(stderr, "... mapper=%d db_mapper=%d\n", ...)`，观察 `mapper` 与 `db_mapper` 的值。
+2. 对比双方的 CRC 范围：用 Python 计算两种 CRC，看哪个命中 NES DB。
+   ```python
+   import zlib
+   data = open('rom.nes', 'rb').read()
+   header_size = 16  # + 512 if trainer
+   prg_size = data[4] * 0x4000
+   chr_size = data[5] * 0x2000
+   # ear6 方式（修复前）：CRC(PRG+CHR)
+   crc1 = zlib.crc32(data[header_size:header_size + prg_size + chr_size])
+   # mesen2 方式：CRC(整个文件除去 header)
+   crc2 = zlib.crc32(data[header_size:])
+   print(f'PRG+CHR CRC: {crc1:08X}  全文件 CRC: {crc2:08X}')
+   ```
+3. 用两种 CRC 分别查询 NES DB，查看各命中了什么 mapper。
+4. 如果 ear6 的 NES DB 命中而 mesen2 未命中，说明 mesen2 的 CRC 包含了尾部填充 —— **不应盲目修改 ear6 去匹配 mesen2**，应先判断填充数据是否有意义（无意义的填充则应修正 CRC 范围）。参见 commit `b182c01`。
+5. **反之**，如果 ear6 的 NES DB 条目本身有误（如 Choplifter 被错误标记为 mapper 6），则应在 `nes_db.txt` 中直接修正该条目，而非在代码中打补丁。参见 commit `0322dba`。
+
+**关键原则**：NES DB 是权威元数据来源，但条目本身也可能有 bug。永远用"两个模拟器最终渲染一致"作为判定标准。
+
+
+
 ### Mesen2（正确的）
 ```
 CPU cycles 和 PPU cycles 是交织的，每个 PPU clock 单独执行：

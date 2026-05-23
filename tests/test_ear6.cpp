@@ -523,3 +523,49 @@ TEST_P(Mapper2RegressionTest, Frame) {
 
 INSTANTIATE_TEST_SUITE_P(Mapper2Regression, Mapper2RegressionTest,
     ::testing::ValuesIn(kMapper2Tests));
+
+struct Mapper1TestEntry {
+    const char* filename;
+    int frame;
+    const char* expected_md5;
+};
+
+static const Mapper1TestEntry kMapper1Tests[] = {
+    {"vs dr mario.nes", 30, "88b5f71ecee4954258fead2f4cab1565"},
+    {"vs dr mario.nes", 60, "20c3544279ab7317e3486fb29e030b0d"},
+};
+
+class Mapper1RegressionTest : public ::testing::TestWithParam<Mapper1TestEntry> {};
+
+TEST_P(Mapper1RegressionTest, Frame) {
+    const auto& param = GetParam();
+    std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/mapper_1/" + param.filename;
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+
+    int rc = ear6_load(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+
+    for (int i = 0; i < param.frame; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    ASSERT_EQ(ear6_get_frame_width(ctx), 256);
+    ASSERT_EQ(ear6_get_frame_height(ctx), 240);
+
+    std::string hash = ppm_md5(fb, 256, 240);
+    EXPECT_EQ(hash, param.expected_md5);
+
+    ear6_destroy(ctx);
+}
+
+INSTANTIATE_TEST_SUITE_P(Mapper1Regression, Mapper1RegressionTest,
+    ::testing::ValuesIn(kMapper1Tests));

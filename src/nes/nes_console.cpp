@@ -212,8 +212,7 @@ void apply_nesdb_overrides(ear6::nes::RomInfo& info, uint32_t prg_chr_crc32) {
         info.chip = entry.chip;
     }
     if (entry.is_vs_system) {
-        // Keep standard control manager behavior aligned with mesen2-cli path.
-        // Do not force VsControlManager from DB system field.
+        info.is_vs_system = true;
         info.use_vs_palette = true;
     }
     if (entry.has_ppu_model) {

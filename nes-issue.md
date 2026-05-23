@@ -10,14 +10,16 @@
 
 ## Mapper 1
 
-- Total: 117 ROMs
-- Perfect: 116 (99.1%)
-- Partial: 1 (0.9%)
-- None (0%): 0 (0.0%)
+- Total: 109 ROMs (frame 30/60)
+- Perfect: 107/108 (98.2%/99.1%)
+- Partial: 2/1 (1.8%/0.9%)
+- None (0%): 0/0 (0.0%/0.0%)
 
-| ROM | Match |
-|---|---:|
-| `vs dr mario.nes` | 97.43% |
+| ROM | f=30 | f=60 |
+|---|---:|---:|
+| `Battle Stadium - Senbatsu Pro Yakyuu (J).nes` | 98.59% | 100.00% |
+| `Bloody Warriors - Shan Goo No Gyakushuu (J).nes` | 99.92% | 100.00% |
+| `Best Play - Pro Yakyuu '90 (J).nes` | 100.00% | 98.85% |
 
 ## Mapper 3
 

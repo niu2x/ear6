@@ -18,14 +18,21 @@ void Mapper006::init(const RomInfo& info,
     irq_enabled_ = false;
     ffe_alt_mode_ = true;
 
+    set_mirroring_type(info.mirroring);
+
     add_register_range(0x42FE, 0x42FF, MemoryOperation::WRITE);
     add_register_range(0x4501, 0x4517, MemoryOperation::WRITE);
 
     switch (rom_info_.mapper_number) {
         case 6:
             add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
-            select_prg_page_2x(0, 0);
-            select_prg_page_2x(1, 14);
+            // Match mesen2's FrontFareast::InitMapper:
+            //   $8000-$BFFF = switchable 16KB window = pages {0,1}
+            //   $C000-$FFFF = fixed 16KB window = pages {14,15} (wraps for small PRG)
+            select_prg_page(0, 0);
+            select_prg_page(1, 1);
+            select_prg_page(2, 14);
+            select_prg_page(3, 15);
             break;
         case 8:
             add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
@@ -87,7 +94,11 @@ void Mapper006::write_register(uint16_t addr, uint8_t value) {
         if (addr >= 0x8000) {
             uint8_t chr_bank = value;
             if (has_chr_ram() || ffe_alt_mode_) {
-                select_prg_page_2x(0, (value & 0xFC) >> 1);
+                // Mesen2: SelectPrgPage2x(0, (value & 0xFC) >> 1) maps $8000-$BFFF as 16KB window
+                // ear6's select_prg_page_2x only maps 1 slot for page_size==0x2000, so use 2 calls
+                uint16_t prg_page = (value & 0xFC) >> 1;
+                select_prg_page(0, prg_page);
+                select_prg_page(1, prg_page + 1);
                 chr_bank = value & 0x03;
             }
             select_chr_page_8x(0, chr_bank << 3);
@@ -97,7 +108,12 @@ void Mapper006::write_register(uint16_t addr, uint8_t value) {
 
     if (rom_info_.mapper_number == 8) {
         if (addr >= 0x8000) {
-            select_prg_page_2x(0, (value & 0xF8) >> 2);
+            // Same SelectPrgPage2x fix: use 2 individual calls
+            {
+                uint16_t prg_page = (value & 0xF8) >> 2;
+                select_prg_page(0, prg_page);
+                select_prg_page(1, prg_page + 1);
+            }
             select_chr_page_8x(0, (value & 0x07) << 3);
         }
         return;

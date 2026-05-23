@@ -2,6 +2,12 @@
 
 100% mappers: 2, 5, 10, 15
 
+> Note: `Antarctic Adventure (J).nes` shows `0.00%` at frame 30 due to a
+> one-frame capture timing offset on a full-screen solid-color transition
+> (ear6 frame 31 matches mesen2 frame 30 at 100%). This entry is a
+> frame-gating artifact in the current comparator, not a confirmed core
+> rendering mismatch.
+
 > ⚠️ **Choplifter (J).nes** at `0.00%` is the **opposite** case: ear6 correctly
 > transitions to the game screen by frame 6 (blue sky), while Mesen2 remains
 > stuck on the title screen (dark green) past 600+ frames. This is a confirmed
@@ -11,9 +17,9 @@
 ## Mapper 0
 
 - Total: 62 ROMs
-- Perfect: 61 (98.4%)
+- Perfect: 60 (96.8%)
 - Partial: 1 (1.6%)
-- None (0%): 0 (0.0%)
+- None (0%): 1 (1.6%)
 
 | ROM | Match |
 |---:|---:|

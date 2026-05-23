@@ -85,10 +85,13 @@
 ### F. 推荐起手顺序（以后固定执行）
 
 1. 固定 deterministic 运行 + 最小日志
-2. 比 `raw_idx`/`mapped_idx`/`rgb`
-3. 若 `raw` 不同：查 PPU 时序/寄存器状态
-4. 若 `raw` 相同但 `rgb` 不同：查 LUT/palette/后处理路径
-5. 仅在前两步无法解释时，才深入 CPU/IRQ/DMA
+2. 确认 NES DB 命中同一 mapper id（见 I 节）
+3. 若双方画面有较大差异（如黑屏、花屏），**先做 CPU TRACE 对比**（见 H 节）：
+   - CPU trace 分叉 → 根因在 CPU 层面（寄存器读返回值、mapper 行为等），PPU 层排查无意义
+   - CPU trace 一致 → 根因在 PPU，继续下一步
+4. 比 `raw_idx`/`mapped_idx`/`rgb`
+5. 若 `raw` 不同：查 PPU 时序/寄存器状态
+6. 若 `raw` 相同但 `rgb` 不同：查 LUT/palette/后处理路径
 
 ### G. Trace 开关基线（避免“日志干扰”与口径不一致）
 

@@ -1,6 +1,6 @@
 # NES Issues (Frame 30)
 
-100% mappers: 0, 1, 2
+100% mappers: 0, 1, 2, 3 (all with unit tests)
 
 > ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
 > ear6 渲染正常（第 6 帧进入游戏画面）。
@@ -25,14 +25,16 @@
 ## Mapper 3
 
 - Total: 24 ROMs
-- Perfect: 22 (91.7%)
-- Partial: 1 (4.2%)
-- None (0%): 1 (4.2%)
+- Perfect: 24 (100.0%)
+- Partial: 0 (0.0%)
+- None (0%): 0 (0.0%)
 
-| ROM | Match |
-|---|---:|
-| `Atlantis No Nazo (J).nes` | 83.63% |
-| `Choplifter (J).nes` | 0.00% |
+All 24 ROMs verified 100% pixel match vs Mesen2. Frame-by-frame regression
+tests cover every ROM at frame 30 and frame 60.
+
+> `Choplifter (J).nes` — previously listed as 0% due to Mesen2 NES DB bug
+> (incorrectly mapped as mapper 6). Fixed via `nes_db.txt` correction
+> (commit `0322dba`). ear6 renders correctly. See separate regression test.
 
 ## Mapper 4
 

@@ -46,9 +46,10 @@ Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 M
 
 ## Mappers
 
-- [ ] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (mostly working, needs more cycle-level verification on edge timing)
-- [ ] **UNROM** (mapper 2) — Mega Man, Castlevania, Contra
-- [ ] **CNROM** (mapper 3) — Arkanoid, Mappy
+- [x] **NROM** (mapper 0) — complete, unit tested
+- [x] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (complete, unit tested)
+- [x] **UNROM** (mapper 2) — Mega Man, Castlevania, Contra (complete, unit tested)
+- [x] **CNROM** (mapper 3) — Arkanoid, Mappy (complete, unit tested)
 - [ ] **MMC3** (mapper 4) — SMB3, Ninja Gaiden, Super C, Megaman 2-6 (IRQ notification architecture fixed; Rev A IRQ supported; SMB3 scrolling bug still open — see ROM-Specific Regressions)
 - [ ] **MMC5** (mapper 5) — Castlevania 3, Just Breed
 - [ ] **AxROM** (mapper 7) — Battletoads, Marble Madness

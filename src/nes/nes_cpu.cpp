@@ -570,6 +570,9 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
 
     trace_cpu("DMA_START offset=%02X\n", sprite_dma_offset_);
 
+    uint64_t dma_start_cycle = 0;
+    (void)dma_start_cycle;
+
     start_cpu_cycle(true);
     if (!(abort_dmc_dma_ && is_nes_behavior && (read_address == 0x4016 || read_address == 0x4017)) && !skip_first_input_clock) {
         memory_manager_->read(read_address);
@@ -590,20 +593,19 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
     uint8_t read_value = 0;
 
     while (dmc_dma_running_ || sprite_dma_transfer_) {
-        if (abort_dmc_dma_) {
-            dmc_dma_running_ = false;
-            abort_dmc_dma_ = false;
-            need_dummy_read_ = false;
-            need_halt_ = false;
-        } else if (need_halt_) {
-            need_halt_ = false;
-        } else if (need_dummy_read_) {
-            need_dummy_read_ = false;
-        }
-
         bool get_cycle = (state_.cycle_count & 0x01) == 0;
         if (get_cycle) {
             if (dmc_dma_running_ && !need_halt_ && !need_dummy_read_) {
+                if (abort_dmc_dma_) {
+                    dmc_dma_running_ = false;
+                    abort_dmc_dma_ = false;
+                    need_dummy_read_ = false;
+                    need_halt_ = false;
+                } else if (need_halt_) {
+                    need_halt_ = false;
+                } else if (need_dummy_read_) {
+                    need_dummy_read_ = false;
+                }
                 start_cpu_cycle(true);
                 is_dmc_dma_read_ = true;
                 uint16_t dmc_addr = console_->get_apu()->get_dmc_read_address();
@@ -614,12 +616,32 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
                 dmc_dma_running_ = false;
                 abort_dmc_dma_ = false;
             } else if (sprite_dma_transfer_) {
+                if (abort_dmc_dma_) {
+                    dmc_dma_running_ = false;
+                    abort_dmc_dma_ = false;
+                    need_dummy_read_ = false;
+                    need_halt_ = false;
+                } else if (need_halt_) {
+                    need_halt_ = false;
+                } else if (need_dummy_read_) {
+                    need_dummy_read_ = false;
+                }
                 start_cpu_cycle(true);
                 read_value = process_dma_read((uint16_t)(sprite_dma_offset_ * 0x100 + sprite_read_addr));
                 end_cpu_cycle(true);
                 sprite_read_addr++;
                 sprite_counter++;
             } else {
+                if (abort_dmc_dma_) {
+                    dmc_dma_running_ = false;
+                    abort_dmc_dma_ = false;
+                    need_dummy_read_ = false;
+                    need_halt_ = false;
+                } else if (need_halt_) {
+                    need_halt_ = false;
+                } else if (need_dummy_read_) {
+                    need_dummy_read_ = false;
+                }
                 start_cpu_cycle(true);
                 if (!skip_dummy_reads) {
                     memory_manager_->read(read_address);
@@ -628,6 +650,16 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
             }
         } else {
             if (sprite_dma_transfer_ && (sprite_counter & 0x01)) {
+                if (abort_dmc_dma_) {
+                    dmc_dma_running_ = false;
+                    abort_dmc_dma_ = false;
+                    need_dummy_read_ = false;
+                    need_halt_ = false;
+                } else if (need_halt_) {
+                    need_halt_ = false;
+                } else if (need_dummy_read_) {
+                    need_dummy_read_ = false;
+                }
                 start_cpu_cycle(true);
                 memory_manager_->write(0x2004, read_value);
                 end_cpu_cycle(true);
@@ -636,6 +668,16 @@ void NesCpu::process_pending_dma(uint16_t read_address) {
                     sprite_dma_transfer_ = false;
                 }
             } else {
+                if (abort_dmc_dma_) {
+                    dmc_dma_running_ = false;
+                    abort_dmc_dma_ = false;
+                    need_dummy_read_ = false;
+                    need_halt_ = false;
+                } else if (need_halt_) {
+                    need_halt_ = false;
+                } else if (need_dummy_read_) {
+                    need_dummy_read_ = false;
+                }
                 start_cpu_cycle(true);
                 if (!skip_dummy_reads) {
                     memory_manager_->read(read_address);

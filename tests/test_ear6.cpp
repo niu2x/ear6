@@ -221,6 +221,100 @@ TEST(Smb3Regression, Frame60) {
 }
 
 // -----------------------------------------------------------------------
+// Regression: Mapper 3 ROMs — verified 100% pixel match vs mesen2
+// -----------------------------------------------------------------------
+
+struct Mapper3TestEntry {
+    const char* filename;
+    int frame;
+    const char* expected_md5;
+};
+
+static const Mapper3TestEntry kMapper3Tests[] = {
+    {"Argus (J).nes", 30, "48596a2788c9341830c0dff1eb8ba8f5"},
+    {"Argus (J).nes", 60, "442bad38e3c370b34c974bb503633297"},
+    {"ASO - Armored Scrum Object (J).nes", 30, "b365fdc973a480d14dabb6d911c35413"},
+    {"ASO - Armored Scrum Object (J).nes", 60, "b365fdc973a480d14dabb6d911c35413"},
+    {"Atlantis No Nazo (J).nes", 30, "6476293eab9d3c69f8bae96ac59ccad7"},
+    {"Atlantis No Nazo (J).nes", 60, "6476293eab9d3c69f8bae96ac59ccad7"},
+    {"Banana (J).nes", 30, "7e9a99fba2d8c207a0a310bb0f39acd3"},
+    {"Banana (J).nes", 60, "ed480db37702a745b11106dcc75bcecf"},
+    {"Buggy Popper (J).nes", 30, "46c823ec51cd52171829047db0a7a904"},
+    {"Buggy Popper (J).nes", 60, "46c823ec51cd52171829047db0a7a904"},
+    {"Cadillac (J).nes", 30, "48afc4e6fb943c05ddca379639dc6f0a"},
+    {"Cadillac (J).nes", 60, "48afc4e6fb943c05ddca379639dc6f0a"},
+    {"Castle Excellent (J).nes", 30, "2d96a99ae47e8f13704b88dd8d5db3e7"},
+    {"Castle Excellent (J).nes", 60, "2d96a99ae47e8f13704b88dd8d5db3e7"},
+    {"Championship Bowling (J).nes", 30, "fc4cecfb9f45666a9b8a34cd4ef2146f"},
+    {"Championship Bowling (J).nes", 60, "a0ffc42e74798d714e0a2fd047dd1bdb"},
+    {"Cosmo Genesis (J).nes", 30, "e12ca4475a9aa1ab4db4cdec1f281226"},
+    {"Cosmo Genesis (J).nes", 60, "2cd3b6bb70fcc2aa6e6f906e0c720f52"},
+    {"Deblock (J).nes", 30, "cfdbd4dcaf04e6309232fb23e553a9f5"},
+    {"Deblock (J).nes", 60, "d05f86242f8c3218e0ed92630429ab78"},
+    {"Dragon Quest (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Dragon Quest (J).nes", 60, "88a7ef179522978c1aa9bdaebd3d59a9"},
+    {"Dynamite Bowl (J).nes", 30, "fe6d1cf605ea36d725a848feed7ebdc8"},
+    {"Dynamite Bowl (J).nes", 60, "520e9796747ae4ea646870e7ee19f797"},
+    {"Egypt (J).nes", 30, "b821a84495a115c1ab40e17cfd18fc31"},
+    {"Egypt (J).nes", 60, "929408a52a2082f375a96534b935815d"},
+    {"Family Computer Othello (J).nes", 30, "158114c53bebf734357ffb626c43e265"},
+    {"Family Computer Othello (J).nes", 60, "158114c53bebf734357ffb626c43e265"},
+    {"Family Trainer - Running Stadium (J).nes", 30, "86328c742cdcb8dc93e58f2857d24225"},
+    {"Family Trainer - Running Stadium (J).nes", 60, "b8de5c4064cc137891979ab1c468c461"},
+    {"Fleet Commander (J).nes", 30, "04a75ece8549771335d877ad14238460"},
+    {"Fleet Commander (J).nes", 60, "04a75ece8549771335d877ad14238460"},
+    {"Flipull (J).nes", 30, "6bbac06c64fc7c37e18a0e901b227659"},
+    {"Flipull (J).nes", 60, "6bbac06c64fc7c37e18a0e901b227659"},
+    {"Gegege No Kitarou - Youkai Daimakyou (J).nes", 30, "15481c6fdf158a25cbdc54d9b92318b4"},
+    {"Gegege No Kitarou - Youkai Daimakyou (J).nes", 60, "15481c6fdf158a25cbdc54d9b92318b4"},
+    {"Ikinari Musician (J).nes", 30, "8bdfcdb7c489a102053815147e7b1617"},
+    {"Ikinari Musician (J).nes", 60, "c56dfc918bb723682ccfdcabda52ce9d"},
+    {"King's Knight (J).nes", 30, "478a5cc12b6ecce65a278d8fea5e38a4"},
+    {"King's Knight (J).nes", 60, "473c228df4e162936d066664f58750c5"},
+    {"Meikyuu Kumikyoku (J).nes", 30, "e5abc0adfd63f6106ab26ba139bbc386"},
+    {"Meikyuu Kumikyoku (J).nes", 60, "e5abc0adfd63f6106ab26ba139bbc386"},
+    {"tetrisa.nes", 30, "6104bca0713184b87f050d311cefc44c"},
+    {"tetrisa.nes", 60, "6104bca0713184b87f050d311cefc44c"},
+    {"Transformers - Convoy No Nazo (J).nes", 30, "6ca7167d567e3b1cca549f9ad8b1eab0"},
+    {"Transformers - Convoy No Nazo (J).nes", 60, "276bcbfdfe0a0a547948889b97d9b17e"},
+};
+
+class Mapper3RegressionTest : public ::testing::TestWithParam<Mapper3TestEntry> {};
+
+TEST_P(Mapper3RegressionTest, Frame) {
+    const auto& param = GetParam();
+    std::string rom_path = std::string(EAR6_SOURCE_DIR) + "/assets/nes/rom/mapper_3/" + param.filename;
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+
+    int rc = ear6_load(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+
+    for (int i = 0; i < param.frame; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    ASSERT_EQ(ear6_get_frame_width(ctx), 256);
+    ASSERT_EQ(ear6_get_frame_height(ctx), 240);
+
+    std::string hash = ppm_md5(fb, 256, 240);
+    EXPECT_EQ(hash, param.expected_md5);
+
+    ear6_destroy(ctx);
+}
+
+INSTANTIATE_TEST_SUITE_P(Mapper3Regression, Mapper3RegressionTest,
+    ::testing::ValuesIn(kMapper3Tests));
+
+// -----------------------------------------------------------------------
 // Regression: Mapper 0 ROMs — verified 100% pixel match vs mesen2
 // -----------------------------------------------------------------------
 

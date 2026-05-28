@@ -1,0 +1,27 @@
+#include "mapper_038.h"
+
+namespace ear6::nes {
+
+void Mapper038::init(const RomInfo& info,
+                     const std::vector<uint8_t>& prg_rom,
+                     const std::vector<uint8_t>& chr_rom) {
+    rom_info_ = info;
+    prg_rom_ = prg_rom;
+    chr_rom_ = chr_rom;
+    prg_size_ = (uint32_t)prg_rom.size();
+    chr_rom_size_ = (uint32_t)chr_rom.size();
+
+    set_mirroring_type(info.mirroring);
+    add_register_range(0x7000, 0x7FFF, MemoryOperation::WRITE);
+
+    select_prg_page(0, 0);
+    select_chr_page(0, 0);
+}
+
+void Mapper038::write_register(uint16_t addr, uint8_t value) {
+    (void)addr;
+    select_prg_page(0, value & 0x03);
+    select_chr_page(0, (value >> 2) & 0x03);
+}
+
+} // namespace ear6::nes

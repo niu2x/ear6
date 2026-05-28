@@ -114,6 +114,14 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_225.cpp
     src/nes/mapper_229.cpp
     src/nes/mapper_231.cpp
+    src/nes/mapper_244.cpp
+    src/nes/mapper_246.cpp
+    src/nes/mapper_57.cpp
+    src/nes/mapper_170.cpp
+    src/nes/mapper_174.cpp
+    src/nes/mapper_202.cpp
+    src/nes/mapper_216.cpp
+    src/nes/mapper_227.cpp
     src/nes/base_mapper.cpp
     src/nes/nes_memory_manager.cpp
     src/nes/nes_cpu.cpp

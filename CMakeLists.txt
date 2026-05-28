@@ -100,9 +100,17 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_156.cpp
     src/nes/mapper_180.cpp
     src/nes/mapper_184.cpp
+    src/nes/mapper_107.cpp
     src/nes/mapper_112.cpp
     src/nes/mapper_185.cpp
     src/nes/mapper_200.cpp
+    src/nes/mapper_203.cpp
+    src/nes/mapper_204.cpp
+    src/nes/mapper_213.cpp
+    src/nes/mapper_214.cpp
+    src/nes/mapper_240.cpp
+    src/nes/mapper_241.cpp
+    src/nes/mapper_242.cpp
     src/nes/mapper_225.cpp
     src/nes/mapper_229.cpp
     src/nes/mapper_231.cpp

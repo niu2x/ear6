@@ -23,6 +23,7 @@
 #include "mapper_066.h"
 #include "mapper_067.h"
 #include "mapper_070.h"
+#include "mapper_072.h"
 #include "mapper_078.h"
 #include "mapper_079.h"
 #include "mapper_086.h"
@@ -42,7 +43,12 @@
 #include "mapper_156.h"
 #include "mapper_180.h"
 #include "mapper_184.h"
+#include "mapper_112.h"
 #include "mapper_185.h"
+#include "mapper_200.h"
+#include "mapper_225.h"
+#include "mapper_229.h"
+#include "mapper_231.h"
 #include <cstdio>
 
 namespace ear6::nes {
@@ -53,12 +59,13 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 8: case 9: case 10: case 11: case 13: case 15: case 16: case 17:
         case 32: case 33: case 34: case 38: case 39: case 58: case 60: case 61: case 62:
         case 65:
-        case 66: case 67: case 70: case 78: case 79:
+        case 66: case 67:         case 70: case 72: case 78: case 79:
         case 86: case 87: case 89: case 92: case 93: case 94:
         case 101: case 113: case 133: case 140: case 143: case 144:
         case 145: case 146: case 148: case 149:
         case 153: case 156: case 157: case 159:
-        case 180: case 184: case 185:
+        case 112: case 180: case 184: case 185:
+        case 200: case 225: case 229: case 231:
             return true;
         default:
             return false;
@@ -94,6 +101,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 66: return new Mapper066();
         case 67: return new Mapper067();
         case 70: return new Mapper070();
+        case 72: return new Mapper072();
         case 78: return new Mapper078();
         case 79: case 113: case 146: return new Mapper079();
         case 86: return new Mapper086();
@@ -111,7 +119,12 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 156: return new Mapper156();
         case 180: return new Mapper180();
         case 184: return new Mapper184();
+        case 112: return new Mapper112();
         case 185: return new Mapper185();
+        case 200: return new Mapper200();
+        case 225: return new Mapper225();
+        case 229: return new Mapper229();
+        case 231: return new Mapper231();
         default:
             printf("[MapperFactory] WARNING: Unsupported mapper %d, falling back to NROM\n", mapper_number);
             return new Mapper000();

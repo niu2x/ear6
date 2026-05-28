@@ -15,7 +15,7 @@ void Mapper092::init(const RomInfo& info, const std::vector<uint8_t>& prg_rom, c
 void Mapper092::write_register(uint16_t addr, uint8_t value) {
     (void)addr;
     if (!prg_flag_ && (value & 0x80)) {
-        select_prg_page(0, value & 0x07);
+        select_prg_page(1, value & 0x0F);
     }
     if (!chr_flag_ && (value & 0x40)) {
         select_chr_page(0, value & 0x0F);

@@ -50,7 +50,11 @@
 #include "mapper_174.h"
 #include "mapper_202.h"
 #include "mapper_216.h"
+#include "mapper_221.h"
+#include "mapper_226.h"
 #include "mapper_227.h"
+#include "mapper_230.h"
+#include "mapper_233.h"
 #include "mapper_244.h"
 #include "mapper_246.h"
 #include "mapper_185.h"
@@ -80,12 +84,13 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 101: case 113: case 133: case 140: case 143: case 144:
         case 145: case 146: case 148: case 149:
         case 153: case 156: case 157: case 159:
+        case 57:
         case 107:
-        case 112: case 180: case 184: case 185:
-        case 200: case 203: case 204:
-        case 213: case 214:
-        case 225: case 229: case 231:
-        case 240: case 241: case 242:
+        case 112: case 170: case 174: case 180: case 184: case 185:
+        case 200: case 202: case 203: case 204:
+        case 213: case 214: case 216:
+        case 221: case 225: case 226: case 227: case 229: case 230: case 231: case 233:
+        case 240: case 241: case 242: case 244: case 246:
             return true;
         default:
             return false;
@@ -152,7 +157,19 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 242: return new Mapper242();
         case 225: return new Mapper225();
         case 229: return new Mapper229();
+        case 57: return new Mapper57();
+        case 170: return new Mapper170();
+        case 174: return new Mapper174();
+        case 202: return new Mapper202();
+        case 216: return new Mapper216();
+        case 221: return new Mapper221();
+        case 226: return new Mapper226();
+        case 227: return new Mapper227();
+        case 230: return new Mapper230();
+        case 233: return new Mapper233();
         case 231: return new Mapper231();
+        case 244: return new Mapper244();
+        case 246: return new Mapper246();
         default:
             printf("[MapperFactory] WARNING: Unsupported mapper %d, falling back to NROM\n", mapper_number);
             return new Mapper000();

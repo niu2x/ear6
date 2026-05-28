@@ -69,6 +69,8 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_013.cpp
     src/nes/mapper_015.cpp
     src/nes/mapper_016.cpp
+    src/nes/mapper_032.cpp
+    src/nes/mapper_033.cpp
     src/nes/mapper_034.cpp
     src/nes/mapper_038.cpp
     src/nes/mapper_039.cpp
@@ -76,6 +78,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_060.cpp
     src/nes/mapper_061.cpp
     src/nes/mapper_062.cpp
+    src/nes/mapper_065.cpp
     src/nes/mapper_066.cpp
     src/nes/mapper_067.cpp
     src/nes/mapper_070.cpp

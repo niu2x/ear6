@@ -14,6 +14,7 @@
 #include "mapper_016.h"
 #include "mapper_066.h"
 #include "mapper_094.h"
+#include "mapper_180.h"
 #include <cstdio>
 
 namespace ear6::nes {
@@ -41,6 +42,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 17:
         case 66:
         case 94:
+        case 180:
         case 7:
             return true;
         default:
@@ -90,6 +92,8 @@ BaseMapper* MapperFactory::create(int mapper_number) {
             return new Mapper066();
         case 94:
             return new Mapper094();
+        case 180:
+            return new Mapper180();
         case 7:
             return new Mapper007();
         default:

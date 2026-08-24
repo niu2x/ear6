@@ -81,6 +81,7 @@
 #include "mapper_229.h"
 #include "mapper_231.h"
 #include "mapper_namco108.h"
+#include "mapper_sachen_74ls374n.h"
 #include <cstdio>
 
 namespace ear6::nes {
@@ -94,7 +95,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 66: case 67: case 70: case 72: case 75: case 76: case 78: case 79:
         case 86: case 87: case 88: case 89: case 92: case 93: case 94: case 95:
         case 101: case 113: case 133: case 140: case 143: case 144:
-        case 117: case 145: case 146: case 148: case 149: case 151: case 154:
+        case 117: case 145: case 146: case 148: case 149: case 150: case 151: case 154:
         case 153: case 156: case 157: case 159:
         case 40: case 42: case 43: case 46: case 50:
         case 57:
@@ -104,7 +105,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 200: case 202: case 203: case 204: case 206:
         case 213: case 214: case 216:
         case 221: case 225: case 226: case 227: case 229: case 230: case 231: case 233:
-        case 240: case 241: case 242: case 244: case 246:
+        case 240: case 241: case 242: case 243: case 244: case 246:
             return true;
         default:
             return false;
@@ -196,6 +197,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 231: return new Mapper231();
         case 244: return new Mapper244();
         case 246: return new Mapper246();
+        case 150: case 243: return new MapperSachen74LS374N();
         default:
             printf("[MapperFactory] WARNING: Unsupported mapper %d, falling back to NROM\n", mapper_number);
             return new Mapper000();

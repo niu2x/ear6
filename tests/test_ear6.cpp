@@ -277,6 +277,7 @@ static const VrcTestEntry kVrcTests[] = {
     {25, "Gradius 2 (J).nes", 128, "d1c9e16a3a8c5f9f4ed8840d333a0b42"},
     {26, "Esper Dream 2 - Aratanaru Tatakai (J).nes", 128,
      "663699b83195bae07c009e8e6127ad8d"},
+    {73, "Salamander (J).nes", 256, "fe6d1cf605ea36d725a848feed7ebdc8"},
 };
 
 class VrcRegressionTest : public ::testing::TestWithParam<VrcTestEntry> {};

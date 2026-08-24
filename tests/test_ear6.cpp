@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 #include <gtest/gtest.h>
 #include <openssl/evp.h>
 
@@ -309,6 +310,37 @@ TEST_P(VrcRegressionTest, Frame) {
 
 INSTANTIATE_TEST_SUITE_P(VrcRegression, VrcRegressionTest,
     ::testing::ValuesIn(kVrcTests));
+
+TEST(Mapper64Regression, HeaderMapperProbeFrame256) {
+    std::string rom_path = std::string(EAR6_SOURCE_DIR)
+                           + "/assets/nes/rom/mapper_64/Excitebike (JU).nes";
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    ASSERT_EQ(std::fseek(rom_file, 0, SEEK_END), 0);
+    long rom_size = std::ftell(rom_file);
+    ASSERT_GT(rom_size, 16);
+    ASSERT_EQ(std::fseek(rom_file, 0, SEEK_SET), 0);
+    std::vector<uint8_t> rom(static_cast<size_t>(rom_size));
+    ASSERT_EQ(std::fread(rom.data(), 1, rom.size(), rom_file), rom.size());
+    std::fclose(rom_file);
+
+    // Avoid the NES DB's mapper 0 override so the mapper 64 header is exercised.
+    rom.back() ^= 0x01;
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_load_data(ctx, rom.data(), static_cast<int>(rom.size()),
+                             "mapper64-probe.nes"), 0);
+    for (int i = 0; i < 256; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(ppm_md5(fb, 256, 240),
+              "04a75ece8549771335d877ad14238460");
+    ear6_destroy(ctx);
+}
 
 TEST(Mapper45Regression, BrainSeriesFrame256) {
     std::string rom_path = std::string(EAR6_SOURCE_DIR)

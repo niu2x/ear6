@@ -89,6 +89,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_066.cpp
     src/nes/mapper_067.cpp
     src/nes/mapper_068.cpp
+    src/nes/mapper_069.cpp
     src/nes/mapper_070.cpp
     src/nes/mapper_072.cpp
     src/nes/mapper_073.cpp

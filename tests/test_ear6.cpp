@@ -260,6 +260,51 @@ TEST_P(Mapper19RegressionTest, Frame) {
 INSTANTIATE_TEST_SUITE_P(Mapper19Regression, Mapper19RegressionTest,
     ::testing::ValuesIn(kMapper19Tests));
 
+struct VrcTestEntry {
+    int mapper;
+    const char* filename;
+    int frame;
+    const char* expected_md5;
+};
+
+static const VrcTestEntry kVrcTests[] = {
+    {21, "Wai Wai World 2 - SOS!! Paseri Jou (J).nes", 128,
+     "2375f658bb976a6c83618140bfbbb3c0"},
+    {22, "twinbee3.nes", 128, "96fdf2f61b3b81a3d5b5643241589b5a"},
+    {23, "Contra (J).nes", 128, "ed1d1a34815e31fe136779ab180b7515"},
+    {25, "Gradius 2 (J).nes", 128, "d1c9e16a3a8c5f9f4ed8840d333a0b42"},
+};
+
+class VrcRegressionTest : public ::testing::TestWithParam<VrcTestEntry> {};
+
+TEST_P(VrcRegressionTest, Frame) {
+    const auto& param = GetParam();
+    std::string rom_path = std::string(EAR6_SOURCE_DIR)
+                           + "/assets/nes/rom/mapper_" + std::to_string(param.mapper)
+                           + "/" + param.filename;
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+
+    for (int i = 0; i < param.frame; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(ppm_md5(fb, 256, 240), param.expected_md5);
+    ear6_destroy(ctx);
+}
+
+INSTANTIATE_TEST_SUITE_P(VrcRegression, VrcRegressionTest,
+    ::testing::ValuesIn(kVrcTests));
+
 // -----------------------------------------------------------------------
 // Regression: Mapper 3 ROMs — verified 100% pixel match vs mesen2
 // -----------------------------------------------------------------------

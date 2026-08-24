@@ -36,7 +36,8 @@ public:
     void get_memory_ranges(MemoryRanges& ranges) override;
 
     // PRG page management
-    void select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
+    virtual void select_prg_page(uint16_t slot, uint16_t page,
+                                 PrgMemoryType type = PrgMemoryType::PRG_ROM);
     void select_prg_page_2x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
     void select_prg_page_4x(uint16_t slot, uint16_t page, PrgMemoryType type = PrgMemoryType::PRG_ROM);
     void set_cpu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
@@ -47,7 +48,8 @@ public:
                                 int8_t access_type = -1);
 
     // CHR/PPU page management
-    void select_chr_page(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
+    virtual void select_chr_page(uint16_t slot, uint16_t page,
+                                 ChrMemoryType type = ChrMemoryType::DEFAULT);
     void select_chr_page_2x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
     void select_chr_page_4x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
     void select_chr_page_8x(uint16_t slot, uint16_t page, ChrMemoryType type = ChrMemoryType::DEFAULT);
@@ -132,6 +134,8 @@ protected:
     virtual bool allow_register_read() { return false; }
 
     void add_register_range(uint16_t start, uint16_t end, MemoryOperation operation = MemoryOperation::ANY);
+    void remove_register_range(uint16_t start, uint16_t end,
+                               MemoryOperation operation = MemoryOperation::ANY);
 };
 
 } // namespace ear6::nes

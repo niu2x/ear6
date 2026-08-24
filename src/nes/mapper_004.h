@@ -15,11 +15,11 @@ public:
     void notify_vram_address_change(uint16_t addr) override;
     void write_register(uint16_t addr, uint8_t value) override;
 
-private:
-    void update_state();
-    void update_mirroring();
-    void update_prg_mapping();
-    void update_chr_mapping();
+protected:
+    virtual void update_state();
+    virtual void update_mirroring();
+    virtual void update_prg_mapping();
+    virtual void update_chr_mapping();
     bool is_a12_rising_edge(uint16_t addr);
 
     uint8_t irq_reload_value_ = 0;
@@ -38,6 +38,7 @@ private:
 
     uint64_t a12_low_clock_ = 0;
 
+private:
     std::vector<uint8_t> work_ram_;
 };
 

@@ -67,6 +67,16 @@ void BaseMapper::add_register_range(uint16_t start, uint16_t end, MemoryOperatio
     }
 }
 
+void BaseMapper::remove_register_range(uint16_t start, uint16_t end,
+                                       MemoryOperation operation) {
+    for (uint32_t i = start; i <= end; i++) {
+        if (operation == MemoryOperation::READ || operation == MemoryOperation::ANY)
+            is_read_register_addr_[i] = false;
+        if (operation == MemoryOperation::WRITE || operation == MemoryOperation::ANY)
+            is_write_register_addr_[i] = false;
+    }
+}
+
 void BaseMapper::set_cpu_memory_mapping(uint16_t start, uint16_t end, uint8_t* source,
                                              uint32_t source_offset, uint32_t source_size,
                                              int8_t access_type) {

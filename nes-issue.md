@@ -62,3 +62,22 @@ tests cover every ROM at frame 30 and frame 60.
 | ROM | Match |
 |---|---:|---:|
 | `Battletoads Double Dragon (U).nes` | 99.93% |
+
+## Mapper 23
+
+- Total: 6 ROMs (frames 1/30/60/128)
+- Perfect ROMs: 5/6
+- Partial ROMs: 1/6
+- None (0%): 0/6
+
+| ROM | Frame 30 | Frame 60 | Frame 128 |
+|---|---:|---:|---:|
+| `Ganbare Goemon 2 (J).nes` | 99.01% | 98.99% | 99.37% |
+
+Both emulators render a valid title screen. The difference is limited to the
+small walking sprites along the bottom; the title, background, text, and palette
+match. Frames 1-10 are pixel-perfect and the first difference is 31 pixels at
+frame 11. At frame 12 both CPU traces contain 102,449 instructions and match
+line-for-line after normalizing the emulator prefix, including frame, scanline,
+cycle, PC, opcode, A/X/Y/SP, and status. This is a shared PPU/sprite timing
+difference rather than a mapper 23 CPU, IRQ, or banking divergence.

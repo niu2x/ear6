@@ -80,6 +80,7 @@
 #include "mapper_230.h"
 #include "mapper_233.h"
 #include "mapper_244.h"
+#include "mapper_245.h"
 #include "mapper_246.h"
 #include "mapper_185.h"
 #include "mapper_203.h"
@@ -119,7 +120,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 200: case 202: case 203: case 204: case 206: case 210:
         case 213: case 214: case 216:
         case 221: case 225: case 226: case 227: case 229: case 230: case 231: case 233:
-        case 240: case 241: case 242: case 243: case 244: case 246:
+        case 240: case 241: case 242: case 243: case 244: case 245: case 246:
             return true;
         default:
             return false;
@@ -223,6 +224,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 233: return new Mapper233();
         case 231: return new Mapper231();
         case 244: return new Mapper244();
+        case 245: return new Mapper245();
         case 246: return new Mapper246();
         case 150: case 243: return new MapperSachen74LS374N();
         default:

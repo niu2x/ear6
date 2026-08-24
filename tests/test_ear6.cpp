@@ -518,6 +518,37 @@ TEST(Mapper118Regression, ArumajiroFrame256) {
     ear6_destroy(ctx);
 }
 
+TEST(Mapper245Regression, HeaderMapperProbeFrame256) {
+    std::string rom_path = std::string(EAR6_SOURCE_DIR)
+                           + "/assets/nes/rom/mapper_245/Yong Ze Do Re Long 6 (C).nes";
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    ASSERT_EQ(std::fseek(rom_file, 0, SEEK_END), 0);
+    long rom_size = std::ftell(rom_file);
+    ASSERT_GT(rom_size, 16);
+    ASSERT_EQ(std::fseek(rom_file, 0, SEEK_SET), 0);
+    std::vector<uint8_t> rom(static_cast<size_t>(rom_size));
+    ASSERT_EQ(std::fread(rom.data(), 1, rom.size(), rom_file), rom.size());
+    std::fclose(rom_file);
+
+    // The NES DB maps this dump to mapper 4; trailing data changes only its CRC.
+    rom.push_back(0);
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_load_data(ctx, rom.data(), static_cast<int>(rom.size()),
+                             "mapper245-probe.nes"), 0);
+    for (int i = 0; i < 256; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(ppm_md5(fb, 256, 240),
+              "20d9a5fa62b86e51734a582040b172a2");
+    ear6_destroy(ctx);
+}
+
 // -----------------------------------------------------------------------
 // Regression: Mapper 3 ROMs — verified 100% pixel match vs mesen2
 // -----------------------------------------------------------------------

@@ -52,6 +52,15 @@ tests cover every ROM at frame 30 and frame 60.
 | `Family Stadium - Pro Yakyuu (J).nes` | 99.70% |
 | `ddz.nes` | 97.02% |
 
+### `Yong Ze Do Re Long 6 (C).nes` frame-phase difference
+
+Although its iNES header says mapper 245, both emulators apply the NES DB entry
+and run it as mapper 4. Frames 1/30/60/256 are pixel-perfect, but frame 128 is
+95.97% identical (58,964/61,440 pixels). At that frame ear6 shows a complete,
+valid Waixing Computer Science copyright screen while Mesen2 is still black.
+This is a transient mapper 4/PPU frame-phase difference, not mapper 245 banking
+behavior or corrupted rendering.
+
 ## Mapper 7
 
 - Total: 2 ROMs

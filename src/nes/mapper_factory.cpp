@@ -13,6 +13,7 @@
 #include "mapper_015.h"
 #include "mapper_016.h"
 #include "mapper_018.h"
+#include "mapper_019.h"
 #include "mapper_032.h"
 #include "mapper_033.h"
 #include "mapper_034.h"
@@ -90,7 +91,7 @@ namespace ear6::nes {
 bool MapperFactory::is_supported(int mapper_number) {
     switch (mapper_number) {
         case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
-        case 8: case 9: case 10: case 11: case 13: case 15: case 16: case 17: case 18:
+        case 8: case 9: case 10: case 11: case 13: case 15: case 16: case 17: case 18: case 19:
         case 32: case 33: case 34: case 35: case 38: case 39: case 41: case 58: case 60: case 61: case 62:
         case 65:
         case 66: case 67: case 70: case 72: case 75: case 76: case 78: case 79:
@@ -103,7 +104,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 71: case 77:
         case 107:
         case 112: case 170: case 174: case 180: case 184: case 185:
-        case 200: case 202: case 203: case 204: case 206:
+        case 200: case 202: case 203: case 204: case 206: case 210:
         case 213: case 214: case 216:
         case 221: case 225: case 226: case 227: case 229: case 230: case 231: case 233:
         case 240: case 241: case 242: case 243: case 244: case 246:
@@ -130,6 +131,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 15: return new Mapper015();
         case 16: case 153: case 157: case 159: return new Mapper016();
         case 18: return new Mapper018();
+        case 19: case 210: return new Mapper019();
         case 34: return new Mapper034();
         case 35: return new Mapper035();
         case 38: return new Mapper038();

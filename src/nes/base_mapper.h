@@ -84,7 +84,7 @@ public:
     // Work RAM / Save RAM support (matches Mesen2's BaseMapper interface)
     virtual uint32_t get_work_ram_size() { return 0x2000; }
     virtual uint32_t get_save_ram_size() { return 0x2000; }
-    void setup_default_work_ram();
+    virtual void setup_default_work_ram();
     void apply_trainer_data(const std::vector<uint8_t>& trainer_data);
     void init_work_ram(const RomInfo& info);
 

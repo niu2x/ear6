@@ -47,7 +47,8 @@ int16_t NesSoundMixer::get_output_volume() {
     double square_volume = (95.88 * 5000.0) / (8128.0 / std::max(square_output, 0.0001) + 100.0);
     double tnd_volume = (159.79 * 5000.0) / (22638.0 / std::max(tnd_output, 0.0001) + 100.0);
 
-    int result = (int)(square_volume + tnd_volume);
+    int result = (int)(square_volume + tnd_volume
+                       + current_output_[(int)AudioChannel::NAMCO163] * 20.0);
     if (result > SHRT_MAX) result = SHRT_MAX;
     if (result < SHRT_MIN) result = SHRT_MIN;
     return (int16_t)result;

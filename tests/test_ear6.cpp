@@ -452,6 +452,28 @@ TEST(Mapper74Regression, SuperRobotWars2Frame256) {
     ear6_destroy(ctx);
 }
 
+TEST(Mapper90Regression, FinalFantasy3Frame256) {
+    std::string rom_path = std::string(EAR6_SOURCE_DIR)
+                           + "/assets/nes/rom/mapper_90/finalf3.nes";
+    FILE* rom_file = std::fopen(rom_path.c_str(), "rb");
+    if (!rom_file) {
+        GTEST_SKIP() << "Missing test ROM: " << rom_path;
+    }
+    std::fclose(rom_file);
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    for (int i = 0; i < 256; i++) {
+        ASSERT_EQ(ear6_step(ctx), 0);
+    }
+    const uint8_t* fb = ear6_get_framebuffer(ctx);
+    ASSERT_NE(fb, nullptr);
+    EXPECT_EQ(ppm_md5(fb, 256, 240),
+              "bcdabff1a1a0d2e02db44117b0fe3406");
+    ear6_destroy(ctx);
+}
+
 // -----------------------------------------------------------------------
 // Regression: Mapper 3 ROMs — verified 100% pixel match vs mesen2
 // -----------------------------------------------------------------------

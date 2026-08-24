@@ -46,6 +46,7 @@ public:
     void set_cpu_memory_mapping(uint16_t start, uint16_t end, int16_t page_number,
                                 PrgMemoryType type = PrgMemoryType::PRG_ROM,
                                 int8_t access_type = -1);
+    void remove_cpu_memory_mapping(uint16_t start, uint16_t end);
 
     // CHR/PPU page management
     virtual void select_chr_page(uint16_t slot, uint16_t page,

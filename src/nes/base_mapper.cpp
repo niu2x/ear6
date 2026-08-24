@@ -107,6 +107,13 @@ void BaseMapper::set_cpu_memory_mapping(uint16_t start, uint16_t end, int16_t pa
     set_cpu_memory_mapping(start, end, source, source_offset, page_size, access_type);
 }
 
+void BaseMapper::remove_cpu_memory_mapping(uint16_t start, uint16_t end) {
+    for (uint16_t page = start >> 8; page <= (end >> 8); page++) {
+        prg_pages_[page] = nullptr;
+        prg_memory_access_[page] = NO_ACCESS;
+    }
+}
+
 void BaseMapper::select_prg_page(uint16_t slot, uint16_t page, PrgMemoryType type) {
     uint16_t page_size = get_prg_page_size();
     if (prg_size_ > 0) {

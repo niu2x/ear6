@@ -34,6 +34,7 @@ public:
     bool has_irq_source(uint8_t source) const { return (state_.irq_flag & source) != 0; }
 
     uint64_t get_cycle_count() const { return state_.cycle_count; }
+    bool is_cpu_write() const { return cpu_write_; }
     NesCpuState& get_state() { return state_; }
 
     void run_dma_transfer(uint8_t offset_value);

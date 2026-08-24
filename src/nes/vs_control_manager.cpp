@@ -8,6 +8,7 @@ VsControlManager::VsControlManager(NesConsole* console, const RomInfo& info)
     (void)info;
     dip_switches_ = 0;
     protection_counter_ = 0;
+    prg_chr_select_bit_ = 0;
 }
 
 void VsControlManager::get_memory_ranges(MemoryRanges& ranges) {
@@ -42,7 +43,7 @@ uint8_t VsControlManager::read_ram(uint16_t addr) {
 void VsControlManager::write_ram(uint16_t addr, uint8_t value) {
     NesControlManager::write_ram(addr, value);
     if (addr == 0x4016) {
-        // Bit 2 selects PRG/CHR bank pair (for VsSystem mapper)
+        prg_chr_select_bit_ = (value >> 2) & 0x01;
         // Bit 1 is main/sub bit for dual-system
     }
 }
@@ -50,6 +51,7 @@ void VsControlManager::write_ram(uint16_t addr, uint8_t value) {
 void VsControlManager::reset(bool soft) {
     NesControlManager::reset(soft);
     protection_counter_ = 0;
+    prg_chr_select_bit_ = 0;
 }
 
 uint8_t VsControlManager::get_open_bus_mask(uint8_t port) {

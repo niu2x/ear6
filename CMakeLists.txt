@@ -105,6 +105,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/mapper_092.cpp
     src/nes/mapper_093.cpp
     src/nes/mapper_094.cpp
+    src/nes/mapper_099.cpp
     src/nes/mapper_133.cpp
     src/nes/mapper_140.cpp
     src/nes/mapper_143.cpp

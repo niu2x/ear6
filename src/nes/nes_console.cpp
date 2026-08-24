@@ -271,6 +271,10 @@ int NesConsole::load_rom(const void* data, int size) {
     if (!MapperFactory::is_supported(info.mapper_number) && MapperFactory::is_supported(header_mapper_number)) {
         info.mapper_number = header_mapper_number;
     }
+    if (info.mapper_number == 99) {
+        info.is_vs_system = true;
+        info.use_vs_palette = true;
+    }
 
     rom_info_ = info;
 

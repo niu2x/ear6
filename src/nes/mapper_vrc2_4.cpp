@@ -53,12 +53,8 @@ void MapperVRC2_4::init(const RomInfo& info,
     chr_low_.fill(0);
     latch_ = 0;
 
-    irq_reload_value_ = 0;
-    irq_counter_ = 0;
-    irq_prescaler_counter_ = 0;
-    irq_enabled_ = false;
-    irq_enabled_after_ack_ = false;
-    irq_cycle_mode_ = false;
+    irq_.initialize(console_);
+    irq_.reset();
 
     set_mirroring_type(info.mirroring);
     add_register_range(0x8000, 0xFFFF, MemoryOperation::WRITE);
@@ -154,46 +150,11 @@ void MapperVRC2_4::update_state() {
     select_prg_page(3, static_cast<uint16_t>(-1));
 }
 
-void MapperVRC2_4::set_irq_reload_nibble(uint8_t value, bool high_bits) {
-    if (high_bits) {
-        irq_reload_value_ = (irq_reload_value_ & 0x0F) | ((value & 0x0F) << 4);
-    } else {
-        irq_reload_value_ = (irq_reload_value_ & 0xF0) | (value & 0x0F);
-    }
-}
-
-void MapperVRC2_4::set_irq_control(uint8_t value) {
-    irq_enabled_after_ack_ = (value & 0x01) != 0;
-    irq_enabled_ = (value & 0x02) != 0;
-    irq_cycle_mode_ = (value & 0x04) != 0;
-    if (irq_enabled_) {
-        irq_counter_ = irq_reload_value_;
-        irq_prescaler_counter_ = 341;
-    }
-    console_->get_cpu()->clear_irq_source(IRQSource::EXTERNAL);
-}
-
-void MapperVRC2_4::acknowledge_irq() {
-    irq_enabled_ = irq_enabled_after_ack_;
-    console_->get_cpu()->clear_irq_source(IRQSource::EXTERNAL);
-}
-
 void MapperVRC2_4::process_cpu_clock() {
     bool supports_irq = (use_heuristics_ && rom_info_.mapper_number != 22)
                         || variant_ >= Variant::VRC4A;
-    if (!supports_irq || !irq_enabled_) {
-        return;
-    }
-
-    irq_prescaler_counter_ -= 3;
-    if (irq_cycle_mode_ || irq_prescaler_counter_ <= 0) {
-        if (irq_counter_ == 0xFF) {
-            irq_counter_ = irq_reload_value_;
-            console_->get_cpu()->set_irq_source(IRQSource::EXTERNAL);
-        } else {
-            irq_counter_++;
-        }
-        irq_prescaler_counter_ += 341;
+    if (supports_irq) {
+        irq_.process_cpu_clock();
     }
 }
 
@@ -235,13 +196,13 @@ void MapperVRC2_4::write_register(uint16_t addr, uint8_t value) {
             chr_high_[reg] = value & 0x1F;
         }
     } else if (addr == 0xF000) {
-        set_irq_reload_nibble(value, false);
+        irq_.set_reload_value_nibble(value, false);
     } else if (addr == 0xF001) {
-        set_irq_reload_nibble(value, true);
+        irq_.set_reload_value_nibble(value, true);
     } else if (addr == 0xF002) {
-        set_irq_control(value);
+        irq_.set_control_value(value);
     } else if (addr == 0xF003) {
-        acknowledge_irq();
+        irq_.acknowledge_irq();
     }
 
     update_state();

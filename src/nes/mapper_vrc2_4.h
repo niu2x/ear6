@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base_mapper.h"
+#include "vrc_irq.h"
 
 #include <array>
 
@@ -37,10 +38,6 @@ private:
     void detect_variant(const RomInfo& info);
     uint16_t translate_address(uint16_t addr) const;
     void update_state();
-    void set_irq_reload_nibble(uint8_t value, bool high_bits);
-    void set_irq_control(uint8_t value);
-    void acknowledge_irq();
-
     Variant variant_ = Variant::VRC2A;
     bool use_heuristics_ = false;
     bool use_microwire_ = false;
@@ -52,12 +49,7 @@ private:
     std::array<uint8_t, 8> chr_low_ = {};
     uint8_t latch_ = 0;
 
-    uint8_t irq_reload_value_ = 0;
-    uint8_t irq_counter_ = 0;
-    int16_t irq_prescaler_counter_ = 0;
-    bool irq_enabled_ = false;
-    bool irq_enabled_after_ack_ = false;
-    bool irq_cycle_mode_ = false;
+    VrcIrq irq_;
 };
 
 } // namespace ear6::nes

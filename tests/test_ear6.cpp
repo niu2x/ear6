@@ -272,7 +272,11 @@ static const VrcTestEntry kVrcTests[] = {
      "2375f658bb976a6c83618140bfbbb3c0"},
     {22, "twinbee3.nes", 128, "96fdf2f61b3b81a3d5b5643241589b5a"},
     {23, "Contra (J).nes", 128, "ed1d1a34815e31fe136779ab180b7515"},
+    {24, "Akumajou Densetsu (J).nes", 128,
+     "cbfecfbea4861e33af95bdcab3e6bd9f"},
     {25, "Gradius 2 (J).nes", 128, "d1c9e16a3a8c5f9f4ed8840d333a0b42"},
+    {26, "Esper Dream 2 - Aratanaru Tatakai (J).nes", 128,
+     "663699b83195bae07c009e8e6127ad8d"},
 };
 
 class VrcRegressionTest : public ::testing::TestWithParam<VrcTestEntry> {};

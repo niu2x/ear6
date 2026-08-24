@@ -96,9 +96,10 @@ def compare_ppm(path_a, path_b):
 def run_screenshot(cli, rom, frames, output, env=None):
     """Run a screenshot command.  Returns (status, detail)."""
     try:
+        work_dir = os.path.dirname(os.path.abspath(output))
         proc = subprocess.run(
             [cli, "screenshot", rom, "-f", str(frames), "-o", output],
-            capture_output=True, timeout=TIMEOUT, env=env
+            capture_output=True, timeout=TIMEOUT, env=env, cwd=work_dir
         )
         if proc.returncode != 0:
             return ("CRASH", proc.stderr.decode("utf-8", errors="replace"))

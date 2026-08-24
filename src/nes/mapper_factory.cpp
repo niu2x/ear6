@@ -32,6 +32,7 @@
 #include "mapper_46.h"
 #include "mapper_71.h"
 #include "mapper_072.h"
+#include "mapper_075.h"
 #include "mapper_77.h"
 #include "mapper_078.h"
 #include "mapper_079.h"
@@ -88,10 +89,10 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 8: case 9: case 10: case 11: case 13: case 15: case 16: case 17:
         case 32: case 33: case 34: case 35: case 38: case 39: case 41: case 58: case 60: case 61: case 62:
         case 65:
-        case 66: case 67: case 70: case 72: case 78: case 79:
+        case 66: case 67: case 70: case 72: case 75: case 78: case 79:
         case 86: case 87: case 89: case 92: case 93: case 94:
         case 101: case 113: case 133: case 140: case 143: case 144:
-        case 145: case 146: case 148: case 149:
+        case 145: case 146: case 148: case 149: case 151:
         case 153: case 156: case 157: case 159:
         case 40: case 42: case 43: case 46: case 50:
         case 57:
@@ -140,6 +141,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 67: return new Mapper067();
         case 70: return new Mapper070();
         case 72: return new Mapper072();
+        case 75: case 151: return new Mapper075();
         case 78: return new Mapper078();
         case 79: case 113: case 146: return new Mapper079();
         case 86: return new Mapper086();

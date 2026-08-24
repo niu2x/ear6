@@ -7,6 +7,7 @@
 #include "nes_sound_mixer.h"
 #include "nes_console.h"
 #include "nes_cpu.h"
+#include "nes_memory_manager.h"
 
 namespace ear6::nes {
 
@@ -78,7 +79,7 @@ uint8_t NesApu::read_ram(uint16_t addr) {
             status |= dmc_->is_active() ? 0x10 : 0x00;
             status |= frame_counter_->get_irq_flag() ? 0x40 : 0x00;
             status |= console_->get_cpu()->has_irq_source(IRQSource::DMC) ? 0x80 : 0x00;
-            status |= 0x20;
+            status |= console_->get_memory_manager()->get_open_bus(0x20);
 
             console_->get_cpu()->clear_irq_source(IRQSource::FRAME_COUNTER);
 

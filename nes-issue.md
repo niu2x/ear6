@@ -61,6 +61,19 @@ valid Waixing Computer Science copyright screen while Mesen2 is still black.
 This is a transient mapper 4/PPU frame-phase difference, not mapper 245 banking
 behavior or corrupted rendering.
 
+## Mapper 45
+
+`Super 8 in 1 Fighting (UNL).nes` has mapper 251 in its iNES header, but both
+emulators apply the NES DB entry and run it as mapper 45. Frames 1-4 are
+pixel-perfect; from frame 5 through the sampled frames 30/60/128/256, the match
+is 77.53% (47,634/61,440 pixels). ear6 is black while Mesen2 shows a dotted,
+garbled screen with broken text, so neither output is a valid game screen.
+
+At frame 5 both CPU traces contain 42,605 instructions and match line-for-line,
+including frame/scanline/cycle, PC, opcode, A/X/Y/SP, and status. The remaining
+difference is in the shared CHR-RAM/PPU initialization path, not mapper 251 or a
+mapper 45 CPU banking/IRQ divergence.
+
 ## Mapper 7
 
 - Total: 2 ROMs

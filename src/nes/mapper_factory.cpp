@@ -82,6 +82,7 @@
 #include "mapper_244.h"
 #include "mapper_245.h"
 #include "mapper_246.h"
+#include "mapper_252.h"
 #include "mapper_185.h"
 #include "mapper_203.h"
 #include "mapper_204.h"
@@ -120,7 +121,7 @@ bool MapperFactory::is_supported(int mapper_number) {
         case 200: case 202: case 203: case 204: case 206: case 210:
         case 213: case 214: case 216:
         case 221: case 225: case 226: case 227: case 229: case 230: case 231: case 233:
-        case 240: case 241: case 242: case 243: case 244: case 245: case 246:
+        case 240: case 241: case 242: case 243: case 244: case 245: case 246: case 252:
             return true;
         default:
             return false;
@@ -226,6 +227,7 @@ BaseMapper* MapperFactory::create(int mapper_number) {
         case 244: return new Mapper244();
         case 245: return new Mapper245();
         case 246: return new Mapper246();
+        case 252: return new Mapper252();
         case 150: case 243: return new MapperSachen74LS374N();
         default:
             printf("[MapperFactory] WARNING: Unsupported mapper %d, falling back to NROM\n", mapper_number);

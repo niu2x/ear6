@@ -2,6 +2,7 @@
 
 #include "ines_memory_handler.h"
 #include "nes_types.h"
+#include "../state_stream.h"
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -92,6 +93,7 @@ public:
     void init_work_ram(const RomInfo& info);
 
     void set_has_bus_conflicts(bool enabled) { has_bus_conflicts_ = enabled; }
+    virtual void serialize(ear6::StateStream& stream);
 
 protected:
     NesConsole* console_ = nullptr;

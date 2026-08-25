@@ -63,6 +63,7 @@ public:
     void set_enabled(bool enabled) { envelope_.length_counter.set_enabled(enabled); }
     bool is_active() { return envelope_.length_counter.is_active(); }
     uint8_t get_output() { return (uint8_t)timer_.get_last_output(); }
+    void serialize(ear6::StateStream& stream);
 
 private:
     bool is_muted() {

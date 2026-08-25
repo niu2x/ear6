@@ -24,7 +24,6 @@ struct Ear6 {
 namespace {
 
 constexpr uint8_t STATE_MAGIC[8] = {'E', 'A', 'R', '6', 'S', 'T', 'A', 'T'};
-constexpr uint32_t STATE_FORMAT_VERSION = 1;
 
 uint32_t crc32(const uint8_t* data, size_t size) {
     uint32_t crc = 0xFFFFFFFFu;
@@ -47,7 +46,7 @@ int build_state(Ear6* ctx, std::vector<uint8_t>& state) {
     std::memcpy(magic, STATE_MAGIC, sizeof(magic));
     stream.sync_bytes(magic, sizeof(magic));
 
-    uint32_t version = STATE_FORMAT_VERSION;
+    uint32_t version = EAR6_STATE_FORMAT_VERSION;
     uint32_t system_type = static_cast<uint32_t>(ctx->system_type);
     uint64_t content_identity = ctx->system->get_content_identity();
     uint64_t payload_size = payload.size();
@@ -173,7 +172,7 @@ extern "C" int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t s
 
         if (stream.has_error()
             || std::memcmp(magic, STATE_MAGIC, sizeof(magic)) != 0
-            || version != STATE_FORMAT_VERSION
+            || version != EAR6_STATE_FORMAT_VERSION
             || system_type != static_cast<uint32_t>(ctx->system_type)
             || content_identity != ctx->system->get_content_identity()
             || reserved != 0

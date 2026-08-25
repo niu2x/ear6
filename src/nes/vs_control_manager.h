@@ -18,6 +18,7 @@ public:
     uint8_t get_prg_chr_select_bit() const { return prg_chr_select_bit_; }
 
     void reset(bool soft);
+    void serialize(ear6::StateStream& stream) override;
 
 private:
     uint32_t dip_switches_ = 0;

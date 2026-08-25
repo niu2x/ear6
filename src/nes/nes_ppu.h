@@ -39,6 +39,7 @@ public:
 
     uint8_t peek_ram(uint16_t addr);
     void set_no_odd_frame_skip() { no_odd_frame_skip_ = true; }
+    void serialize(ear6::StateStream& stream);
 
 private:
     NesConsole* console_ = nullptr;

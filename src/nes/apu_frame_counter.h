@@ -43,6 +43,7 @@ public:
     bool need_to_run(uint32_t cycles_to_run);
     bool get_irq_flag();
     void set_region(uint32_t clock_rate);
+    void serialize(ear6::StateStream& stream);
 
 private:
     NesConsole* console_ = nullptr;

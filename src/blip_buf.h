@@ -17,6 +17,15 @@ void blip_end_frame(blip_t*, unsigned int clock_duration);
 int blip_samples_avail(const blip_t*);
 int blip_read_samples(blip_t*, short out[], int count, int stereo);
 
+unsigned long long blip_get_factor(const blip_t*);
+unsigned long long blip_get_offset(const blip_t*);
+int blip_get_avail(const blip_t*);
+int blip_get_size(const blip_t*);
+int blip_get_integrator(const blip_t*);
+const int* blip_get_buffer(const blip_t*);
+int blip_restore_state(blip_t*, unsigned long long factor, unsigned long long offset,
+                       int avail, int integrator, const int* buffer, int buffer_count);
+
 enum { blip_max_ratio = 1 << 20 };
 enum { blip_max_frame = 4000 };
 

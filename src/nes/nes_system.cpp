@@ -1,6 +1,8 @@
 #include "nes_system.h"
 #include "nes_ppu.h"
+#include "../state_stream.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstdio>
 #include <string>
@@ -161,9 +163,56 @@ NesSystem::NesSystem()
 int NesSystem::load(const void* data, int size) {
     int ret = console_->load_rom(data, size);
     if (ret == 0) {
+        const auto* bytes = static_cast<const uint8_t*>(data);
+        uint64_t identity = 1469598103934665603ULL;
+        for (int i = 0; i < size; ++i) {
+            identity ^= bytes[i];
+            identity *= 1099511628211ULL;
+        }
+        content_identity_ = identity;
         set_palette(DEFAULT_NES_PALETTE);
     }
     return ret;
+}
+
+int NesSystem::save_state(std::vector<uint8_t>& data) const {
+    if (!console_ || content_identity_ == 0 || console_->get_rom_info().mapper_number != 0) {
+        return -1;
+    }
+
+    StateStream stream;
+    uint32_t payload_version = 1;
+    uint32_t mapper_number = static_cast<uint32_t>(console_->get_rom_info().mapper_number);
+    uint32_t palette[64];
+    std::copy(std::begin(palette_), std::end(palette_), std::begin(palette));
+    stream.sync(payload_version);
+    stream.sync(mapper_number);
+    stream.sync_span(palette, 64);
+    const_cast<nes::NesConsole*>(console_.get())->serialize(stream);
+    if (stream.has_error()) return -1;
+    data = stream.get_data();
+    return 0;
+}
+
+int NesSystem::load_state(const void* data, size_t size) {
+    if (!console_ || content_identity_ == 0 || console_->get_rom_info().mapper_number != 0) {
+        return -1;
+    }
+
+    StateStream stream(data, size);
+    uint32_t payload_version = 0;
+    uint32_t mapper_number = 0;
+    stream.sync(payload_version);
+    stream.sync(mapper_number);
+    if (payload_version != 1
+        || mapper_number != static_cast<uint32_t>(console_->get_rom_info().mapper_number)) {
+        return -1;
+    }
+    stream.sync_span(palette_, 64);
+    console_->serialize(stream);
+    if (stream.has_error() || stream.get_remaining() != 0) return -1;
+    convert_frame();
+    return 0;
 }
 
 void NesSystem::set_palette(const uint32_t* palette) {

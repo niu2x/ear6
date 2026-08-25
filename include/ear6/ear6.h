@@ -11,6 +11,8 @@ extern "C" {
 
 typedef struct Ear6 Ear6;
 
+#define EAR6_STATE_FORMAT_VERSION 1u
+
 typedef enum {
     EAR6_SYSTEM_TEST,
     EAR6_SYSTEM_NES,

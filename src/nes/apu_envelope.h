@@ -58,6 +58,8 @@ public:
         }
     }
 
+    void serialize(ear6::StateStream& stream);
+
 private:
     bool constant_volume_ = false;
     uint8_t volume_ = 0;

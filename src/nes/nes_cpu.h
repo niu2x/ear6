@@ -40,6 +40,7 @@ public:
     void run_dma_transfer(uint8_t offset_value);
     void start_dmc_transfer();
     void stop_dmc_transfer();
+    void serialize(ear6::StateStream& stream);
 
     // Tracing (requires EAR6_ENABLE_CPU_TRACE and EAR6_TRACE_CPU)
     void trace_cpu(const char* fmt, ...);

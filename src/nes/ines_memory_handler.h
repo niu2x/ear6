@@ -50,11 +50,12 @@ public:
     uint8_t read_ram(uint16_t addr) override { (void)addr; return external_open_bus_; }
     void write_ram(uint16_t addr, uint8_t value) override { (void)addr; (void)value; }
     uint8_t get_open_bus() const { return external_open_bus_; }
-    uint8_t get_internal_open_bus() const { return external_open_bus_; }
+    uint8_t get_internal_open_bus() const { return internal_open_bus_; }
     void set_open_bus(uint8_t value, bool internal_only) {
         if (!internal_only) external_open_bus_ = value;
         internal_open_bus_ = value;
     }
+    void serialize(ear6::StateStream& stream);
 };
 
 template<size_t Mask>

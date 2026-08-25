@@ -54,6 +54,7 @@ public:
     void clear_input();
     const RomInfo& get_rom_info() const { return rom_info_; }
     uint32_t get_last_completed_ppu_frame() const { return last_completed_ppu_frame_; }
+    void serialize(ear6::StateStream& stream);
 
 private:
     void init_components();

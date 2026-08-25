@@ -69,6 +69,8 @@ public:
         }
     }
 
+    void serialize(ear6::StateStream& stream);
+
 private:
     NesApu* apu_ = nullptr;
     AudioChannel channel_ = AudioChannel::SQUARE1;

@@ -161,6 +161,80 @@ TEST(Ear6State, NullArgumentsAreRejected) {
     ear6_destroy(ctx);
 }
 
+static std::vector<uint8_t> save_state(Ear6* ctx) {
+    size_t size = 0;
+    if (ear6_save_state_to_memory(ctx, nullptr, 0, &size) != 0) return {};
+    std::vector<uint8_t> state(size);
+    if (ear6_save_state_to_memory(ctx, state.data(), state.size(), &size) != 0) return {};
+    state.resize(size);
+    return state;
+}
+
+static std::vector<uint8_t> make_mapper0_test_rom(uint8_t marker) {
+    std::vector<uint8_t> rom(16 + 0x4000, 0);
+    rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;
+    rom[4] = 1;
+    rom[16] = 0xE6; rom[17] = 0x00;       // INC $00
+    rom[18] = 0x4C; rom[19] = 0x00;       // JMP $8000
+    rom[20] = 0x80;
+    rom[16 + 0x3FFC] = 0x00;
+    rom[16 + 0x3FFD] = 0x80;
+    rom[16 + 0x0100] = marker;
+    return rom;
+}
+
+TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    ASSERT_EQ(ear6_load_from_memory(ctx, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+    for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+
+    std::vector<uint8_t> checkpoint = save_state(ctx);
+    ASSERT_FALSE(checkpoint.empty());
+    for (int i = 0; i < 4; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> expected = save_state(ctx);
+    ASSERT_FALSE(expected.empty());
+
+    ASSERT_EQ(ear6_load_state_from_memory(ctx, checkpoint.data(), checkpoint.size()), 0);
+    for (int i = 0; i < 4; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> actual = save_state(ctx);
+    ASSERT_EQ(actual.size(), expected.size());
+    constexpr size_t STATE_HEADER_SIZE = 40;
+    auto mismatch = std::mismatch(
+        actual.begin() + STATE_HEADER_SIZE,
+        actual.end(),
+        expected.begin() + STATE_HEADER_SIZE
+    );
+    ASSERT_EQ(mismatch.first, actual.end())
+        << "first state mismatch at byte " << (mismatch.first - actual.begin())
+        << ": actual=" << static_cast<int>(*mismatch.first)
+        << " expected=" << static_cast<int>(*mismatch.second);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, RejectsStateForDifferentNesContent) {
+    std::vector<uint8_t> first_rom = make_mapper0_test_rom(0x11);
+    std::vector<uint8_t> second_rom = make_mapper0_test_rom(0x22);
+    Ear6* first = ear6_create(EAR6_SYSTEM_NES);
+    Ear6* second = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    ASSERT_EQ(ear6_load_from_memory(first, first_rom.data(), static_cast<int>(first_rom.size()), nullptr), 0);
+    ASSERT_EQ(ear6_load_from_memory(second, second_rom.data(), static_cast<int>(second_rom.size()), nullptr), 0);
+
+    std::vector<uint8_t> state = save_state(first);
+    ASSERT_FALSE(state.empty());
+    std::vector<uint8_t> before = save_state(second);
+    ASSERT_FALSE(before.empty());
+    EXPECT_NE(ear6_load_state_from_memory(second, state.data(), state.size()), 0);
+    EXPECT_EQ(save_state(second), before);
+
+    ear6_destroy(first);
+    ear6_destroy(second);
+}
+
 TEST(Ear6Create, FlashSystemNotImplemented) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_FLASH);
     EXPECT_EQ(ctx, nullptr);

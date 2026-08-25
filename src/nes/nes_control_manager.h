@@ -33,6 +33,7 @@ public:
     void clear_all();
     void set_port2_zapper_enabled(bool enabled) { port2_zapper_enabled_ = enabled; }
     void set_cli_exp_bit3_mode(bool enabled) { cli_exp_bit3_mode_ = enabled; }
+    virtual void serialize(ear6::StateStream& stream);
 
 protected:
     virtual uint8_t get_active_keys(uint8_t row, uint8_t column);

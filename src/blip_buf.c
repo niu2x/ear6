@@ -162,6 +162,31 @@ int blip_read_samples(blip_t* m, short out[], int count, int stereo) {
     return count;
 }
 
+unsigned long long blip_get_factor(const blip_t* m) { return (unsigned long long)m->factor; }
+unsigned long long blip_get_offset(const blip_t* m) { return (unsigned long long)m->offset; }
+int blip_get_avail(const blip_t* m) { return m->avail; }
+int blip_get_size(const blip_t* m) { return m->size; }
+int blip_get_integrator(const blip_t* m) { return m->integrator; }
+const int* blip_get_buffer(const blip_t* m) { return SAMPLES(m); }
+
+int blip_restore_state(blip_t* m, unsigned long long factor, unsigned long long offset,
+                       int avail, int integrator, const int* buffer, int buffer_count) {
+    if (!m || !buffer) {
+        return -1;
+    }
+    int expected_count = m->size + buf_extra;
+    if (factor == 0 || avail < 0 || avail > m->size
+        || buffer_count != expected_count) {
+        return -1;
+    }
+    m->factor = (fixed_t)factor;
+    m->offset = (fixed_t)offset;
+    m->avail = avail;
+    m->integrator = integrator;
+    memcpy(SAMPLES(m), buffer, (size_t)buffer_count * sizeof(buf_t));
+    return 0;
+}
+
 void blip_add_delta(blip_t* m, unsigned time, int delta) {
     unsigned fixed = (unsigned)((time * m->factor + m->offset) >> pre_shift);
     buf_t* out = SAMPLES(m) + m->avail + (fixed >> frac_bits);

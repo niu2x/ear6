@@ -39,6 +39,7 @@ public:
     uint16_t get_dmc_read_address();
     void set_dmc_read_buffer(uint8_t value);
     uint8_t get_output() { return (uint8_t)timer_.get_last_output(); }
+    void serialize(ear6::StateStream& stream);
 
 private:
     void init_sample();

@@ -37,6 +37,7 @@ public:
     void set_enabled(bool enabled) { length_counter_.set_enabled(enabled); }
     bool is_active() { return length_counter_.is_active(); }
     uint8_t get_output() { return (uint8_t)timer_.get_last_output(); }
+    void serialize(ear6::StateStream& stream);
 
 private:
     NesConsole* console_ = nullptr;

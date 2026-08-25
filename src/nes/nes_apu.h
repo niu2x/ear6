@@ -50,6 +50,7 @@ public:
 
     uint16_t get_dmc_read_address();
     void set_dmc_read_buffer(uint8_t value);
+    void serialize(ear6::StateStream& stream);
 
 private:
     bool need_to_run(uint32_t current_cycle);

@@ -29,6 +29,7 @@ public:
     bool is_loading() const { return loading_; }
     bool is_saving() const { return !loading_; }
     bool has_error() const { return error_; }
+    void fail() { error_ = true; }
     size_t get_remaining() const { return input_size_ - position_; }
     const std::vector<uint8_t>& get_data() const { return output_; }
 
@@ -89,6 +90,14 @@ public:
     void sync_array(T (&values)[Size]) {
         for (T& value : values) {
             sync(value);
+        }
+    }
+
+    template<typename T>
+    void sync_span(T* values, size_t size) {
+        static_assert(std::is_integral_v<T> || std::is_enum_v<T>);
+        for (size_t i = 0; i < size; ++i) {
+            sync(values[i]);
         }
     }
 

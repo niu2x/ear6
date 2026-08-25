@@ -27,6 +27,7 @@ public:
     const int16_t* get_output_buffer() const { return output_buffer_; }
     size_t get_sample_count() const { return sample_count_; }
     void consume_samples(size_t count);
+    void serialize(ear6::StateStream& stream);
 
 private:
     void end_frame(uint32_t time);

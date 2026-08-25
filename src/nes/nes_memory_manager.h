@@ -26,6 +26,7 @@ public:
     uint8_t get_open_bus(uint8_t mask = 0xFF);
     uint8_t* get_internal_ram();
     OpenBusHandler& get_open_bus_handler() { return open_bus_handler_; }
+    void serialize(ear6::StateStream& stream);
 
 private:
     void init_memory_handlers(INesMemoryHandler** handlers, INesMemoryHandler* handler,

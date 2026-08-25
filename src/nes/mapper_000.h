@@ -15,6 +15,7 @@ public:
     void write_ram(uint16_t addr, uint8_t value) override;
     uint8_t read_ram(uint16_t addr) override;
     void get_memory_ranges(MemoryRanges& ranges) override;
+    void serialize(ear6::StateStream& stream) override;
 
 private:
     bool chr_is_ram_ = false;

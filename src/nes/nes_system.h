@@ -12,6 +12,9 @@ public:
     NesSystem();
 
     int load(const void* data, int size) override;
+    uint64_t get_content_identity() const override { return content_identity_; }
+    int save_state(std::vector<uint8_t>& data) const override;
+    int load_state(const void* data, size_t size) override;
 
     int step() override;
 
@@ -41,6 +44,7 @@ private:
     std::unique_ptr<nes::NesConsole> console_;
     uint32_t palette_[64] = {};
     std::vector<uint8_t> rgba_framebuffer_;
+    uint64_t content_identity_ = 0;
 };
 
 } // namespace ear6

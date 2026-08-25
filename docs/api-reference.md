@@ -203,6 +203,10 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 带 magic、格式版本、系统类型、内容身份、payload 长度和校验值的 Ear6 state。
 该二进制格式不等同于 Mesen2 state，也不承诺其他模拟器可以读取。
 
+当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `1`。加载器只接受与当前
+版本完全相同的 state；不迁移、不兼容读取旧版本。格式升级后，旧 state 会明确
+返回失败，宿主不应修改或自行拼接 state 头。
+
 ### `ear6_load_state_from_memory`
 
 ```c

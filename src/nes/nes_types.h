@@ -4,6 +4,8 @@
 #include <cstring>
 #include <string>
 
+namespace ear6 { class StateStream; }
+
 namespace ear6::nes {
 
 constexpr uint32_t CPU_CLOCK_RATE_NTSC = 1789773;

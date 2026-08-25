@@ -48,6 +48,7 @@ public:
     uint16_t get_timer() const { return timer_; }
     void set_timer(uint16_t t) { timer_ = t; }
     void end_frame() { previous_cycle_ = 0; }
+    void serialize(ear6::StateStream& stream);
 
 private:
     uint32_t previous_cycle_ = 0;

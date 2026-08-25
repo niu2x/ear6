@@ -171,6 +171,7 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/vs_control_manager.cpp
     src/nes/nes_console.cpp
     src/nes/nes_system.cpp
+    src/nes/nes_state.cpp
     "${EAR6_NES_DB_EMBEDDED_H}"
 )
 

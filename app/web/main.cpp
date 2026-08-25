@@ -15,13 +15,8 @@ void ear6_web_destroy(Ear6* ctx) {
 }
 
 EMSCRIPTEN_KEEPALIVE
-int ear6_web_load(Ear6* ctx, const void* data, int size) {
-    return ear6_load_data(ctx, data, size, nullptr);
-}
-
-EMSCRIPTEN_KEEPALIVE
-int ear6_web_load_data(Ear6* ctx, const void* data, int size, const char* name_hint) {
-    return ear6_load_data(ctx, data, size, name_hint);
+int ear6_web_load_from_memory(Ear6* ctx, const void* data, int size) {
+    return ear6_load_from_memory(ctx, data, size, nullptr);
 }
 
 EMSCRIPTEN_KEEPALIVE

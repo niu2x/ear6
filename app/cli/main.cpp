@@ -251,9 +251,9 @@ static int cmd_screenshot(const char* rom_path, int frames, const char* output,
         return 1;
     }
 
-    int rc = ear6_load_data(ctx, rom.data(), (int)rom.size(), rom_path);
+    int rc = ear6_load_from_memory(ctx, rom.data(), (int)rom.size(), rom_path);
     if (rc != 0) {
-        fprintf(stderr, "Error: ear6_load failed (%d)\n", rc);
+        fprintf(stderr, "Error: ear6_load_from_memory failed (%d)\n", rc);
         ear6_destroy(ctx);
         return 1;
     }
@@ -416,9 +416,9 @@ static int cmd_record(const char* rom_path, int frames, const char* output,
         return 1;
     }
 
-    int rc = ear6_load_data(ctx, rom.data(), (int)rom.size(), rom_path);
+    int rc = ear6_load_from_memory(ctx, rom.data(), (int)rom.size(), rom_path);
     if (rc != 0) {
-        fprintf(stderr, "Error: ear6_load failed (%d)\n", rc);
+        fprintf(stderr, "Error: ear6_load_from_memory failed (%d)\n", rc);
         ear6_destroy(ctx);
         return 1;
     }

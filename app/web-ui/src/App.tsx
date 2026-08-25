@@ -226,7 +226,7 @@ function App() {
       ptr = mod._malloc(bytes.length)
       if (!ptr) throw new Error('Unable to allocate ROM memory')
       mod.HEAPU8.set(bytes, ptr)
-      if (mod._ear6_web_load(ctxRef.current, ptr, bytes.length) !== 0) {
+      if (mod._ear6_web_load_from_memory(ctxRef.current, ptr, bytes.length) !== 0) {
         throw new Error('ROM load failed')
       }
       romDataRef.current = bytes
@@ -262,7 +262,7 @@ function App() {
       return
     }
     mod.HEAPU8.set(data, ptr)
-    const result = mod._ear6_web_load(ctxRef.current, ptr, data.length)
+    const result = mod._ear6_web_load_from_memory(ctxRef.current, ptr, data.length)
     mod._free(ptr)
     if (result !== 0) {
       setStatusText('Reset failed')

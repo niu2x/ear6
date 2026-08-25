@@ -77,7 +77,7 @@ typedef enum {
 |---:|---|
 | `-1` | 无效上下文、无效参数、错误系统类型或系统拒绝输入 |
 | `-2` | C++ 实现抛出异常，已在 C ABI 边界捕获 |
-| `-3` | `ear6_load()` 打开、定位或读取文件失败 |
+| `-3` | `ear6_load_from_file()` 打开、定位或读取文件失败 |
 
 未来应增加公开错误枚举；见 [项目路线图](TODO.md)。
 
@@ -87,7 +87,7 @@ typedef enum {
 ear6_create(system)
         |
         v
-ear6_load(...) 或 ear6_load_data(...)
+ear6_load_from_file(...) 或 ear6_load_from_memory(...)
         |
         +--> 设置系统专有配置和输入
         |
@@ -129,10 +129,10 @@ void ear6_destroy(Ear6* ctx);
 
 ## 5. 加载内容
 
-### `ear6_load`
+### `ear6_load_from_file`
 
 ```c
-int ear6_load(Ear6* ctx, const char* path);
+int ear6_load_from_file(Ear6* ctx, const char* path);
 ```
 
 从本地文件系统读取全部内容并交给所选系统。
@@ -140,14 +140,14 @@ int ear6_load(Ear6* ctx, const char* path);
 - `ctx` 和 `path` 必须非空
 - 路径只在函数调用期间使用，不被上下文保存
 - 返回 `0` 表示系统接受并完成初始化
-- 原生应用可以使用；浏览器宿主通常应使用 `ear6_load_data()`
+- 原生应用可以使用；浏览器宿主通常应使用 `ear6_load_from_memory()`
 
 Test 系统接受任意可读文件。NES 系统要求有效的 iNES/NES 2.0 数据。
 
-### `ear6_load_data`
+### `ear6_load_from_memory`
 
 ```c
-int ear6_load_data(
+int ear6_load_from_memory(
     Ear6* ctx,
     const void* data,
     int size,
@@ -420,7 +420,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    int rc = ear6_load(ctx, argv[1]);
+    int rc = ear6_load_from_file(ctx, argv[1]);
     if (rc != 0) {
         fprintf(stderr, "failed to load ROM: %d\n", rc);
         ear6_destroy(ctx);

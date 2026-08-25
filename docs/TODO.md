@@ -47,7 +47,7 @@
 - [ ] Flash 核心实现前，处理无实现符号的 `ear6_flash_set_version()`
 - [ ] 定义公开错误枚举，替代文档化但未命名的 `-1/-2/-3`
 - [ ] 增加音频格式查询：sample rate、channel count、sample format
-- [ ] 明确并测试 `ear6_load_data()` 的空指针、负 size、超大输入和输入缓冲区生命周期
+- [ ] 明确并测试 `ear6_load_from_memory()` 的空指针、负 size、超大输入和输入缓冲区生命周期
 - [ ] 为 framebuffer 和音频指针有效期建立 API contract 测试
 - [ ] 增加安装后 consumer 测试：纯 C 编译、C++ 编译和 `find_package(Ear6)` 链接
 - [ ] 决定 `ear6_test()` 是正式诊断 API 还是移除的早期兼容符号

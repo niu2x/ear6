@@ -14,8 +14,8 @@ EmulatorWidget::EmulatorWidget(Ear6SystemType system, const QString& rom_path, Q
     }
 
     if (rom_path.isEmpty()) {
-        ear6_load(ctx_, nullptr);
-    } else if (ear6_load(ctx_, rom_path.toUtf8().constData()) != 0) {
+        ear6_load_from_memory(ctx_, nullptr, 0, nullptr);
+    } else if (ear6_load_from_file(ctx_, rom_path.toUtf8().constData()) != 0) {
         emit load_failed(rom_path);
     }
 
@@ -54,8 +54,8 @@ void EmulatorWidget::reset(Ear6SystemType system, const QString& rom_path) {
     ctx_ = ear6_create(system);
     if (ctx_) {
         if (rom_path.isEmpty()) {
-            ear6_load(ctx_, nullptr);
-        } else if (ear6_load(ctx_, rom_path.toUtf8().constData()) != 0) {
+            ear6_load_from_memory(ctx_, nullptr, 0, nullptr);
+        } else if (ear6_load_from_file(ctx_, rom_path.toUtf8().constData()) != 0) {
             emit load_failed(rom_path);
         }
     }

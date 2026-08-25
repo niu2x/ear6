@@ -46,7 +46,7 @@ extern "C" void ear6_destroy(Ear6* ctx) {
     delete ctx;
 }
 
-extern "C" int ear6_load(Ear6* ctx, const char* path) {
+extern "C" int ear6_load_from_file(Ear6* ctx, const char* path) {
     if (!ctx || !ctx->system || !path) return -1;
     try {
         FILE* f = std::fopen(path, "rb");
@@ -61,16 +61,21 @@ extern "C" int ear6_load(Ear6* ctx, const char* path) {
             return -3;
         }
         std::fclose(f);
-        return ctx->system->load_data(buf.data(), static_cast<int>(sz), path);
+        return ctx->system->load_from_memory(buf.data(), static_cast<int>(sz), path);
     } catch (...) {
         return -2;
     }
 }
 
-extern "C" int ear6_load_data(Ear6* ctx, const void* data, int size, const char* name_hint) {
+extern "C" int ear6_load_from_memory(
+    Ear6* ctx,
+    const void* data,
+    int size,
+    const char* name_hint
+) {
     if (!ctx || !ctx->system) return -1;
     try {
-        return ctx->system->load_data(data, size, name_hint);
+        return ctx->system->load_from_memory(data, size, name_hint);
     } catch (...) {
         return -2;
     }

@@ -11,7 +11,7 @@ public:
 
     virtual int load(const void* data, int size) = 0;
 
-    virtual int load_data(const void* data, int size, const char* name_hint) {
+    virtual int load_from_memory(const void* data, int size, const char* name_hint) {
         (void)name_hint;
         return load(data, size);
     }

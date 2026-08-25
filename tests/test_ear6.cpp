@@ -23,7 +23,7 @@ TEST(Ear6Create, NesSystemWorks) {
     rom[4] = 1; rom[5] = 0;
     rom[16] = 0x4C; rom[17] = 0x00; rom[18] = 0x80;
 
-    int r = ear6_load_data(ctx, rom, sizeof(rom), nullptr);
+    int r = ear6_load_from_memory(ctx, rom, sizeof(rom), nullptr);
     ASSERT_EQ(r, 0);
 
     int step = ear6_step(ctx);
@@ -47,13 +47,13 @@ TEST(Ear6Load, LoadPathSuccess) {
     rom[4] = 1; rom[5] = 0;
     rom[16] = 0x4C; rom[17] = 0x00; rom[18] = 0x80;
 
-    const char* tmp = "/tmp/test_ear6_load.nes";
+    const char* tmp = "/tmp/test_ear6_load_from_file.nes";
     FILE* f = std::fopen(tmp, "wb");
     ASSERT_NE(f, nullptr);
     ASSERT_EQ(std::fwrite(rom, 1, sizeof(rom), f), sizeof(rom));
     std::fclose(f);
 
-    int r = ear6_load(ctx, tmp);
+    int r = ear6_load_from_file(ctx, tmp);
     ASSERT_EQ(r, 0);
     std::remove(tmp);
 
@@ -65,7 +65,7 @@ TEST(Ear6Load, LoadPathSuccess) {
 TEST(Ear6Load, LoadPathInvalid) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);
-    int r = ear6_load(ctx, "/nonexistent/path.rom");
+    int r = ear6_load_from_file(ctx, "/nonexistent/path.rom");
     ASSERT_EQ(r, -3);
     ear6_destroy(ctx);
 }
@@ -80,7 +80,7 @@ TEST(Ear6Load, LoadDataWithNameHint) {
     rom[4] = 1; rom[5] = 0;
     rom[16] = 0x4C; rom[17] = 0x00; rom[18] = 0x80;
 
-    int r = ear6_load_data(ctx, rom, sizeof(rom), "test_game.nes");
+    int r = ear6_load_from_memory(ctx, rom, sizeof(rom), "test_game.nes");
     ASSERT_EQ(r, 0);
 
     int step = ear6_step(ctx);
@@ -91,7 +91,7 @@ TEST(Ear6Load, LoadDataWithNameHint) {
 TEST(Ear6Load, LoadWithNullPathIsSafe) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);
-    int r = ear6_load(ctx, nullptr);
+    int r = ear6_load_from_file(ctx, nullptr);
     ASSERT_EQ(r, -1);
     ear6_destroy(ctx);
 }
@@ -174,8 +174,8 @@ TEST(ChoplifterRegression, Frame30) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < 30; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -203,8 +203,8 @@ TEST(Smb3Regression, Frame60) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < 60; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -246,7 +246,7 @@ TEST_P(Mapper19RegressionTest, Frame) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -296,7 +296,7 @@ TEST_P(VrcRegressionTest, Frame) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -330,7 +330,7 @@ TEST(Mapper64Regression, HeaderMapperProbeFrame256) {
     rom.back() ^= 0x01;
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load_data(ctx, rom.data(), static_cast<int>(rom.size()),
+    ASSERT_EQ(ear6_load_from_memory(ctx, rom.data(), static_cast<int>(rom.size()),
                              "mapper64-probe.nes"), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -353,7 +353,7 @@ TEST(Mapper45Regression, BrainSeriesFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -375,7 +375,7 @@ TEST(OldINesHeaderRegression, DiskDudeMapperBitsIgnored) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 60; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -397,7 +397,7 @@ TEST(Mapper68Regression, AfterBurnerFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -419,7 +419,7 @@ TEST(Mapper69Regression, BatmanFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -441,7 +441,7 @@ TEST(Mapper74Regression, SuperRobotWars2Frame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -463,7 +463,7 @@ TEST(Mapper90Regression, FinalFantasy3Frame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -485,7 +485,7 @@ TEST(Mapper99Regression, VsBattleCityFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -507,7 +507,7 @@ TEST(Mapper118Regression, ArumajiroFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -537,7 +537,7 @@ TEST(Mapper245Regression, HeaderMapperProbeFrame256) {
     rom.push_back(0);
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load_data(ctx, rom.data(), static_cast<int>(rom.size()),
+    ASSERT_EQ(ear6_load_from_memory(ctx, rom.data(), static_cast<int>(rom.size()),
                              "mapper245-probe.nes"), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -560,7 +560,7 @@ TEST(Mapper252Regression, ThreeGoFrame256) {
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
-    ASSERT_EQ(ear6_load(ctx, rom_path.c_str()), 0);
+    ASSERT_EQ(ear6_load_from_file(ctx, rom_path.c_str()), 0);
     for (int i = 0; i < 256; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
     }
@@ -644,8 +644,8 @@ TEST_P(Mapper3RegressionTest, Frame) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -814,8 +814,8 @@ TEST_P(Mapper0RegressionTest, Frame) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -948,8 +948,8 @@ TEST_P(Mapper2RegressionTest, Frame) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);
@@ -1226,8 +1226,8 @@ TEST_P(Mapper1RegressionTest, Frame) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
 
-    int rc = ear6_load(ctx, rom_path.c_str());
-    ASSERT_EQ(rc, 0) << "ear6_load failed for: " << rom_path;
+    int rc = ear6_load_from_file(ctx, rom_path.c_str());
+    ASSERT_EQ(rc, 0) << "ear6_load_from_file failed for: " << rom_path;
 
     for (int i = 0; i < param.frame; i++) {
         ASSERT_EQ(ear6_step(ctx), 0);

@@ -200,7 +200,7 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 ```
 
 当容量不足时函数返回非零，并通过 `state_size` 返回所需容量。成功后 buffer 中是
-带 magic、格式版本、系统类型、内容身份、原始内容、名称提示、系统 payload 和
+带 magic、格式版本、内容身份、原始内容、名称提示、系统 payload 和
 整体校验值的 Ear6 state。该二进制格式不等同于 Mesen2 state，也不承诺其他
 模拟器可以读取。
 
@@ -214,13 +214,13 @@ v2 固定头为 64 字节，所有整数均为 little-endian：
 |---:|---|---:|
 | 0 | magic `EAR6STAT` | 8 |
 | 8 | format version | 4 |
-| 12 | `Ear6SystemType` | 4 |
+| 12 | flags | 4 |
 | 16 | content identity | 8 |
 | 24 | content size | 8 |
 | 32 | name hint size | 8 |
 | 40 | system payload size | 8 |
 | 48 | body CRC32 | 4 |
-| 52 | flags | 4 |
+| 52 | reserved，必须为 0 | 4 |
 | 56 | reserved，必须为 0 | 8 |
 
 header 后的 body 依次为名称字节、原始内容字节和系统 payload；CRC32 覆盖整个
@@ -238,9 +238,13 @@ int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 ```
 
 无需预先加载 ROM。Ear6 先在临时系统中加载 state 内嵌的内容，再恢复系统 payload；
-只有两步都成功才会原子替换 `ctx` 当前系统。格式版本、系统类型、内容 identity、
-长度、checksum 或 payload 不匹配时返回非零，原有内容和模拟状态保持不变。加载
+只有两步都成功才会原子替换 `ctx` 当前系统。格式版本、内容 identity、长度、
+checksum 或 payload 不匹配时返回非零，原有内容和模拟状态保持不变。加载
 成功后，先前取得的 framebuffer 和音频指针均视为失效，宿主应重新查询。
+
+state 不保存 `Ear6SystemType`。目标系统仍由 `ear6_create()` 选择；如果内嵌内容或
+payload 不能被该系统接受，加载返回失败。未来可以在宿主或独立内容探测 API 中
+自动选择系统，而无需修改 state 的通用容器头。
 
 state 头保存由完整 ROM 数据计算出的 64-bit content identity，并对名称、ROM 和
 payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现误配与损坏，不是防篡改

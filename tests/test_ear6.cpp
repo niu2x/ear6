@@ -568,6 +568,28 @@ TEST(Ear6State, RejectsModifiedEmbeddedContentWithoutMutation) {
     ear6_destroy(current);
 }
 
+TEST(Ear6State, RejectsStateForIncompatibleTargetSystemWithoutMutation) {
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    Ear6* nes = ear6_create(EAR6_SYSTEM_NES);
+    Ear6* test = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(nes, nullptr);
+    ASSERT_NE(test, nullptr);
+    ASSERT_EQ(ear6_load_from_memory(
+        nes, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+    ASSERT_EQ(ear6_step(test), 0);
+
+    std::vector<uint8_t> nes_state = save_state(nes);
+    std::vector<uint8_t> before = save_state(test);
+    ASSERT_FALSE(nes_state.empty());
+    ASSERT_FALSE(before.empty());
+    EXPECT_NE(ear6_load_state_from_memory(
+        test, nes_state.data(), nes_state.size()), 0);
+    EXPECT_EQ(save_state(test), before);
+
+    ear6_destroy(nes);
+    ear6_destroy(test);
+}
+
 TEST(Ear6Create, FlashSystemNotImplemented) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_FLASH);
     EXPECT_EQ(ctx, nullptr);

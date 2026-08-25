@@ -26,6 +26,8 @@
 - [x] NES CPU 周期驱动 PPU master clock，并通过内存 handler 分发表路由设备
 - [x] NES PRG/CHR 页表、work/save RAM 内存区和 submapper 元数据
 - [x] NES 基础 APU 和部分扩展音频（VRC6、Namco 163、Sunsoft 5B）
+- [x] 版本化内存 save state：Test 系统及全部受支持 NES mapper，含内容身份、
+      CRC、损坏回滚和连续运行测试
 - [x] 多个 mapper 的固定帧回归与 Mesen2 抽样对比
 
 ### 系统成熟度
@@ -71,7 +73,6 @@
 - [ ] FDS RAM adapter、寄存器、磁盘和扩展音频
 - [ ] PAL/Dendy 的 CPU、PPU、APU 帧时序与公共配置路径
 - [ ] battery-backed save RAM 的宿主持久化 API
-- [ ] 完成 NES save/load state 的 CPU、PPU、APU、输入和全部 mapper 序列化覆盖
 - [ ] Zapper、Four Score、Arkanoid controller、Power Pad 等设备选择 API
 - [ ] VS System/DualSystem 的 coin、DIP switch 和双机设备模型
 - [ ] DMC DMA 与 sprite DMA 并发、cycle stealing 和边缘时序验证

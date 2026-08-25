@@ -66,7 +66,9 @@ validates state buffers; host applications own file paths, slots, compression,
 databases, and cloud persistence. Do not add state-file I/O to the core, and do
 not confuse whole-machine state with battery-backed game save RAM. A system
 must reject save/load state until all state that affects future execution is
-covered.
+covered. State buffers do not embed loaded content: the host must load the same
+content first, and the core must reject format version, system type, content
+identity, checksum, or payload mismatches without changing the current state.
 
 Current support must be stated precisely:
 

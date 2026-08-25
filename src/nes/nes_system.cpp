@@ -1,4 +1,5 @@
 #include "nes_system.h"
+#include "mapper_factory.h"
 #include "nes_ppu.h"
 #include "../state_stream.h"
 
@@ -154,37 +155,6 @@ static const uint8_t PALETTE_LUT_2C05[64] = {
    48,49,50,51,52,53,54,55,56,57,58,59,60,15,62,63
 };
 
-static bool is_mapper_state_supported(int mapper_number) {
-    switch (mapper_number) {
-        case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
-        case 9: case 10: case 11:
-        case 13: case 15: case 16: case 17: case 18: case 19: case 21: case 22:
-        case 23:
-        case 24: case 25: case 26: case 32: case 33: case 34: case 35:
-        case 38: case 39: case 40: case 41: case 42: case 43: case 45: case 46:
-        case 50:
-        case 57: case 58: case 60: case 61: case 62: case 64: case 65: case 66:
-        case 67: case 68: case 69: case 70: case 71: case 72: case 73: case 75:
-        case 74: case 76:
-        case 77: case 78: case 79: case 86: case 87: case 88: case 89: case 90:
-        case 92: case 93: case 94: case 95: case 99: case 101: case 107:
-        case 112: case 113: case 117: case 118: case 133: case 140: case 143:
-        case 144:
-        case 145: case 146: case 148: case 149: case 150: case 151: case 153:
-        case 154: case 156: case 157: case 159: case 170: case 174: case 180:
-        case 184: case 185: case 200:
-        case 202: case 203: case 204: case 206: case 210: case 213: case 214:
-        case 216:
-        case 221: case 225: case 226: case 227: case 229: case 230: case 231:
-        case 233: case 240: case 241: case 242: case 243: case 244: case 245:
-        case 246:
-        case 252:
-            return true;
-        default:
-            return false;
-    }
-}
-
 NesSystem::NesSystem()
     : console_(std::make_unique<nes::NesConsole>())
     , rgba_framebuffer_(256 * 240 * 4, 0) {
@@ -208,7 +178,7 @@ int NesSystem::load(const void* data, int size) {
 
 int NesSystem::save_state(std::vector<uint8_t>& data) const {
     if (!console_ || content_identity_ == 0
-        || !is_mapper_state_supported(console_->get_rom_info().mapper_number)) {
+        || !nes::MapperFactory::is_supported(console_->get_rom_info().mapper_number)) {
         return -1;
     }
 
@@ -228,7 +198,7 @@ int NesSystem::save_state(std::vector<uint8_t>& data) const {
 
 int NesSystem::load_state(const void* data, size_t size) {
     if (!console_ || content_identity_ == 0
-        || !is_mapper_state_supported(console_->get_rom_info().mapper_number)) {
+        || !nes::MapperFactory::is_supported(console_->get_rom_info().mapper_number)) {
         return -1;
     }
 

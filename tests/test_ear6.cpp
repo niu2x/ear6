@@ -463,6 +463,23 @@ TEST(Ear6State, RejectsStateForDifferentNesContent) {
     ear6_destroy(second);
 }
 
+TEST(Ear6State, RejectsNesStateUntilContentIsLoaded) {
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    Ear6* loaded = ear6_create(EAR6_SYSTEM_NES);
+    Ear6* empty = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(loaded, nullptr);
+    ASSERT_NE(empty, nullptr);
+    ASSERT_EQ(ear6_load_from_memory(
+        loaded, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+
+    std::vector<uint8_t> state = save_state(loaded);
+    ASSERT_FALSE(state.empty());
+    EXPECT_NE(ear6_load_state_from_memory(empty, state.data(), state.size()), 0);
+
+    ear6_destroy(loaded);
+    ear6_destroy(empty);
+}
+
 TEST(Ear6Create, FlashSystemNotImplemented) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_FLASH);
     EXPECT_EQ(ctx, nullptr);

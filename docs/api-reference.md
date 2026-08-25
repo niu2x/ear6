@@ -218,11 +218,14 @@ checksum 不匹配时返回非零，不修改当前模拟状态。加载成功�
 framebuffer 和音频指针均视为失效，宿主应重新查询。
 
 state 不包含 ROM 数据；宿主必须单独保留 ROM，并先调用 `ear6_load_from_file()` 或
-`ear6_load_from_memory()`。Ear6 会比较 state 中的内容身份与当前已加载的完整 ROM，
-两者不一致时拒绝恢复。
+`ear6_load_from_memory()`。state 头只保存由完整 ROM 数据计算出的 64-bit content
+identity。Ear6 会将它与当前内容的 identity 比较；未加载 ROM 或 identity 不一致
+时拒绝恢复。该 identity 和 CRC 用于发现误配与损坏，不是防篡改的密码学验证。
 
-当前 Test 系统和 NES mapper 0 支持完整 state 往返。其他 NES mapper 的私有状态
-尚未覆盖，因此这两个函数会返回非零，避免生成不完整且看似可用的 state。
+当前 Test 系统和 MapperFactory 接受的全部 NES mapper 都支持完整 state 往返。
+回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `assets/nes/rom/` 中
+现有的真实 ROM mapper 样本做恢复后重放验证。这里的 state 覆盖不表示这些 mapper
+已经达到 Mesen2 的逐周期或逐像素精确性；兼容性证据仍以 `nes-issue.md` 为准。
 
 ## 7. 推进模拟
 

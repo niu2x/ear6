@@ -600,6 +600,11 @@ canvas {
   border-bottom: 0;
 }
 
+.control-map div > span {
+  font-size: 16px;
+  font-weight: 400;
+}
+
 kbd {
   min-width: 72px;
   padding: 5px 8px;

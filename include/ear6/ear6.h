@@ -11,13 +11,32 @@ extern "C" {
 
 typedef struct Ear6 Ear6;
 
-#define EAR6_STATE_FORMAT_VERSION 2u
+#define EAR6_STATE_FORMAT_VERSION 3u
 
 typedef enum {
     EAR6_SYSTEM_TEST,
     EAR6_SYSTEM_NES,
     EAR6_SYSTEM_FLASH,
 } Ear6SystemType;
+
+typedef enum {
+    EAR6_STATE_PREVIEW_NONE,
+    EAR6_STATE_PREVIEW_RGBA8888,
+} Ear6StatePreviewFormat;
+
+typedef struct {
+    uint32_t format_version;
+    Ear6SystemType system_type;
+    uint64_t content_identity;
+    uint64_t content_size;
+    const char* content_name_hint;
+    size_t content_name_hint_size;
+    Ear6StatePreviewFormat preview_format;
+    const uint8_t* preview_data;
+    size_t preview_size;
+    int preview_width;
+    int preview_height;
+} Ear6StateInfo;
 
 typedef void (*Ear6FrameCallback)(const void* data, int width, int height, void* user_data);
 
@@ -36,6 +55,7 @@ EAR6_API int ear6_save_state_to_memory(
     size_t* state_size
 );
 EAR6_API int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
+EAR6_API int ear6_get_state_info(const void* data, size_t size, Ear6StateInfo* info);
 
 EAR6_API void ear6_set_frame_callback(Ear6* ctx, Ear6FrameCallback cb, void* user_data);
 EAR6_API void ear6_set_audio_callback(Ear6* ctx, Ear6AudioCallback cb, void* user_data);

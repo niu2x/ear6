@@ -67,12 +67,13 @@ databases, and cloud persistence. Do not add state-file I/O to the core, and do
 not confuse whole-machine state with battery-backed game save RAM. A system
 must reject save/load state until all state that affects future execution is
 covered. State buffers embed the original loaded content so they can restore a
-fresh context without a separate ROM. The core must reject format version,
-content identity, checksum, incompatible target system, or payload mismatches
-without changing the current state. A successful load atomically replaces the
-current content. Treat state files as content-bearing artifacts: they may be
-large and may carry the same copyright and redistribution restrictions as the
-embedded ROM.
+fresh context without a separate ROM. When a system exposes a framebuffer,
+state buffers also embed the current RGBA8888 frame as a preview image for host
+save pickers. The core must reject format version, content identity, checksum,
+incompatible target system, preview, or payload mismatches without changing the
+current state. A successful load atomically replaces the current content. Treat
+state files as content-bearing artifacts: they may be large and may carry the
+same copyright and redistribution restrictions as the embedded ROM.
 The common envelope persists `Ear6SystemType` for dispatch and validation.
 Every system owns its payload layout and must version that payload internally,
 so one system can evolve without redefining unrelated systems' state data.

@@ -200,15 +200,15 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 ```
 
 当容量不足时函数返回非零，并通过 `state_size` 返回所需容量。成功后 buffer 中是
-带 magic、格式版本、内容身份、原始内容、名称提示、系统 payload 和
-整体校验值的 Ear6 state。该二进制格式不等同于 Mesen2 state，也不承诺其他
+带 magic、格式版本、内容身份、原始内容、名称提示、当前画面预览、系统 payload
+和整体校验值的 Ear6 state。该二进制格式不等同于 Mesen2 state，也不承诺其他
 模拟器可以读取。
 
-当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `2`。加载器只接受与当前
+当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `3`。加载器只接受与当前
 版本完全相同的 state；不迁移、不兼容读取旧版本。格式升级后，旧 state 会明确
 返回失败，宿主不应修改或自行拼接 state 头。
 
-v2 固定头为 64 字节，所有整数均为 little-endian：
+v3 固定头为 64 字节，所有整数均为 little-endian：
 
 | Offset | 字段 | 大小 |
 |---:|---|---:|
@@ -221,15 +221,42 @@ v2 固定头为 64 字节，所有整数均为 little-endian：
 | 40 | system payload size | 8 |
 | 48 | body CRC32 | 4 |
 | 52 | flags | 4 |
-| 56 | reserved，必须为 0 | 8 |
+| 56 | preview block size | 8 |
 
-header 后的 body 依次为名称字节、原始内容字节和系统 payload；CRC32 覆盖整个
-body。该布局只用于诊断和格式说明，宿主仍应把 state 当作不透明 buffer。
+header 后的 body 依次为名称字节、原始内容字节、preview block 和系统 payload；
+CRC32 覆盖整个 body。preview block 以四个 little-endian `uint32_t` 开头：preview
+version、`Ear6StatePreviewFormat`、宽度和高度，之后紧跟像素。当前 preview version
+为 `1`，格式为紧密排列的 RGBA8888。该布局只用于诊断和格式说明，宿主仍应优先
+使用 `ear6_get_state_info()`，把其余 state 数据当作不透明 buffer。
 
 state 内嵌原始 ROM，因此大小至少约等于 ROM 大小加运行态 payload。它不是压缩包，
 也没有加密。文件名提示只保留末尾名称，不保存本地目录、URL query 或 fragment。
 state 与内嵌 ROM 具有相同的隐私、版权和分发风险；宿主不能把它当成不含游戏内容
 的小型元数据文件。
+
+当系统存在有效 framebuffer 时，保存操作会复制调用瞬间的当前可见帧作为预览。
+NES 因而保存最近完成的 PPU frame；预览只用于 UI，不会在 load 时覆盖或参与模拟
+状态恢复。当前 256x240 RGBA8888 NES 预览额外占用 245760 字节。
+
+### `ear6_get_state_info`
+
+```c
+int ear6_get_state_info(
+    const void* data,
+    size_t size,
+    Ear6StateInfo* info
+);
+```
+
+在不创建或修改模拟器上下文的情况下验证 state，并返回菜单展示所需的元数据：
+格式版本、系统类型、内容 identity、内容大小、名称提示和预览图。成功返回 `0`；
+magic、版本、长度、CRC 或 preview block 无效时返回非零并清空 `info`。
+
+`content_name_hint` 和 `preview_data` 都直接指向调用者传入的 state buffer，不由 Ear6
+分配，也不能释放；它们只在该 buffer 保持原地址且未被修改时有效。名称由
+`content_name_hint_size` 定界，不保证以 NUL 结尾。`preview_data` 当前为
+`preview_width * preview_height * 4` 字节的 RGBA8888；没有预览时 format 为
+`EAR6_STATE_PREVIEW_NONE`、指针为 `NULL`、尺寸和大小均为零。
 
 ### `ear6_load_state_from_memory`
 
@@ -247,9 +274,9 @@ int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 内部维护自己的版本；NES 和 Test 当前 payload version 都是 `1`。某个系统扩展状态
 时可以只升级自己的 payload，不需要改变其他系统的结构。
 
-state 头保存由完整 ROM 数据计算出的 64-bit content identity，并对名称、ROM 和
-payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现误配与损坏，不是防篡改
-的密码学验证。
+state 头保存由完整 ROM 数据计算出的 64-bit content identity，并对名称、ROM、
+preview 和 payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现误配与损坏，
+不是防篡改的密码学验证。
 
 当前 Test 系统和 MapperFactory 接受的全部 NES mapper 都支持完整 state 往返。
 回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `assets/nes/rom/` 中

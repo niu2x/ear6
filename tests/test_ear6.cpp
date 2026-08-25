@@ -184,6 +184,9 @@ TEST(Ear6State, NullArgumentsAreRejected) {
     EXPECT_NE(ear6_save_state_to_memory(ctx, nullptr, 0, nullptr), 0);
     EXPECT_NE(ear6_load_state_from_memory(nullptr, &size, sizeof(size)), 0);
     EXPECT_NE(ear6_load_state_from_memory(ctx, nullptr, 0), 0);
+    Ear6StateInfo info = {};
+    EXPECT_NE(ear6_get_state_info(nullptr, 0, &info), 0);
+    EXPECT_NE(ear6_get_state_info(&size, sizeof(size), nullptr), 0);
 
     ear6_destroy(ctx);
 }
@@ -227,6 +230,7 @@ static uint64_t read_u64_le(const std::vector<uint8_t>& data, size_t offset) {
 TEST(Ear6State, RejectsUnknownSystemPayloadVersionWithoutMutation) {
     constexpr size_t STATE_HEADER_SIZE = 64;
     constexpr size_t BODY_CRC_OFFSET = 48;
+    constexpr size_t PREVIEW_SIZE_OFFSET = 56;
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);
@@ -235,7 +239,10 @@ TEST(Ear6State, RejectsUnknownSystemPayloadVersionWithoutMutation) {
     ASSERT_GT(before.size(), STATE_HEADER_SIZE);
 
     std::vector<uint8_t> future_payload = before;
-    future_payload[STATE_HEADER_SIZE] = 2;
+    size_t payload_offset = STATE_HEADER_SIZE
+        + static_cast<size_t>(read_u64_le(future_payload, PREVIEW_SIZE_OFFSET));
+    ASSERT_LT(payload_offset, future_payload.size());
+    future_payload[payload_offset] = 2;
     write_u32_le(future_payload, BODY_CRC_OFFSET, state_crc32(
         future_payload.data() + STATE_HEADER_SIZE,
         future_payload.size() - STATE_HEADER_SIZE
@@ -350,6 +357,76 @@ TEST(Ear6State, NesStateEmbedsContentAndNameHint) {
     EXPECT_TRUE(std::equal(
         rom.begin(), rom.end(),
         state.begin() + STATE_HEADER_SIZE + name_hint.size()));
+
+    Ear6StateInfo info = {};
+    ASSERT_EQ(ear6_get_state_info(state.data(), state.size(), &info), 0);
+    EXPECT_EQ(info.format_version, EAR6_STATE_FORMAT_VERSION);
+    EXPECT_EQ(info.system_type, EAR6_SYSTEM_NES);
+    EXPECT_NE(info.content_identity, 0u);
+    EXPECT_EQ(info.content_size, rom.size());
+    ASSERT_EQ(info.content_name_hint_size, name_hint.size());
+    ASSERT_NE(info.content_name_hint, nullptr);
+    EXPECT_EQ(std::string(info.content_name_hint, info.content_name_hint_size), name_hint);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, NesStateEmbedsCurrentFramePreview) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    ASSERT_EQ(ear6_load_from_memory(
+        ctx, rom.data(), static_cast<int>(rom.size()), "preview-game.nes"), 0);
+    for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+
+    const uint8_t* framebuffer = ear6_get_framebuffer(ctx);
+    ASSERT_NE(framebuffer, nullptr);
+    std::vector<uint8_t> expected(framebuffer, framebuffer + 256 * 240 * 4);
+    std::vector<uint8_t> state = save_state(ctx);
+    ASSERT_FALSE(state.empty());
+
+    Ear6StateInfo info = {};
+    ASSERT_EQ(ear6_get_state_info(state.data(), state.size(), &info), 0);
+    EXPECT_EQ(info.preview_format, EAR6_STATE_PREVIEW_RGBA8888);
+    EXPECT_EQ(info.preview_width, 256);
+    EXPECT_EQ(info.preview_height, 240);
+    ASSERT_EQ(info.preview_size, expected.size());
+    ASSERT_NE(info.preview_data, nullptr);
+    EXPECT_EQ(std::memcmp(info.preview_data, expected.data(), expected.size()), 0);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, RejectsMalformedPreviewWithoutMutation) {
+    constexpr size_t STATE_HEADER_SIZE = 64;
+    constexpr size_t BODY_CRC_OFFSET = 48;
+    constexpr size_t CONTENT_SIZE_OFFSET = 24;
+    constexpr size_t NAME_HINT_SIZE_OFFSET = 32;
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    ASSERT_EQ(ear6_load_from_memory(
+        ctx, rom.data(), static_cast<int>(rom.size()), "preview-game.nes"), 0);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> before = save_state(ctx);
+    ASSERT_FALSE(before.empty());
+
+    std::vector<uint8_t> malformed = before;
+    size_t preview_offset = STATE_HEADER_SIZE
+        + static_cast<size_t>(read_u64_le(malformed, NAME_HINT_SIZE_OFFSET))
+        + static_cast<size_t>(read_u64_le(malformed, CONTENT_SIZE_OFFSET));
+    ASSERT_LE(preview_offset + 8, malformed.size());
+    write_u32_le(malformed, preview_offset + 4, 99);
+    write_u32_le(malformed, BODY_CRC_OFFSET, state_crc32(
+        malformed.data() + STATE_HEADER_SIZE,
+        malformed.size() - STATE_HEADER_SIZE
+    ));
+
+    Ear6StateInfo info = {};
+    EXPECT_NE(ear6_get_state_info(malformed.data(), malformed.size(), &info), 0);
+    EXPECT_NE(ear6_load_state_from_memory(ctx, malformed.data(), malformed.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
 
     ear6_destroy(ctx);
 }

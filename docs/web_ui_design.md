@@ -57,7 +57,7 @@ browser rendering are intentionally excluded from this metric.
 
 The Save control downloads a `.ear6state` file through the WASM memory API.
 The Load control restores that file into an otherwise empty NES context; no
-separate ROM selection or network request is required because v2 state embeds
+separate ROM selection or network request is required because v3 state embeds
 the original content. A loaded state starts paused. The cold-reset control is
 disabled until the host has original ROM bytes available locally.
 

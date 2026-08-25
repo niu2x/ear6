@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../state_stream.h"
 #include <cstdint>
 #include <cstring>
 
@@ -30,6 +31,7 @@ protected:
 
 public:
     virtual ~BaseEeprom24C0X() = default;
+    void serialize(ear6::StateStream& stream);
     virtual void write(uint8_t scl, uint8_t sda) = 0;
 
     uint8_t read() { return output_; }

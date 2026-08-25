@@ -9,6 +9,7 @@ class NesPpu;
 
 class Mapper005 : public BaseMapper {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void init(const RomInfo& info,
               const std::vector<uint8_t>& prg_rom,
               const std::vector<uint8_t>& chr_rom) override;
@@ -29,6 +30,9 @@ protected:
     bool allow_register_read() override { return true; }
 
 private:
+    bool locate_state_memory(
+        uint8_t* pointer, uint8_t& region, uint32_t& offset) const override;
+    uint8_t* restore_state_memory(uint8_t region, uint32_t offset) override;
     void update_prg_banks();
     void update_chr_banks(bool force_update = true);
     void update_nametable_mapping();

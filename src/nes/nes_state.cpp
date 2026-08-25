@@ -9,8 +9,10 @@
 #include "mapper_001.h"
 #include "mapper_002.h"
 #include "mapper_004.h"
+#include "mapper_005.h"
 #include "mapper_006.h"
 #include "mapper_009.h"
+#include "mapper_016.h"
 #include "mapper_018.h"
 #include "mapper_019.h"
 #include "mapper_032.h"
@@ -631,6 +633,138 @@ void Mapper045::serialize(StateStream& s) {
     Mapper004::serialize(s);
     sync_std_array(s, outer_registers_);
     s.sync(outer_register_index_);
+}
+
+bool Mapper005::locate_state_memory(
+    uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+    if (locate_vector_memory(pointer, exram_, offset)) {
+        region = 0;
+        return true;
+    }
+    if (locate_vector_memory(pointer, wram_, offset)) {
+        region = 1;
+        return true;
+    }
+    return false;
+}
+
+uint8_t* Mapper005::restore_state_memory(uint8_t region, uint32_t offset) {
+    std::vector<uint8_t>* values = nullptr;
+    if (region == 0) values = &exram_;
+    if (region == 1) values = &wram_;
+    return values && offset < values->size() ? values->data() + offset : nullptr;
+}
+
+void Mapper005::serialize(StateStream& s) {
+    s.sync_vector(exram_);
+    s.sync_vector(wram_);
+    BaseMapper::serialize(s);
+    s.sync(prg_mode_);
+    s.sync(chr_mode_);
+    s.sync(chr_upper_bits_);
+    s.sync(prg_ram_protect1_);
+    s.sync(prg_ram_protect2_);
+    s.sync_array(prg_banks_);
+    s.sync_array(chr_banks_);
+    s.sync(nametable_mapping_);
+    s.sync(extended_ram_mode_);
+    s.sync(fill_mode_tile_);
+    s.sync(fill_mode_color_);
+    s.sync(fill_mode_attr_byte_);
+    s.sync(vertical_split_enabled_);
+    s.sync(vertical_split_right_side_);
+    s.sync(vertical_split_delimiter_tile_);
+    s.sync(vertical_split_scroll_);
+    s.sync(vertical_split_bank_);
+    s.sync(multiplier_value1_);
+    s.sync(multiplier_value2_);
+    s.sync(irq_counter_target_);
+    s.sync(irq_enabled_);
+    s.sync(irq_pending_);
+    s.sync(scanline_counter_);
+    s.sync(ppu_in_frame_);
+    s.sync(need_in_frame_);
+    s.sync(ppu_idle_counter_);
+    s.sync(last_ppu_read_addr_);
+    s.sync(nt_read_counter_);
+    s.sync(split_tile_number_);
+    s.sync(split_in_split_region_);
+    s.sync(split_tile_);
+    s.sync(ex_attribute_last_nt_fetch_);
+    s.sync(ex_attr_last_fetch_counter_);
+    s.sync(ex_attr_selected_chr_bank_);
+    s.sync_array(mmc5_sq_period_);
+    s.sync_array(mmc5_sq_duty_);
+    s.sync_array(mmc5_sq_duty_pos_);
+    s.sync_array(mmc5_sq_volume_);
+    s.sync_array(mmc5_sq_constant_volume_);
+    s.sync_array(mmc5_sq_halt_);
+    s.sync_array(mmc5_sq_env_div_);
+    s.sync_array(mmc5_sq_env_ctr_);
+    s.sync_array(mmc5_sq_env_start_);
+    s.sync_array(mmc5_sq_len_);
+    s.sync_array(mmc5_sq_timer_);
+    s.sync_array(mmc5_sq_output_);
+    s.sync(pcm_output_);
+    s.sync(pcm_read_mode_);
+    s.sync(pcm_irq_enabled_);
+    s.sync(pcm_irq_pending_);
+    s.sync(mmc5_last_mix_);
+    s.sync(mmc5_env_clock_divider_);
+    s.sync(last_chr_reg_);
+    s.sync(prev_chr_a_);
+}
+
+void BaseEeprom24C0X::serialize(StateStream& s) {
+    s.sync(mode_);
+    s.sync(next_mode_);
+    s.sync(chip_address_);
+    s.sync(address_);
+    s.sync(data_);
+    s.sync(counter_);
+    s.sync(output_);
+    s.sync(prev_scl_);
+    s.sync(prev_sda_);
+    s.sync_array(rom_data_);
+}
+
+bool Mapper016::locate_state_memory(
+    uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+    if (!locate_vector_memory(pointer, sram_, offset)) return false;
+    region = 0;
+    return true;
+}
+
+uint8_t* Mapper016::restore_state_memory(uint8_t region, uint32_t offset) {
+    return region == 0 && offset < sram_.size() ? sram_.data() + offset : nullptr;
+}
+
+void Mapper016::serialize(StateStream& s) {
+    s.sync_vector(sram_);
+    BaseMapper::serialize(s);
+    s.sync_array(chr_regs_);
+    s.sync(prg_page_);
+    s.sync(prg_bank_select_);
+    s.sync(irq_enabled_);
+    s.sync(irq_counter_);
+    s.sync(irq_reload_);
+    s.sync(submapper_);
+
+    auto sync_eeprom = [&](std::unique_ptr<BaseEeprom24C0X>& eeprom) {
+        bool present = static_cast<bool>(eeprom);
+        s.sync(present);
+        if (present != static_cast<bool>(eeprom)) {
+            s.fail();
+        } else if (eeprom) {
+            eeprom->serialize(s);
+        }
+    };
+    sync_eeprom(standard_eeprom_);
+    sync_eeprom(extra_eeprom_);
+
+    bool has_barcode_reader = static_cast<bool>(barcode_reader_);
+    s.sync(has_barcode_reader);
+    if (has_barcode_reader != static_cast<bool>(barcode_reader_)) s.fail();
 }
 
 void Mapper006::serialize(StateStream& s) {

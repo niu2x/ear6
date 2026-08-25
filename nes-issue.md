@@ -1,6 +1,14 @@
-# NES Issues (Frame 30)
+# NES Compatibility Results
 
-100% mappers: 0, 1, 2, 3 (all with unit tests)
+100% sampled mappers: 0, 1, 2, 3, 64, 69, 74, 90, 99, 118, 245, 252
+
+Unless a section says that every ROM was tested, "100%" means that every pixel
+matched Mesen2 for the listed ROMs and sampled frames. It does not claim that
+untested ROMs, later gameplay, every bank, or every IRQ path is covered. Mapper
+45 also has one 100% ROM, but is not listed above because its second known ROM
+has the documented CHR-RAM/PPU difference below. Mappers 64, 69, 74, 90, 99,
+118, 245, and 252 have a permanent frame-256 regression test. Mappers 0, 1, 2,
+and 3 have full-ROM-set regression coverage at their documented frames.
 
 > ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
 > ear6 渲染正常（第 6 帧进入游戏画面）。
@@ -63,6 +71,13 @@ behavior or corrupted rendering.
 
 ## Mapper 45
 
+### 100% sampled ROM
+
+`BrainSeries13in1.nes` is pixel-perfect at frames 1/30/60/128/256. The permanent
+regression test covers frame 256.
+
+### Known difference
+
 `Super 8 in 1 Fighting (UNL).nes` has mapper 251 in its iNES header, but both
 emulators apply the NES DB entry and run it as mapper 45. Frames 1-4 are
 pixel-perfect; from frame 5 through the sampled frames 30/60/128/256, the match
@@ -103,3 +118,91 @@ frame 11. At frame 12 both CPU traces contain 102,449 instructions and match
 line-for-line after normalizing the emulator prefix, including frame, scanline,
 cycle, PC, opcode, A/X/Y/SP, and status. This is a shared PPU/sprite timing
 difference rather than a mapper 23 CPU, IRQ, or banking divergence.
+
+## Mapper 64
+
+- Sampled ROMs: 1
+- Perfect sampled ROMs: 1 (100.0%)
+- Frames: 1/30/60/128/256
+
+`Excitebike (JU).nes` is identified as mapper 64 by its iNES header, but the NES
+DB maps the original dump to mapper 0. Changing the final CHR byte changes the
+CRC without affecting the sampled startup content, allowing both emulators to
+exercise mapper 64. All five sampled frames are pixel-perfect.
+
+The ROM only produces a solid green screen in this probe. The CPU traces share
+the same core prefix, but the probe does not exercise meaningful bank-switching
+or IRQ-driven gameplay. The permanent test therefore guards mapper creation,
+initial mapping, and the frame-256 output only; it is not broad mapper 64
+behavioral coverage.
+
+## Mapper 69
+
+- Sampled ROMs: 1
+- Perfect sampled ROMs: 1 (100.0%)
+- Frames: 1/30/60/128/256
+
+`Batman (J).nes` is pixel-perfect at every sampled frame. The frame-30 CPU
+traces also match line-for-line. The permanent regression test covers frame
+256.
+
+## Mapper 74
+
+- Sampled ROMs: 3
+- Perfect sampled ROMs: 3 (100.0%)
+- Frames: 1/30/60/128/256
+
+`d4cjqrdz.nes`, `ds.nes`, and `srw2.nes` are pixel-perfect at every sampled
+frame. The permanent regression test uses `srw2.nes` at frame 256.
+
+## Mapper 90
+
+- Sampled ROMs: 2
+- Perfect sampled ROMs: 2 (100.0%)
+- Frames: 1/30/60/128/256
+
+`finalf3.nes` and `scontra.nes` are pixel-perfect at every sampled frame. The
+permanent regression test uses `finalf3.nes` at frame 256.
+
+## Mapper 99
+
+- Sampled ROMs: 1
+- Perfect sampled ROMs: 1 (100.0%)
+- Frames: 1/30/60/128/256
+
+`vs battle city.nes` is pixel-perfect at every sampled frame. The permanent
+regression test covers frame 256.
+
+## Mapper 118
+
+- Sampled ROMs: 2
+- Perfect sampled ROMs: 2 (100.0%)
+- Frames: 1/30/60/128/256
+
+`Arumajiro (J).nes` and `Pro Sport Hockey (U).nes` are pixel-perfect at every
+sampled frame. The permanent regression test uses `Arumajiro (J).nes` at frame
+256.
+
+## Mapper 245
+
+- Sampled ROMs: 1 mapper probe
+- Perfect sampled ROMs: 1 (100.0%)
+- Frames: 1/30/60/128/256
+
+`Yong Ze Do Re Long 6 (C).nes` has mapper 245 in its iNES header, but the NES DB
+maps the unmodified dump to mapper 4. Appending trailing data changes the CRC
+without changing the declared PRG/CHR data, allowing both emulators to exercise
+mapper 245. The probe is pixel-perfect at all five sampled frames, and the
+permanent regression test covers frame 256.
+
+This mapper 245 probe result is separate from the original dump's mapper 4
+frame-128 phase difference documented above.
+
+## Mapper 252
+
+- Sampled ROMs: 1
+- Perfect sampled ROMs: 1 (100.0%)
+- Frames: 1/30/60/128/256
+
+`3GO.NES` is pixel-perfect at every sampled frame. The permanent regression
+test covers frame 256.

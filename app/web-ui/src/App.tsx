@@ -3,6 +3,9 @@ import type { Ear6Module } from './types'
 import './App.css'
 
 const SYSTEM_NES = 1
+const EMULATION_FPS = 60
+const FRAME_DURATION_MS = 1000 / EMULATION_FPS
+const MAX_CATCH_UP_STEPS = 3
 
 function App() {
   const modRef = useRef<Ear6Module | null>(null)
@@ -13,8 +16,6 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const screenRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const fpsCountRef = useRef(0)
-  const fpsTimeRef = useRef(0)
 
   const [ready, setReady] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
@@ -78,10 +79,34 @@ function App() {
     const mod = modRef.current
     if (!mod || !ctxRef.current || !canvasRef.current) return
     const canvas = canvasRef.current
+    let lastAnimationTime: number | null = null
+    let accumulatedTime = 0
+    let fpsWindowStart = performance.now()
+    let emulatedFrames = 0
+
     const draw = (time: number) => {
+      if (lastAnimationTime === null) lastAnimationTime = time
+      const elapsed = time - lastAnimationTime
+      lastAnimationTime = time
+
       if (runningRef.current) {
-        mod._ear6_web_step(ctxRef.current)
+        // requestAnimationFrame follows the display refresh rate, which may be
+        // 120Hz or higher. Keep emulation time independent from repaint rate.
+        accumulatedTime += elapsed
+        let steps = 0
+        while (accumulatedTime >= FRAME_DURATION_MS && steps < MAX_CATCH_UP_STEPS) {
+          mod._ear6_web_step(ctxRef.current)
+          accumulatedTime -= FRAME_DURATION_MS
+          emulatedFrames += 1
+          steps += 1
+        }
+        if (steps === MAX_CATCH_UP_STEPS) {
+          accumulatedTime %= FRAME_DURATION_MS
+        }
+      } else {
+        accumulatedTime = 0
       }
+
       const ptr = mod._ear6_web_get_framebuffer(ctxRef.current)
       const w = mod._ear6_web_get_frame_width(ctxRef.current)
       const h = mod._ear6_web_get_frame_height(ctxRef.current)
@@ -107,12 +132,12 @@ function App() {
         }
       }
 
-      if (time - fpsTimeRef.current >= 1000) {
-        setFps(fpsCountRef.current)
-        fpsCountRef.current = 0
-        fpsTimeRef.current = time
+      const fpsElapsed = time - fpsWindowStart
+      if (fpsElapsed >= 1000) {
+        setFps(Math.round(emulatedFrames * 1000 / fpsElapsed))
+        emulatedFrames = 0
+        fpsWindowStart = time
       }
-      if (runningRef.current) fpsCountRef.current += 1
       frameIdRef.current = requestAnimationFrame(draw)
     }
     frameIdRef.current = requestAnimationFrame(draw)

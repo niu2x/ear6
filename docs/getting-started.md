@@ -25,7 +25,7 @@ make ear6
 这会配置 Release 构建，并按本机依赖生成：
 
 - `ear6` 动态库（Linux 为 `.so`，macOS 为 `.dylib`）
-- `build/app/cli/ear6-cli`
+- `build/apps/cli/ear6-cli`
 - `ear6-desktop`（找到 Qt 6 时）
 
 不需要桌面程序时，可以直接配置核心、CLI 和测试：
@@ -43,19 +43,19 @@ cmake --build build
 查看 ROM 元数据：
 
 ```bash
-./build/app/cli/ear6-cli info path/to/game.nes
+./build/apps/cli/ear6-cli info path/to/game.nes
 ```
 
 运行指定帧数并保存无损 PPM 截图：
 
 ```bash
-./build/app/cli/ear6-cli screenshot -f 60 path/to/game.nes -o frame.ppm
+./build/apps/cli/ear6-cli screenshot -f 60 path/to/game.nes -o frame.ppm
 ```
 
 录制音频：
 
 ```bash
-./build/app/cli/ear6-cli record -f 600 path/to/game.nes -o audio.wav
+./build/apps/cli/ear6-cli record -f 600 path/to/game.nes -o audio.wav
 ```
 
 `--system nes|test|flash` 可以覆盖自动检测。当前自动检测只识别 iNES/NES 2.0
@@ -75,7 +75,7 @@ cmake --build build --target ear6-test
 ./build/ear6-test --gtest_filter=ChoplifterRegression.*
 ```
 
-部分 NES 回归测试依赖本地 ROM。测试代码从 `assets/nes/rom/mapper_N/`
+部分 NES 回归测试依赖本地 ROM。测试代码从 `tests/local-roms/nes/mapper_N/`
 查找它们；缺失的合法 ROM 会使对应测试跳过，而不是由仓库下载。
 
 ## 构建 Web 版本
@@ -92,7 +92,10 @@ EMSCRIPTEN_CMAKE_TOOLCHAIN=/path/to/emscripten/cmake/Modules/Platform/Emscripten
 make serve
 ```
 
-该命令构建 WASM、复制产物到 Web UI、安装前端依赖并启动开发服务器。
+该命令把 WASM 生成到 `build-web/web-public/`，安装前端依赖并启动开发服务器。
+`apps/web/ui/public/` 保留给字体、图标、manifest 等前端静态资源；Vite 在开发和
+生产构建中另外把生成的 WASM 暴露到 `ear6/`。构建可部署站点使用
+`make ear6-web`，最终产物位于 `build-web/site/`。
 
 ## 安装并从 CMake 使用
 

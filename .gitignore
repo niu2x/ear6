@@ -1,15 +1,25 @@
-build/
-build-web/
+# Native, WebAssembly, and packaged Web build outputs.
+/build/
+/build-web/
+
+# Local environment files may contain machine-specific paths or secrets.
 .env
+.env.local
+.env.*.local
 
-app/web-ui/node_modules/
-app/web-ui/public/ear6/
+# OS and editor metadata.
+.DS_Store
+*.swp
+*.swo
 
-mesen2/
-Mesen2/
-
+# ROM images are local by default and must not be committed accidentally.
 *.NES
 *.nes
-RecentGames/
 
-Saves/
+# Small redistributable fixtures are intentional repository inputs.
+!/tests/fixtures/
+!/tests/fixtures/**
+
+# Keep the local ROM instructions, but ignore mapper folders and ROM content.
+/tests/local-roms/nes/*
+!/tests/local-roms/nes/README.md

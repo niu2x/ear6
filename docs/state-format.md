@@ -38,7 +38,7 @@ state，也不提供旧 state 的兼容迁移。
 ## Protobuf Body
 
 preamble 后是 `ear6.state.StateContainer` 的 protobuf 二进制编码。schema 位于
-`src/state/state_container.proto`：
+`src/core/state/state_container.proto`：
 
 ```proto
 message StateContainer {
@@ -125,7 +125,7 @@ Ear6 使用 protobuf 36.0 的 C `upb` runtime。仓库只保留当前生成代�
 arena、message、mini-table、wire encode/decode 和 utf8_range 文件，约 0.8 MB；不包含
 C++ protobuf runtime、reflection、JSON、text format、compiler 或 Abseil。
 
-生成的 `.upb.c/.h` 文件提交在 `src/state/`，正常 native/WASM 构建不要求本机安装
+生成的 `.upb.c/.h` 文件提交在 `src/core/state/`，正常 native/WASM 构建不要求本机安装
 `protoc`。上游版本、许可证和裁剪范围记录在
 `third_party/protobuf-36.0/README.ear6.md`。
 

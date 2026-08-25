@@ -273,10 +273,11 @@ preview 和 payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现�
 不是防篡改的密码学验证。
 
 当前 Test 系统和 MapperFactory 接受的全部 NES mapper 都支持完整 state 往返。
-回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `assets/nes/rom/` 中
+回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `tests/local-roms/nes/` 中
 现有的真实 ROM mapper 样本做恢复后重放验证；两类测试都同时覆盖原上下文恢复和
 空白新上下文直接从 state 恢复内嵌 ROM。这里的 state 覆盖不表示这些 mapper 已经达到
-Mesen2 的逐周期或逐像素精确性；兼容性证据仍以 `nes-issue.md` 为准。
+Mesen2 的逐周期或逐像素精确性；兼容性证据仍以
+[NES 兼容性结果](compatibility/nes.md) 为准。
 
 Emscripten 宿主可通过 `ear6_web_save_state_to_memory()` 和
 `ear6_web_load_state_from_memory()` 使用相同语义。WASM32 中 `size_t` 与 state 大小

@@ -19,7 +19,7 @@ following links are the maintained entry points:
   compatibility, previews, persistence, or save/load host UI
 - [Project roadmap](docs/TODO.md): required when assessing current support,
   choosing priorities, or completing roadmap work
-- [NES compatibility results](nes-issue.md): required for any NES accuracy,
+- [NES compatibility results](docs/compatibility/nes.md): required for any NES accuracy,
   ROM, mapper, PPU, CPU, APU, or input task
 - [NES/Mesen2 comparison guide](docs/migration_guide.md): required before
   reference-porting, frame comparison, or trace debugging
@@ -95,14 +95,19 @@ as runtime support.
 ## Repository Layout
 
 - `include/ear6/`: installed public C headers
-- `src/`: private core and system interface
-- `src/nes/`: NES implementation
-- `app/cli/`: CLI host
-- `app/desktop/`: Qt host
-- `app/web/`: Emscripten bridge
-- `app/web-ui/`: browser host
-- `tests/`: API and ROM regression tests
-- `assets/nes/`: embedded NES DB source and local ROM fixtures
+- `src/core/`: private lifecycle, system interface, and common state envelope
+- `src/systems/test/`: Test system used for API and host validation
+- `src/systems/nes/`: NES implementation
+- `apps/cli/`: CLI host
+- `apps/desktop/`: Qt host
+- `apps/web/wasm/`: Emscripten bridge
+- `apps/web/ui/`: browser host
+- `tests/api/`, `tests/state/`: common API and state tests
+- `tests/systems/nes/`: NES ROM regression tests
+- `tests/fixtures/`: committed redistributable test inputs
+- `tests/local-roms/nes/`: ignored local ROM fixtures
+- `data/nes/`: embedded NES DB source
+- `tools/`: screenshot and comparison utilities
 - `docs/`: user, API, architecture, and development book
 
 Generated `version.h` and `export.h` belong in `${CMAKE_BINARY_DIR}/ear6/` so
@@ -138,28 +143,28 @@ make cli -C ../mesen2/DesktopApp
 
 ## NES Assets And Evidence
 
-Tests use ROMs under `assets/nes/rom/mapper_N/`. ROM filenames and extensions
+Tests use ROMs under `tests/local-roms/nes/mapper_N/`. ROM filenames and extensions
 may vary in case. Do not commit copyrighted ROMs.
 
-`assets/nes/nes_db.txt` is the NES DB source of truth. CMake embeds it through
+`data/nes/nes-db.txt` is the NES DB source of truth. CMake embeds it through
 `cmake/embed_nes_db.cmake`; runtime code must consume embedded text so native
 and WASM behavior remain identical.
 
 For every NES mapper or compatibility task:
 
-1. Use `./build/app/cli/ear6-cli info <rom>` to confirm header mapper metadata.
+1. Use `./build/apps/cli/ear6-cli info <rom>` to confirm header mapper metadata.
 2. Compare ear6 and Mesen2 at the same sampled frames.
 3. Visually inspect both images before classifying a pixel difference: one may
    be valid while the other is corrupt, or both may be valid with local drift.
 4. Find the first divergent frame, then compare CPU/PPU evidence as needed.
-5. Record both 100% matches and known differences in `nes-issue.md`.
+5. Record both 100% matches and known differences in `docs/compatibility/nes.md`.
 6. Add a focused regression test when the ROM can be represented by a stable
    local fixture path.
 7. Commit each completed mapper or independent correction promptly when the
    user has requested incremental commits.
 
 Do not infer full mapper correctness from mapper-factory support or one green
-frame. `nes-issue.md` must state ROM count, sampled frames, match scope, and any
+frame. `docs/compatibility/nes.md` must state ROM count, sampled frames, match scope, and any
 probe limitations.
 
 ## Naming
@@ -179,7 +184,7 @@ Do not guess at hangs or crashes. Build Debug and use GDB:
 ```bash
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
-gdb --args ./build/app/cli/ear6-cli screenshot -f 1 game.nes -o /tmp/frame.ppm
+gdb --args ./build/apps/cli/ear6-cli screenshot -f 1 game.nes -o /tmp/frame.ppm
 ```
 
 Use `bt` after a crash or after interrupting a hang. For behavior differences,

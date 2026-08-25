@@ -1,0 +1,6 @@
+# Installed JavaScript packages.
+node_modules/
+
+# Vite and TypeScript generated output.
+dist/
+*.tsbuildinfo

@@ -21,7 +21,7 @@ Ear6 是一个跨平台、多系统的游戏模拟器库。NES 是当前最成�
 2. [项目路线图](TODO.md)：当前能力、近期优先级和完成标准
 3. [NES 迁移与对比指南](migration_guide.md)：与 Mesen2 做逐帧、逐指令和逐周期比较
 4. [Mapper 实现清单](mapper_checklist.md)：新增或修正 NES mapper 时的检查项
-5. [NES 兼容性结果](../nes-issue.md)：已经验证的 ROM、mapper 和已知差异
+5. [NES 兼容性结果](compatibility/nes.md)：已经验证的 ROM、mapper 和已知差异
 6. [Save State 格式](state-format.md)：修改 state、系统 dump 或宿主持久化前必读
 
 ### 前端
@@ -44,5 +44,5 @@ Ear6 是一个跨平台、多系统的游戏模拟器库。NES 是当前最成�
 - `<ear6/ear6.h>` 是跨系统公开契约的事实来源。
 - `<ear6/<system>.h>` 只描述对应系统的扩展能力。
 - `docs/TODO.md` 记录项目级能力和下一步，不重复维护逐 ROM 结果。
-- `nes-issue.md` 记录 NES 实测结果，包括 100% 一致和已知差异。
+- `docs/compatibility/nes.md` 记录 NES 实测结果，包括 100% 一致和已知差异。
 - 行为、命令或公开 API 改动必须在同一个提交中更新相应文档。

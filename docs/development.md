@@ -8,15 +8,21 @@
 | 路径 | 职责 |
 |---|---|
 | `include/ear6/` | 安装给使用者的纯 C Public API |
-| `src/` | 私有 C/C++ 核心和系统抽象 |
-| `src/nes/` | NES CPU、PPU、APU、输入和加载器 |
-| `src/nes/mappers/` | NES mapper 基类、工厂、硬件实现和 mapper 专用辅助件 |
-| `app/cli/` | 无窗口工具、截图、ROM 信息和音频录制 |
-| `app/desktop/` | Qt 桌面宿主 |
-| `app/web/` | Emscripten 导出桥接 |
-| `app/web-ui/` | 浏览器宿主界面 |
-| `tests/` | API 和 ROM 帧回归测试 |
-| `assets/nes/` | NES DB 与本地测试 ROM 目录 |
+| `src/core/` | 通用生命周期、系统接口和 save state 容器 |
+| `src/systems/test/` | 用于 API 与宿主自检的 Test 系统 |
+| `src/systems/nes/` | NES CPU、PPU、APU、输入和加载器 |
+| `src/systems/nes/audio/` | NES APU、声道与混音实现 |
+| `src/systems/nes/mappers/` | NES mapper 基类、工厂、硬件实现和 mapper 专用辅助件 |
+| `apps/cli/` | 无窗口工具、截图、ROM 信息和音频录制 |
+| `apps/desktop/` | Qt 桌面宿主 |
+| `apps/web/wasm/` | Emscripten 导出桥接 |
+| `apps/web/ui/` | 浏览器宿主界面；`public/` 存放无需打包的前端静态资源 |
+| `tests/api/`、`tests/state/` | Public API 与 state 格式测试 |
+| `tests/systems/nes/` | NES ROM 帧回归测试 |
+| `tests/fixtures/` | 可提交的合成或损坏测试输入 |
+| `tests/local-roms/nes/` | 不提交的本地 NES ROM |
+| `data/nes/` | 构建时嵌入的 NES DB 数据 |
+| `tools/` | 截图和参考实现对比工具 |
 | `docs/` | 用户、API 和开发文档 |
 
 ## 常用命令
@@ -91,11 +97,11 @@ make cli -C ../mesen2/DesktopApp
 
 NES 当前以 Mesen2 为参考目标。按截图、raw palette index、CPU sequence、PPU 事件
 逐层定位首个差异，详见 [迁移指南](migration_guide.md)。任何 100% 结果和已知不同
-都写入 [nes-issue.md](../nes-issue.md)。
+都写入 [NES 兼容性结果](compatibility/nes.md)。
 
 ## NES DB
 
-`assets/nes/nes_db.txt` 是数据源。构建时 `cmake/embed_nes_db.cmake` 生成
+`data/nes/nes-db.txt` 是数据源。构建时 `cmake/embed_nes_db.cmake` 生成
 `build/generated/nes_db_embedded.h`；运行时只能读取嵌入文本，不能依赖工作目录下
 的数据库文件。这样原生和 WASM 使用同一份元数据。
 
@@ -106,7 +112,7 @@ NES 当前以 Mesen2 为参考目标。按截图、raw palette index、CPU seque
 ```bash
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
 cmake --build build
-gdb --args ./build/app/cli/ear6-cli screenshot -f 1 path/to/game.nes -o /tmp/frame.ppm
+gdb --args ./build/apps/cli/ear6-cli screenshot -f 1 path/to/game.nes -o /tmp/frame.ppm
 ```
 
 卡死时中断并执行 `bt`；崩溃后直接查看 `bt`。优先取得调用链，再决定增加日志或

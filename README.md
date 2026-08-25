@@ -21,7 +21,7 @@ Build the native library, CLI, and optional Qt desktop app:
 
 ```bash
 make ear6
-./build/app/cli/ear6-cli info path/to/game.nes
+./build/apps/cli/ear6-cli info path/to/game.nes
 ```
 
 Run the test suite:
@@ -47,7 +47,7 @@ Live demo: <https://niu2x.github.io/ear6>
 | Flash | Public API placeholder; core not implemented |
 
 NES compatibility is tracked by evidence, not by mapper source-file count.
-See [NES compatibility results](nes-issue.md) for sampled 100% matches and
+See [NES compatibility results](docs/compatibility/nes.md) for sampled 100% matches and
 known differences.
 
 ROMs and BIOS files are not distributed with Ear6. Use only content you are

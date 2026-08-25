@@ -3,7 +3,7 @@
 更新基线：2026-08-25。
 
 本文件记录项目级能力和下一步。NES 的逐 ROM/mapper 实测结果不在这里重复维护，
-统一查看 [NES 兼容性结果](../nes-issue.md)。
+统一查看 [NES 兼容性结果](compatibility/nes.md)。
 
 状态定义：
 
@@ -57,7 +57,7 @@
 
 ## P0：NES 正确性
 
-兼容性优先级以 [nes-issue.md](../nes-issue.md) 的最新证据为准。当前最明确的
+兼容性优先级以 [NES 兼容性结果](compatibility/nes.md) 的最新证据为准。当前最明确的
 开放差异包括：
 
 - [ ] Mapper 4：处理多个 ROM 的局部/完全差异与 frame-phase 差异
@@ -66,7 +66,7 @@
 - [ ] Mapper 23：定位 `Ganbare Goemon 2` 从 frame 11 开始的 sprite 时序差异
 - [ ] 对只有单 ROM、单帧或 mapper probe 的 100% 结果扩展覆盖，避免把探针成功
       表述为 mapper 完成
-- [ ] 对 mapper factory 中尚无 `nes-issue.md` 证据的实现逐个建立基线
+- [ ] 对 mapper factory 中尚无 `docs/compatibility/nes.md` 证据的实现逐个建立基线
 
 通用硬件差距：
 
@@ -97,7 +97,7 @@ Flash 是否作为第二个真实系统继续实现，需要先形成核心范�
 - [ ] 为 CPU sequence trace 增加规范化和自动首差异报告
 - [ ] 增加 raw index、mapped index、final RGB 三层自动比较
 - [ ] 对本地 ROM 集生成 mapper/ROM/帧覆盖清单，区分 skipped 与 passed
-- [ ] 把 100% 结果和差异报告的固定字段自动校验进 `nes-issue.md`
+- [ ] 把 100% 结果和差异报告的固定字段自动校验进 `docs/compatibility/nes.md`
 - [ ] 增加 sanitizers 和长时间创建/加载/销毁压力测试
 
 ## P2：用户能力

@@ -4,7 +4,7 @@
 当前参考目标，但“与 Mesen2 不同”不自动等于 Ear6 错误：必须同时检查两边画面
 是否合理，并用日志与代码建立证据。
 
-当前兼容性结果见 [nes-issue.md](../nes-issue.md)，项目级未完成能力见
+当前兼容性结果见 [NES 兼容性结果](compatibility/nes.md)，项目级未完成能力见
 [TODO](TODO.md)。本文件只维护可重复的方法，不维护会迅速过期的 mapper 状态表。
 
 ## 1. 参考环境
@@ -55,7 +55,7 @@ ROM hash、命令行和环境变量。
 6. 用双方代码路径解释首差异。
 7. 做一个最小修改。
 8. 回归首差异帧、后续累计帧和同 mapper 其他 ROM。
-9. 更新 `nes-issue.md` 并提交这个独立改动。
+9. 更新 `docs/compatibility/nes.md` 并提交这个独立改动。
 
 不要一次迁移一大片代码后再看最终截图。那样无法知道哪一条语义真正改变了结果。
 
@@ -67,7 +67,7 @@ ROM hash、命令行和环境变量。
 
 ```bash
 shasum -a 256 path/to/game.nes
-./build/app/cli/ear6-cli info path/to/game.nes
+./build/apps/cli/ear6-cli info path/to/game.nes
 ```
 
 CLI `info` 显示 header mapper；运行时日志显示 NES DB 覆盖后的最终 mapper。两者都要
@@ -92,7 +92,7 @@ save 目录，或明确使用同一份初始 save。不要把持久化状态差�
 生成 Ear6 截图：
 
 ```bash
-./build/app/cli/ear6-cli screenshot \
+./build/apps/cli/ear6-cli screenshot \
   -f 60 path/to/game.nes -o /tmp/ear6-f60.ppm
 ```
 
@@ -150,7 +150,7 @@ mapper bank logic。
 
 ```bash
 EAR6_TRACE_CPU_SEQ=1 \
-  ./build/app/cli/ear6-cli screenshot \
+  ./build/apps/cli/ear6-cli screenshot \
   -f 30 path/to/game.nes -o /dev/null \
   2>/tmp/ear6-cpu-seq.txt
 ```
@@ -268,7 +268,7 @@ CPU/PPU 完全正确时，以下状态仍可让画面分叉：
 4. 至少一个能进入有效画面的 ROM 对比。
 5. 首差异定位或列定帧 100% 证据。
 6. 永久回归测试。
-7. `nes-issue.md` 记录。
+7. `docs/compatibility/nes.md` 记录。
 
 Mapper source file 存在只说明可创建，不说明行为完整。
 
@@ -300,7 +300,7 @@ bank/IRQ/submapper 分支后，才讨论更强的“mapper 完成”结论。
 
 ## 16. 记录模板
 
-在 `nes-issue.md` 中使用以下信息结构：
+在 `docs/compatibility/nes.md` 中使用以下信息结构：
 
 ```markdown
 ## Mapper N

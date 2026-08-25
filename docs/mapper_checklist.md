@@ -1,12 +1,12 @@
 # NES Mapper 实现清单
 
 本清单适用于新增 mapper、合并 mapper family 或修正 submapper。它只描述当前
-Ear6 架构；兼容性结论写入 [nes-issue.md](../nes-issue.md)。
+Ear6 架构；兼容性结论写入 [NES 兼容性结果](compatibility/nes.md)。
 
 ## 1. 先确认实际 mapper
 
 ```bash
-./build/app/cli/ear6-cli info assets/nes/rom/mapper_N/game.nes
+./build/apps/cli/ear6-cli info tests/local-roms/nes/mapper_N/game.nes
 ```
 
 CLI 显示 header 元数据。运行时还可能被内嵌 NES DB 按 CRC 覆盖，因此同时查看
@@ -21,7 +21,7 @@ submapper、PRG/CHR 大小、battery、mirroring 和板卡/chip 信息一致。
 - 共享寄存器布局和 IRQ/audio 核心的 mapper family 复用一个实现，并在 `init()`
   中按 `info.mapper_number`、`info.submapper_id` 和 NES DB 元数据选 variant。
 - 只有确实相同的硬件才能别名到已有 mapper；记录 Mesen2 对应类和选择条件。
-- 同步更新 `src/nes/mappers/mapper_factory.cpp` 的 `is_supported()` 与 `create()`，
+- 同步更新 `src/systems/nes/mappers/mapper_factory.cpp` 的 `is_supported()` 与 `create()`，
   避免一个列表支持而另一个遗漏。
 
 ## 3. 初始化内存
@@ -100,13 +100,13 @@ Ear6 当前 CPU 在每个读写周期推进 PPU master clock。不要重新引�
 5. 先比较 CPU sequence；CPU 一致后再进入 PPU/raw index。
 6. 对两幅图做视觉分类：一方合理、一方乱码，或双方合理但局部不同。
 7. 修复后重跑同 mapper 全部本地 ROM，检查共享基类回归。
-8. 添加最小永久回归，并更新 `nes-issue.md`。
+8. 添加最小永久回归，并更新 `docs/compatibility/nes.md`。
 
 详细命令见 [NES 迁移与对比指南](migration_guide.md)。
 
 ## 9. 结果记录
 
-每条 `nes-issue.md` 结果至少包含：
+每条 `docs/compatibility/nes.md` 结果至少包含：
 
 - mapper 与 ROM 数
 - 测试帧号

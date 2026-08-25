@@ -22,8 +22,8 @@ Ear6 的核心产品是模拟器库，不是某一个前端，也不局限于某
 
 ### 宿主层
 
-宿主负责文件选择、主循环、帧显示、音频播放和输入采集。`app/cli/`、
-`app/desktop/` 和 `app/web/` 都是库的消费者，不应绕过 Public API 直接访问
+宿主负责文件选择、主循环、帧显示、音频播放和输入采集。`apps/cli/`、
+`apps/desktop/` 和 `apps/web/` 都是库的消费者，不应绕过 Public API 直接访问
 NES 内部对象。
 
 ### 通用 API 层
@@ -53,7 +53,7 @@ include/ear6/<system>.h   未来系统扩展
 
 ### 核心实现层
 
-`src/system.h` 中的内部 C++ `ear6::System` 接口承接公共 C ABI。具体系统实现
+`src/core/system.h` 中的内部 C++ `ear6::System` 接口承接公共 C ABI。具体系统实现
 负责把自己的原生帧格式转换为统一 RGBA8888，并把音频暴露为 PCM。C++ 类型、
 异常和内部对象所有权都不能越过 `extern "C"` 边界。
 
@@ -110,11 +110,11 @@ ABI、渲染上传和宿主主循环，不是游戏系统。
 
 NES 系统包含 6502 CPU、PPU、APU、输入管理、iNES/NES 2.0 加载、内嵌 NES DB
 覆盖以及 mapper 工厂。CPU 每个读写周期推进 PPU master clock，mapper、APU 和
-输入挂在 CPU 时钟与内存分发表上。mapper 子系统集中在 `src/nes/mappers/`，其中
+输入挂在 CPU 时钟与内存分发表上。mapper 子系统集中在 `src/systems/nes/mappers/`，其中
 包含基类、工厂、具体硬件实现和 mapper 专用辅助件。
 
 “mapper 工厂可以创建”不表示所有游戏路径已经验证。实测覆盖和差异统一记录在
-[NES 兼容性结果](../nes-issue.md)。
+[NES 兼容性结果](compatibility/nes.md)。
 
 ### Flash
 

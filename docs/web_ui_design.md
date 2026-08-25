@@ -67,6 +67,14 @@ ROM selection or network request is required because the state embeds the
 original content. A loaded state starts paused. The cold-reset control is
 disabled until the host has original ROM bytes available locally.
 
+## File Selection
+
+The ROM picker accepts the supported filename extensions and generic binary
+files. The binary MIME fallback is required for iOS browsers, where Files may
+identify `.nes` content as `application/octet-stream` instead of mapping the
+custom extension directly. The core still validates selected content before it
+is loaded.
+
 ## Build Metadata
 
 Vite reads the short Git revision during the build and embeds an ISO build

@@ -618,7 +618,7 @@ function App() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".nes,.rom,.bin"
+            accept=".nes,.rom,.bin,application/octet-stream"
             onChange={openRom}
             aria-label="Open ROM file"
             hidden

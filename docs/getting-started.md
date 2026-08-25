@@ -15,6 +15,16 @@ macOS 桌面程序、可选 Qt 桌面程序和 WebAssembly 前端。
 
 Web 构建还需要 Emscripten；前端开发需要 Node.js 和 npm。
 
+使用 emsdk 安装 Emscripten 时，安装后还必须激活所选版本：
+
+```bash
+./emsdk install latest
+./emsdk activate latest
+```
+
+`activate` 会生成编译器使用的 `.emscripten` 配置。只完成 `install` 可能导致
+`emcc` 错误地使用系统 LLVM，并在 CMake 编译器探测阶段失败。
+
 ROM 和 BIOS 不随 Ear6 分发。请只使用你有权使用的内容。
 
 ## 构建原生版本

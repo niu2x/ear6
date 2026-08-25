@@ -36,10 +36,8 @@ static bool is_cpu8448_trace_enabled() {
 }
 
 static NesCpu* g_probe_cpu = nullptr;
-static uint16_t g_probe_addr = 0;
 static uint16_t g_exec_pc = 0;
 static uint8_t g_exec_op = 0;
-static bool g_exec_trace_rw = false;
 #define TRACE_CPU8448(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
 #define TRACE_CPU8448_STATE(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
 #define TRACE_CPU8448_MEM(tag, addrv, valv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)addrv; (void)valv; } } while (0)
@@ -51,10 +49,8 @@ static bool g_exec_trace_rw = false;
 #define TRACE_BADSTEP(tag, pcv, opv) do { if (is_cpu8448_trace_enabled()) { (void)tag; (void)pcv; (void)opv; } } while (0)
 #else
 static NesCpu* g_probe_cpu = nullptr;
-static uint16_t g_probe_addr = 0;
 static uint16_t g_exec_pc = 0;
 static uint8_t g_exec_op = 0;
-static bool g_exec_trace_rw = false;
 #define TRACE_CPU8448(tag, pcv, opv) do {} while (0)
 #define TRACE_CPU8448_STATE(tag, pcv, opv) do {} while (0)
 #define TRACE_CPU8448_MEM(tag, addrv, valv) do {} while (0)
@@ -431,11 +427,6 @@ void NesCpu::exec() {
     #endif
     g_exec_pc = pc_before;
     g_exec_op = opcode;
-    {
-        NesPpu* p = console_->get_ppu();
-        uint32_t f = p ? p->get_frame_count() : 0;
-        g_exec_trace_rw = (pc_before >= 0xBAD0 && pc_before <= 0xBAE0 && f >= 16 && f <= 18);
-    }
     TRACE_CPU8448("EXEC", pc_before, opcode);
     TRACE_CPU8448_STATE("BEFORE", pc_before, opcode);
     TRACE_BADSTEP("BEFORE", pc_before, opcode);
@@ -444,7 +435,6 @@ void NesCpu::exec() {
     TRACE_AD_PROBE_ADDR(pc_before, opcode, operand_);
     if (pc_before == 0xB84C && opcode == 0xAD) {
         g_probe_cpu = this;
-        g_probe_addr = operand_;
     }
     (this->*op_table_[opcode])();
     #if defined(EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE)
@@ -463,7 +453,6 @@ void NesCpu::exec() {
     if (g_probe_cpu == this) {
         g_probe_cpu = nullptr;
     }
-    g_exec_trace_rw = false;
     TRACE_CPU8448_X("EXEC", pc_before, opcode, state_.x, state_.x);
     TRACE_CPU8448_STATE("AFTER", pc_before, opcode);
     TRACE_BADSTEP("AFTER", pc_before, opcode);

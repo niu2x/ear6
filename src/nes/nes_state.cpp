@@ -9,6 +9,7 @@
 #include "mapper_006.h"
 #include "mapper_009.h"
 #include "mapper_018.h"
+#include "mapper_019.h"
 #include "mapper_032.h"
 #include "mapper_035.h"
 #include "mapper_041.h"
@@ -17,6 +18,7 @@
 #include "mapper_065.h"
 #include "mapper_067.h"
 #include "mapper_068.h"
+#include "mapper_069.h"
 #include "mapper_072.h"
 #include "mapper_073.h"
 #include "mapper_075.h"
@@ -32,6 +34,7 @@
 #include "mapper_226.h"
 #include "mapper_230.h"
 #include "mapper_233.h"
+#include "mapper_252.h"
 #include "mapper_40.h"
 #include "mapper_42.h"
 #include "mapper_43.h"
@@ -40,6 +43,8 @@
 #include "mapper_57.h"
 #include "mapper_namco108.h"
 #include "mapper_sachen_74ls374n.h"
+#include "mapper_vrc2_4.h"
+#include "mapper_vrc6.h"
 #include "nes_apu.h"
 #include "nes_console.h"
 #include "nes_control_manager.h"
@@ -546,6 +551,25 @@ void Mapper018::serialize(StateStream& s) {
     s.sync(irq_enabled_);
 }
 
+void Mapper019::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(variant_);
+    s.sync(auto_detect_variant_);
+    s.sync(not_namco340_);
+    s.sync(write_protect_);
+    s.sync(low_chr_nt_mode_);
+    s.sync(high_chr_nt_mode_);
+    s.sync(irq_counter_);
+    sync_std_array(s, audio_ram_);
+    sync_std_array(s, channel_output_);
+    s.sync(audio_ram_position_);
+    s.sync(audio_auto_increment_);
+    s.sync(audio_update_counter_);
+    s.sync(current_audio_channel_);
+    s.sync(last_audio_output_);
+    s.sync(audio_disabled_);
+}
+
 void Mapper032::serialize(StateStream& s) {
     BaseMapper::serialize(s);
     s.sync_array(prg_regs_);
@@ -607,6 +631,22 @@ void Mapper068::serialize(StateStream& s) {
     s.sync(licensing_timer_);
     s.sync(using_external_rom_);
     s.sync(external_page_);
+}
+
+void Mapper069::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(command_);
+    s.sync(work_ram_value_);
+    s.sync(irq_enabled_);
+    s.sync(irq_counter_enabled_);
+    s.sync(irq_counter_);
+    sync_std_array(s, audio_volume_lut_);
+    sync_std_array(s, audio_registers_);
+    sync_std_array(s, audio_timers_);
+    sync_std_array(s, audio_tone_steps_);
+    s.sync(current_audio_register_);
+    s.sync(last_audio_output_);
+    s.sync(process_audio_tick_);
 }
 
 void Mapper072::serialize(StateStream& s) {
@@ -764,6 +804,69 @@ void MapperSachen74LS374N::serialize(StateStream& s) {
     BaseMapper::serialize(s);
     s.sync(current_register_);
     s.sync_array(registers_);
+}
+
+void VrcIrq::serialize(StateStream& s) {
+    s.sync(reload_value_);
+    s.sync(counter_);
+    s.sync(prescaler_counter_);
+    s.sync(enabled_);
+    s.sync(enabled_after_ack_);
+    s.sync(cycle_mode_);
+}
+
+void MapperVRC2_4::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(variant_);
+    s.sync(use_heuristics_);
+    s.sync(use_microwire_);
+    s.sync(prg_reg_0_);
+    s.sync(prg_reg_1_);
+    s.sync(prg_mode_);
+    sync_std_array(s, chr_high_);
+    sync_std_array(s, chr_low_);
+    s.sync(latch_);
+    irq_.serialize(s);
+}
+
+void MapperVRC6::Pulse::serialize(StateStream& s) {
+    s.sync(volume);
+    s.sync(duty_cycle);
+    s.sync(ignore_duty);
+    s.sync(frequency);
+    s.sync(enabled);
+    s.sync(timer);
+    s.sync(step);
+    s.sync(frequency_shift);
+}
+
+void MapperVRC6::Saw::serialize(StateStream& s) {
+    s.sync(accumulator_rate);
+    s.sync(accumulator);
+    s.sync(frequency);
+    s.sync(enabled);
+    s.sync(timer);
+    s.sync(step);
+    s.sync(frequency_shift);
+}
+
+void MapperVRC6::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(swap_address_lines_);
+    s.sync(banking_mode_);
+    sync_std_array(s, chr_registers_);
+    irq_.serialize(s);
+    pulse_1_.serialize(s);
+    pulse_2_.serialize(s);
+    saw_.serialize(s);
+    s.sync(halt_audio_);
+    s.sync(last_audio_output_);
+}
+
+void Mapper252::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    sync_std_array(s, chr_registers_);
+    irq_.serialize(s);
 }
 
 void NesConsole::serialize(StateStream& s) {

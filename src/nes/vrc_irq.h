@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../state_stream.h"
 #include <cstdint>
 
 namespace ear6::nes {
@@ -8,6 +9,7 @@ class NesConsole;
 
 class VrcIrq {
 public:
+    void serialize(ear6::StateStream& stream);
     void initialize(NesConsole* console) { console_ = console; }
     void reset();
     void process_cpu_clock();

@@ -9,6 +9,7 @@ namespace ear6::nes {
 
 class MapperVRC6 : public BaseMapper {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void init(const RomInfo& info,
               const std::vector<uint8_t>& prg_rom,
               const std::vector<uint8_t>& chr_rom) override;
@@ -22,6 +23,7 @@ protected:
 
 private:
     struct Pulse {
+        void serialize(ear6::StateStream& stream);
         void write_register(uint16_t addr, uint8_t value);
         void set_frequency_shift(uint8_t shift) { frequency_shift = shift; }
         void clock();
@@ -38,6 +40,7 @@ private:
     };
 
     struct Saw {
+        void serialize(ear6::StateStream& stream);
         void write_register(uint16_t addr, uint8_t value);
         void set_frequency_shift(uint8_t shift) { frequency_shift = shift; }
         void clock();

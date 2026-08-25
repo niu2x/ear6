@@ -318,6 +318,177 @@ canvas {
   gap: 6px;
 }
 
+.save-menu-anchor {
+  position: relative;
+  min-width: 0;
+}
+
+.save-menu-anchor > .control-button {
+  height: 100%;
+}
+
+.menu-chevron {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.save-menu {
+  position: absolute;
+  z-index: 40;
+  top: 0;
+  left: calc(100% + 12px);
+  width: min(380px, calc(100vw - 220px));
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-raised);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.68);
+}
+
+.save-menu-head {
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.save-menu-head strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.save-menu-head span {
+  min-width: 25px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
+.save-menu-list {
+  max-height: min(420px, calc(100vh - 190px));
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.save-menu-empty {
+  min-height: 132px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.save-entry {
+  min-width: 0;
+  border-bottom: 1px solid #303135;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+}
+
+.save-entry-main {
+  min-width: 0;
+  min-height: 88px;
+  padding: 9px 6px 9px 10px;
+  border: 0;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.save-entry-main:hover,
+.save-entry-main:focus-visible {
+  background: #232428;
+}
+
+.save-preview {
+  width: 72px;
+  aspect-ratio: 256 / 240;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #080909;
+  color: var(--muted);
+}
+
+.save-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.save-entry-copy {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.save-entry-copy strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.save-entry-copy small {
+  color: var(--muted);
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+}
+
+.save-delete {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.save-delete:hover,
+.save-delete:focus-visible {
+  background: rgba(255, 110, 98, 0.12);
+  color: var(--red);
+}
+
+.save-menu-tools {
+  padding: 9px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  background: #121315;
+}
+
+.save-menu-tools .icon-text-button {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
 .state-actions .control-button {
   min-height: 46px;
   padding: 0 6px;
@@ -367,6 +538,11 @@ canvas {
 }
 
 .control-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.icon-text-button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -689,6 +865,18 @@ kbd {
     padding: 0 12px;
   }
 
+  .save-menu-anchor > .control-button {
+    height: 42px;
+  }
+
+  .save-menu {
+    top: auto;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    width: min(380px, calc(100vw - 28px));
+    transform: translateX(-50%);
+  }
+
   .runtime-stats {
     grid-area: auto;
     width: min(620px, 100%);
@@ -792,6 +980,33 @@ kbd {
     width: 100%;
     min-height: 44px;
     padding: 0;
+  }
+
+  .save-menu-anchor {
+    display: contents;
+  }
+
+  .save-menu-anchor > .control-button {
+    height: 44px;
+  }
+
+  .menu-chevron {
+    display: none;
+  }
+
+  .save-menu {
+    position: fixed;
+    top: auto;
+    right: 10px;
+    bottom: 88px;
+    left: 10px;
+    width: auto;
+    max-height: calc(100dvh - 108px);
+    transform: none;
+  }
+
+  .save-menu-list {
+    max-height: calc(100dvh - 260px);
   }
 
   .control-button {

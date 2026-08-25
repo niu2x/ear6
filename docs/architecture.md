@@ -85,7 +85,9 @@ save RAM 属于游戏硬件持久化，不等同于整机 save state。
 state 是自包含快照，会嵌入 ROM。恢复时通用层创建临时系统，加载内嵌内容并校验
 identity，再恢复系统 payload，全部成功后才替换当前系统。这使浏览器下载的网络
 ROM 能在以后只凭 state 恢复，也保证损坏 state 不会留下半加载的游戏。代价是 state
-体积和分发属性包含 ROM 本身；压缩、加密、槽位和文件管理仍属于宿主层。
+体积和分发属性包含 ROM 本身；压缩、加密、槽位和文件管理仍属于宿主层。当前
+Desktop 使用应用数据目录中的原子 `.e6s` 文件，Web 使用 localStorage；两者都以
+system type 和 content identity 实现每个 ROM 一个覆盖槽位。
 
 保存时通用层同时复制系统当前可见的 RGBA8888 framebuffer。它是独立于系统 payload
 的只读预览图，供桌面或 Web 的存档选择器在不启动游戏的情况下显示缩略图；预览图

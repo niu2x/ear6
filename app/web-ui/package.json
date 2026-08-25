@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test": "node scripts/test-save-store.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

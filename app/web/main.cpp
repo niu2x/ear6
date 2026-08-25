@@ -40,6 +40,24 @@ int ear6_web_load_state_from_memory(Ear6* ctx, const void* data, size_t size) {
 }
 
 EMSCRIPTEN_KEEPALIVE
+int ear6_web_get_state_identity(
+    const void* data,
+    size_t size,
+    uint32_t* system_type,
+    uint32_t* identity_low,
+    uint32_t* identity_high
+) {
+    if (!system_type || !identity_low || !identity_high) return -1;
+    Ear6StateInfo info = {};
+    int result = ear6_get_state_info(data, size, &info);
+    if (result != 0) return result;
+    *system_type = static_cast<uint32_t>(info.system_type);
+    *identity_low = static_cast<uint32_t>(info.content_identity);
+    *identity_high = static_cast<uint32_t>(info.content_identity >> 32);
+    return 0;
+}
+
+EMSCRIPTEN_KEEPALIVE
 int ear6_web_step(Ear6* ctx) {
     return ear6_step(ctx);
 }

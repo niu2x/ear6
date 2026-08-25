@@ -102,8 +102,8 @@ Flash 是否作为第二个真实系统继续实现，需要先形成核心范�
 
 ## P2：用户能力
 
-- [ ] 游戏存档导入/导出和安全落盘
-- [ ] 在宿主层实现 save state 槽位、文件持久化和管理界面
+- [ ] battery-backed 游戏 save RAM 的导入、导出和安全落盘
+- [x] Desktop/Web 宿主的 save state 单槽持久化、覆盖和 Load Save 选择菜单
 - [ ] 可配置控制器与多玩家输入
 - [ ] 调试器：CPU 寄存器、内存、PPU viewer、断点和 trace
 - [ ] cheat/Game Genie

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   Activity,
+  ArchiveRestore,
+  ChevronDown,
   Clock3,
   Download,
   FileUp,
@@ -15,9 +17,19 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  Save,
+  Trash2,
   X,
 } from 'lucide-react'
 import type { Ear6Module } from './types'
+import {
+  decodeState,
+  encodeState,
+  listStoredSaves,
+  removeStoredSave,
+  writeStoredSave,
+  type StoredSave,
+} from './saveStore'
 import './App.css'
 
 const SYSTEM_NES = 1
@@ -35,10 +47,49 @@ function allocateCString(mod: Ear6Module, value: string) {
 }
 
 function stateFileStem(name: string) {
-  const stem = /\.ear6state$/i.test(name)
-    ? name.replace(/\.ear6state$/i, '')
+  const stem = /\.(?:e6s|ear6state)$/i.test(name)
+    ? name.replace(/\.(?:e6s|ear6state)$/i, '')
     : name.replace(/\.[^.]+$/, '')
   return stem || 'ear6-session'
+}
+
+function formatSaveTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+interface CapturedState {
+  bytes: Uint8Array
+  systemType: number
+  contentIdentity: string
+}
+
+function readStateIdentity(mod: Ear6Module, statePtr: number, stateSize: number) {
+  const infoPtr = mod._malloc(12)
+  if (!infoPtr) throw new Error('Unable to allocate state metadata')
+  try {
+    if (mod._ear6_web_get_state_identity(
+      statePtr,
+      stateSize,
+      infoPtr,
+      infoPtr + 4,
+      infoPtr + 8,
+    ) !== 0) {
+      throw new Error('Invalid state metadata')
+    }
+    const view = new DataView(mod.HEAPU8.buffer)
+    const systemType = view.getUint32(infoPtr, true)
+    const low = BigInt(view.getUint32(infoPtr + 4, true))
+    const high = BigInt(view.getUint32(infoPtr + 8, true))
+    const contentIdentity = ((high << 32n) | low).toString(16).padStart(16, '0')
+    return { systemType, contentIdentity }
+  } finally {
+    mod._free(infoPtr)
+  }
 }
 
 function formatBuildTime(value: string) {
@@ -65,6 +116,7 @@ function App() {
   const screenRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const stateInputRef = useRef<HTMLInputElement | null>(null)
+  const saveMenuRef = useRef<HTMLDivElement | null>(null)
 
   const [ready, setReady] = useState(false)
   const [initError, setInitError] = useState(false)
@@ -78,8 +130,27 @@ function App() {
   const [hasRom, setHasRom] = useState(false)
   const [canReset, setCanReset] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showSaveMenu, setShowSaveMenu] = useState(false)
+  const [storedSaves, setStoredSaves] = useState<StoredSave[]>([])
+
+  const refreshStoredSaves = () => {
+    try {
+      setStoredSaves(listStoredSaves().filter(save => save.systemType === SYSTEM_NES))
+      return true
+    } catch {
+      setStoredSaves([])
+      return false
+    }
+  }
 
   useEffect(() => { runningRef.current = isRunning }, [isRunning])
+
+  useEffect(() => {
+    refreshStoredSaves()
+    const refresh = () => refreshStoredSaves()
+    window.addEventListener('storage', refresh)
+    return () => window.removeEventListener('storage', refresh)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -115,13 +186,27 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!showHelp) return
+    if (!showHelp && !showSaveMenu) return
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowHelp(false)
+      if (event.key === 'Escape') {
+        setShowHelp(false)
+        setShowSaveMenu(false)
+      }
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [showHelp])
+  }, [showHelp, showSaveMenu])
+
+  useEffect(() => {
+    if (!showSaveMenu) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!saveMenuRef.current?.contains(event.target as Node)) {
+        setShowSaveMenu(false)
+      }
+    }
+    window.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => window.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [showSaveMenu])
 
   useEffect(() => {
     const keyMap: Record<string, number> = {
@@ -271,10 +356,10 @@ function App() {
     }
   }
 
-  const downloadState = () => {
+  const captureState = (): CapturedState => {
     const mod = modRef.current
     const ctx = ctxRef.current
-    if (!mod || !ctx || !hasRom) return
+    if (!mod || !ctx || !hasRom) throw new Error('No content loaded')
 
     let sizePtr = 0
     let statePtr = 0
@@ -294,13 +379,50 @@ function App() {
 
       const stateBytes = new Uint8Array(stateSize)
       stateBytes.set(new Uint8Array(mod.HEAPU8.buffer, statePtr, stateSize))
+      const identity = readStateIdentity(mod, statePtr, stateSize)
+      return { bytes: stateBytes, ...identity }
+    } finally {
+      if (statePtr) mod._free(statePtr)
+      if (sizePtr) mod._free(sizePtr)
+    }
+  }
+
+  const saveLocalState = () => {
+    if (!hasRom) return
+    try {
+      const state = captureState()
+      let previewDataUrl: string | null = null
+      try {
+        previewDataUrl = canvasRef.current?.toDataURL('image/png') ?? null
+      } catch {
+        previewDataUrl = null
+      }
+      writeStoredSave({
+        version: 1,
+        systemType: state.systemType,
+        contentIdentity: state.contentIdentity,
+        contentName: romName || 'Untitled',
+        savedAt: new Date().toISOString(),
+        previewDataUrl,
+        stateBase64: encodeState(state.bytes),
+      })
+      refreshStoredSaves()
+      setStatusText('Saved locally')
+    } catch {
+      setStatusText('Unable to save locally')
+    }
+  }
+
+  const downloadState = () => {
+    try {
+      const state = captureState()
       const url = URL.createObjectURL(new Blob(
-        [stateBytes.buffer],
+        [state.bytes.buffer],
         { type: 'application/octet-stream' },
       ))
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `${stateFileStem(romName)}.ear6state`
+      anchor.download = `${stateFileStem(romName)}.e6s`
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
@@ -308,49 +430,83 @@ function App() {
       setStatusText('State downloaded')
     } catch {
       setStatusText('Unable to save state')
-    } finally {
-      if (statePtr) mod._free(statePtr)
-      if (sizePtr) mod._free(sizePtr)
     }
   }
 
-  const openState = async () => {
+  const loadStateBytes = (bytes: Uint8Array, contentName: string, successText: string) => {
     const mod = modRef.current
-    const input = stateInputRef.current
     const ctx = ctxRef.current
-    if (!mod || !input || !ctx) return
-    const file = input.files?.[0]
-    if (!file) return
+    if (!mod || !ctx || bytes.length === 0) return false
 
     const wasRunning = runningRef.current
     let ptr = 0
-    setStatusText('Loading state...')
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer())
       ptr = mod._malloc(bytes.length)
       if (!ptr) throw new Error('Unable to allocate state memory')
       mod.HEAPU8.set(bytes, ptr)
+      const identity = readStateIdentity(mod, ptr, bytes.length)
+      if (identity.systemType !== SYSTEM_NES) throw new Error('Unsupported system')
       runningRef.current = false
       if (mod._ear6_web_load_state_from_memory(ctx, ptr, bytes.length) !== 0) {
-        runningRef.current = wasRunning
         throw new Error('State load failed')
       }
 
       romDataRef.current = null
       setHasRom(true)
       setCanReset(false)
-      setRomName(stateFileStem(file.name))
+      setRomName(contentName)
       setIsRunning(false)
       setFps(0)
       setStepLoad(0)
       setStepTime(0)
-      setStatusText('State loaded')
+      setStatusText(successText)
+      return true
     } catch {
       runningRef.current = wasRunning
       setStatusText('Unable to load state')
+      return false
     } finally {
       if (ptr) mod._free(ptr)
+    }
+  }
+
+  const openState = async () => {
+    const input = stateInputRef.current
+    if (!input) return
+    const file = input.files?.[0]
+    if (!file) return
+
+    setStatusText('Loading state...')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      loadStateBytes(bytes, stateFileStem(file.name), 'State imported')
+    } catch {
+      setStatusText('Unable to load state')
+    } finally {
       input.value = ''
+    }
+  }
+
+  const loadStoredState = (save: StoredSave) => {
+    try {
+      const loaded = loadStateBytes(
+        decodeState(save.stateBase64),
+        save.contentName,
+        'Save loaded',
+      )
+      if (loaded) setShowSaveMenu(false)
+    } catch {
+      setStatusText('Unable to load save')
+    }
+  }
+
+  const deleteStoredState = (save: StoredSave) => {
+    try {
+      removeStoredSave(save)
+      refreshStoredSaves()
+      setStatusText('Save deleted')
+    } catch {
+      setStatusText('Unable to delete save')
     }
   }
 
@@ -474,20 +630,93 @@ function App() {
           <input
             ref={stateInputRef}
             type="file"
-            accept=".ear6state,application/octet-stream"
+            accept=".e6s,.ear6state,application/octet-stream"
             onChange={openState}
             aria-label="Open state file"
             hidden
           />
           <div className="state-actions" role="group" aria-label="Save state controls">
-            <button className="control-button" onClick={downloadState} disabled={!hasRom} title="Download state">
-              <Download size={18} />
+            <button className="control-button" onClick={saveLocalState} disabled={!hasRom} title="Save locally">
+              <Save size={18} />
               <span className="button-label">Save</span>
             </button>
-            <button className="control-button" onClick={() => stateInputRef.current?.click()} title="Open state">
-              <FileUp size={18} />
-              <span className="button-label">Load</span>
-            </button>
+            <div className="save-menu-anchor" ref={saveMenuRef}>
+              <button
+                className="control-button"
+                onClick={() => {
+                  if (!showSaveMenu) refreshStoredSaves()
+                  setShowSaveMenu(!showSaveMenu)
+                }}
+                title="Load save"
+                aria-haspopup="menu"
+                aria-expanded={showSaveMenu}
+              >
+                <ArchiveRestore size={18} />
+                <span className="button-label">Load</span>
+                <ChevronDown className="menu-chevron" size={14} />
+              </button>
+              {showSaveMenu && (
+                <div className="save-menu" role="menu" aria-label="Saved games">
+                  <div className="save-menu-head">
+                    <strong>Load save</strong>
+                    <span>{storedSaves.length}</span>
+                  </div>
+                  <div className="save-menu-list">
+                    {storedSaves.length === 0 ? (
+                      <div className="save-menu-empty">
+                        <ArchiveRestore size={24} />
+                        <span>No local saves</span>
+                      </div>
+                    ) : storedSaves.map(save => (
+                      <div className="save-entry" key={`${save.systemType}-${save.contentIdentity}`}>
+                        <button
+                          className="save-entry-main"
+                          role="menuitem"
+                          onClick={() => loadStoredState(save)}
+                          title={`Load ${save.contentName}`}
+                        >
+                          <span className="save-preview">
+                            {save.previewDataUrl
+                              ? <img src={save.previewDataUrl} alt="" />
+                              : <Gamepad2 size={22} />}
+                          </span>
+                          <span className="save-entry-copy">
+                            <strong>{save.contentName}</strong>
+                            <small>{formatSaveTime(save.savedAt)}</small>
+                          </span>
+                        </button>
+                        <button
+                          className="save-delete"
+                          onClick={() => deleteStoredState(save)}
+                          title={`Delete save for ${save.contentName}`}
+                          aria-label={`Delete save for ${save.contentName}`}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="save-menu-tools">
+                    <button
+                      className="icon-text-button"
+                      onClick={() => {
+                        setShowSaveMenu(false)
+                        stateInputRef.current?.click()
+                      }}
+                    >
+                      <FileUp size={16} /> Import .e6s
+                    </button>
+                    <button
+                      className="icon-text-button"
+                      onClick={downloadState}
+                      disabled={!hasRom}
+                    >
+                      <Download size={16} /> Export .e6s
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <button
             className="control-button"

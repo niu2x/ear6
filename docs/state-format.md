@@ -139,5 +139,17 @@ C++ protobuf runtime、reflection、JSON、text format、compiler 或 Abseil。
 - 保存时间、排序和当地时区显示；
 - 导入、导出、配额和错误提示。
 
+当前官方宿主采用单槽策略，key 都是 `system_type + content_identity`：
+
+- Desktop 写入 `QStandardPaths::AppDataLocation/states/`，文件名为
+  `<system>-<identity>.e6s`，通过 `QSaveFile` 原子覆盖；Load Save 菜单扫描并验证
+  目录内 state。
+- Web 写入 `localStorage` 的 `ear6.save.v1.<system>.<identity>` key；JSON record
+  保存 `.e6s` 的 base64、ROM 名、保存时间和菜单 PNG 缩略图。Load 菜单按当地时间
+  展示，`.e6s` 导入/导出仍作为显式操作保留。
+
+因此同一 content 的新 state 覆盖旧 state，不同 content 独立保存。这里的单槽策略是
+宿主产品约定，不进入 public API 或 protobuf container。
+
 state 内含原始 content，没有压缩或加密。它具有与原始 ROM/SWF 相同的版权、隐私
 和分发属性。

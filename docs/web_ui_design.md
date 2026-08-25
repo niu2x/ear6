@@ -55,10 +55,16 @@ browser rendering are intentionally excluded from this metric.
 
 ## State Files
 
-The Save control downloads a `.ear6state` file through the WASM memory API.
-The Load control restores that file into an otherwise empty NES context; no
-separate ROM selection or network request is required because v3 state embeds
-the original content. A loaded state starts paused. The cold-reset control is
+The Save control writes the current `.e6s` state to `localStorage`. Records are
+keyed by system type and the core container's 64-bit content identity, so each
+ROM has exactly one local state and a newer save replaces the older one. The
+Load control opens a menu sorted by save time with ROM names, local-time
+timestamps, and framebuffer previews.
+
+The same menu retains explicit `.e6s` import and export actions. Loading either
+a local or imported state restores an otherwise empty NES context; no separate
+ROM selection or network request is required because the state embeds the
+original content. A loaded state starts paused. The cold-reset control is
 disabled until the host has original ROM bytes available locally.
 
 ## Build Metadata

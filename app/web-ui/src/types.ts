@@ -29,6 +29,13 @@ export interface Ear6Module {
     stateSizePtr: number,
   ): number
   _ear6_web_load_state_from_memory(ctx: number, ptr: number, size: number): number
+  _ear6_web_get_state_identity(
+    ptr: number,
+    size: number,
+    systemTypePtr: number,
+    identityLowPtr: number,
+    identityHighPtr: number,
+  ): number
   _ear6_web_step(ctx: number): number
   _ear6_web_get_framebuffer(ctx: number): number
   _ear6_web_get_frame_width(ctx: number): number

@@ -5,6 +5,7 @@ namespace ear6::nes {
 
 class Mapper233 : public Mapper226 {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void reset(bool soft_reset) override;
 protected:
     uint8_t get_prg_page_inner() override;

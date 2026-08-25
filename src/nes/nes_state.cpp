@@ -6,6 +6,40 @@
 #include "base_mapper.h"
 #include "delta_modulation_channel.h"
 #include "mapper_000.h"
+#include "mapper_006.h"
+#include "mapper_009.h"
+#include "mapper_018.h"
+#include "mapper_032.h"
+#include "mapper_035.h"
+#include "mapper_041.h"
+#include "mapper_060.h"
+#include "mapper_064.h"
+#include "mapper_065.h"
+#include "mapper_067.h"
+#include "mapper_068.h"
+#include "mapper_072.h"
+#include "mapper_073.h"
+#include "mapper_075.h"
+#include "mapper_090.h"
+#include "mapper_092.h"
+#include "mapper_099.h"
+#include "mapper_112.h"
+#include "mapper_117.h"
+#include "mapper_156.h"
+#include "mapper_170.h"
+#include "mapper_202.h"
+#include "mapper_221.h"
+#include "mapper_226.h"
+#include "mapper_230.h"
+#include "mapper_233.h"
+#include "mapper_40.h"
+#include "mapper_42.h"
+#include "mapper_43.h"
+#include "mapper_46.h"
+#include "mapper_50.h"
+#include "mapper_57.h"
+#include "mapper_namco108.h"
+#include "mapper_sachen_74ls374n.h"
 #include "nes_apu.h"
 #include "nes_console.h"
 #include "nes_control_manager.h"
@@ -77,6 +111,11 @@ void sync_status(StateStream& s, PPUStatusFlags& status) {
     s.sync(status.sprite_overflow);
     s.sync(status.sprite_zero_hit);
     s.sync(status.vertical_blank);
+}
+
+template<typename T, size_t Size>
+void sync_std_array(StateStream& s, std::array<T, Size>& values) {
+    for (T& value : values) s.sync(value);
 }
 
 } // namespace
@@ -479,6 +518,252 @@ void BaseMapper::serialize(StateStream& s) {
 void Mapper000::serialize(StateStream& s) {
     BaseMapper::serialize(s);
     s.sync(chr_is_ram_);
+}
+
+void Mapper006::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_enabled_);
+    s.sync(ffe_alt_mode_);
+}
+
+void Mapper009::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(left_latch_);
+    s.sync(right_latch_);
+    s.sync(prg_page_);
+    s.sync_array(left_chr_page_);
+    s.sync_array(right_chr_page_);
+}
+
+void Mapper018::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(prg_banks_);
+    s.sync_array(chr_banks_);
+    s.sync_array(irq_reload_value_);
+    s.sync(irq_counter_);
+    s.sync(irq_counter_size_);
+    s.sync(irq_enabled_);
+}
+
+void Mapper032::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(prg_regs_);
+    s.sync(prg_mode_);
+}
+
+void Mapper035::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_enabled_);
+    s.sync(a12_low_clock_);
+}
+
+void Mapper041::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(prg_bank_);
+    s.sync(chr_bank_);
+}
+
+void Mapper060::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(reset_counter_);
+}
+
+void Mapper064::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    sync_std_array(s, registers_);
+    s.sync(current_register_);
+    s.sync(irq_enabled_);
+    s.sync(irq_cycle_mode_);
+    s.sync(need_reload_);
+    s.sync(irq_counter_);
+    s.sync(irq_reload_value_);
+    s.sync(cpu_clock_counter_);
+    s.sync(irq_delay_);
+    s.sync(force_clock_);
+    s.sync(a12_low_clock_);
+}
+
+void Mapper065::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_enabled_);
+    s.sync(irq_counter_);
+    s.sync(irq_reload_value_);
+}
+
+void Mapper067::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_latch_);
+    s.sync(irq_enabled_);
+}
+
+void Mapper068::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    sync_std_array(s, nametable_registers_);
+    s.sync(use_chr_nametables_);
+    s.sync(prg_ram_enabled_);
+    s.sync(licensing_timer_);
+    s.sync(using_external_rom_);
+    s.sync(external_page_);
+}
+
+void Mapper072::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(prg_flag_);
+    s.sync(chr_flag_);
+}
+
+void Mapper073::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_enable_on_ack_);
+    s.sync(irq_enabled_);
+    s.sync(small_counter_);
+    s.sync(irq_reload_);
+    s.sync(irq_counter_);
+}
+
+void Mapper075::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(chr_banks_);
+}
+
+void Mapper090::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    sync_std_array(s, prg_registers_);
+    sync_std_array(s, chr_low_registers_);
+    sync_std_array(s, chr_high_registers_);
+    s.sync(prg_mode_);
+    s.sync(enable_prg_at_6000_);
+    s.sync(chr_mode_);
+    s.sync(chr_block_mode_);
+    s.sync(chr_block_);
+    s.sync(mirror_chr_);
+    s.sync(mirroring_register_);
+    s.sync(irq_enabled_);
+    s.sync(irq_source_);
+    s.sync(irq_count_direction_);
+    s.sync(irq_small_prescaler_);
+    s.sync(irq_prescaler_);
+    s.sync(irq_counter_);
+    s.sync(irq_xor_register_);
+    s.sync(last_ppu_address_);
+    s.sync(multiply_value_1_);
+    s.sync(multiply_value_2_);
+    s.sync(register_ram_value_);
+}
+
+void Mapper092::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(prg_flag_);
+    s.sync(chr_flag_);
+}
+
+void Mapper099::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(prg_chr_select_bit_);
+}
+
+void Mapper112::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(current_reg_);
+    s.sync(outer_chr_bank_);
+    s.sync_array(registers_);
+}
+
+void Mapper117::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_reload_value_);
+    s.sync(irq_enabled_);
+    s.sync(irq_enabled_alt_);
+    s.sync(a12_low_clock_);
+}
+
+void Mapper156::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(chr_low_);
+    s.sync_array(chr_high_);
+}
+
+void Mapper170::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(reg_);
+}
+
+void Mapper202::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(prg_mode1_);
+}
+
+void Mapper221::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(mode_);
+    s.sync(prg_reg_);
+}
+
+void Mapper226::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(registers_);
+}
+
+void Mapper230::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(contra_mode_);
+}
+
+void Mapper233::serialize(StateStream& s) {
+    Mapper226::serialize(s);
+    s.sync(reset_flag_);
+}
+
+void Mapper40::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+}
+
+void Mapper42::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_enabled_);
+    s.sync(prg_reg_);
+}
+
+void Mapper43::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(reg_);
+    s.sync(swap_);
+    s.sync(irq_counter_);
+    s.sync(irq_enabled_);
+}
+
+void Mapper46::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(regs_);
+}
+
+void Mapper50::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(irq_counter_);
+    s.sync(irq_enabled_);
+}
+
+void Mapper57::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync_array(registers_);
+}
+
+void MapperNamco108::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(current_register_);
+    s.sync_array(registers_);
+}
+
+void MapperSachen74LS374N::serialize(StateStream& s) {
+    BaseMapper::serialize(s);
+    s.sync(current_register_);
+    s.sync_array(registers_);
 }
 
 void NesConsole::serialize(StateStream& s) {

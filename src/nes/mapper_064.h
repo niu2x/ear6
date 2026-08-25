@@ -8,6 +8,7 @@ namespace ear6::nes {
 
 class Mapper064 : public BaseMapper {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void init(const RomInfo& info,
               const std::vector<uint8_t>& prg_rom,
               const std::vector<uint8_t>& chr_rom) override;

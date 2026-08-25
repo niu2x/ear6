@@ -5,6 +5,7 @@ namespace ear6::nes {
 
 class Mapper50 : public BaseMapper {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void init(const RomInfo& info, const std::vector<uint8_t>& prg_rom, const std::vector<uint8_t>& chr_rom) override;
     uint16_t get_prg_page_size() override { return 0x2000; }
     uint16_t get_chr_page_size() override { return 0x2000; }

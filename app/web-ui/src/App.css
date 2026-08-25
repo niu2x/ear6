@@ -572,7 +572,8 @@ canvas {
 .modal-head span {
   color: var(--amber);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .modal-head strong {

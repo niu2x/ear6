@@ -21,6 +21,8 @@ function App() {
   const [isRunning, setIsRunning] = useState(false)
   const [statusText, setStatusText] = useState('Ready')
   const [fps, setFps] = useState(0)
+  const [stepLoad, setStepLoad] = useState(0)
+  const [stepTime, setStepTime] = useState(0)
   const [romName, setRomName] = useState('')
   const [hasRom, setHasRom] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -83,6 +85,7 @@ function App() {
     let accumulatedTime = 0
     let fpsWindowStart = performance.now()
     let emulatedFrames = 0
+    let totalStepTime = 0
 
     const draw = (time: number) => {
       if (lastAnimationTime === null) lastAnimationTime = time
@@ -95,7 +98,9 @@ function App() {
         accumulatedTime += elapsed
         let steps = 0
         while (accumulatedTime >= FRAME_DURATION_MS && steps < MAX_CATCH_UP_STEPS) {
+          const stepStart = performance.now()
           mod._ear6_web_step(ctxRef.current)
+          totalStepTime += performance.now() - stepStart
           accumulatedTime -= FRAME_DURATION_MS
           emulatedFrames += 1
           steps += 1
@@ -134,8 +139,12 @@ function App() {
 
       const fpsElapsed = time - fpsWindowStart
       if (fpsElapsed >= 1000) {
+        const averageStepTime = emulatedFrames > 0 ? totalStepTime / emulatedFrames : 0
         setFps(Math.round(emulatedFrames * 1000 / fpsElapsed))
+        setStepTime(averageStepTime)
+        setStepLoad(averageStepTime / FRAME_DURATION_MS * 100)
         emulatedFrames = 0
+        totalStepTime = 0
         fpsWindowStart = time
       }
       frameIdRef.current = requestAnimationFrame(draw)
@@ -231,6 +240,12 @@ function App() {
       <footer className="status-bar">
         <span>Status: {statusText}</span>
         <span>FPS: {fps}</span>
+        <span title="Average ear6_step time as a share of the 16.67 ms frame budget">
+          Step: {stepLoad.toFixed(1)}% ({stepTime.toFixed(2)} ms)
+        </span>
+        <span title={__EAR6_BUILD_TIME__}>
+          Rev: {__EAR6_GIT_REV__} · Built: {__EAR6_BUILD_TIME__.slice(0, 16).replace('T', ' ')} UTC
+        </span>
       </footer>
 
       {showHelp && (

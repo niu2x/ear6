@@ -21,13 +21,15 @@ Theme: precision console in a dark room.
 
 1. **Header**
    - Ear6 identity, current state, and loaded ROM name
-2. **Screen stage**
+2. **Desktop workspace**
+   - Open, reset, run/pause, fullscreen, and keyboard controls in a left rail
    - Unmodified 256x240 framebuffer centered in a minimal hardware frame
-3. **Console deck**
-   - Open, reset, run/pause, fullscreen, and keyboard controls
-   - Live status, FPS, and step-load diagnostics
+   - Live status, FPS, and step-load diagnostics in a right rail
+3. **Responsive controls**
+   - Below 1000px, controls and diagnostics move beneath the screen so the
+     framebuffer keeps the full viewport width
 4. **Build strip**
-   - Short Git revision and build timestamp
+   - Short Git revision aligned left and build timestamp aligned right
    - Build timestamp is stored as ISO UTC and rendered in the browser's local
      timezone
 

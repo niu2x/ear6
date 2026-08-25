@@ -63,7 +63,12 @@ button:focus-visible {
   width: 100%;
   height: 100dvh;
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr) auto 30px;
+  grid-template-columns: 176px minmax(0, 1fr) 220px;
+  grid-template-rows: 64px minmax(0, 1fr) 38px;
+  grid-template-areas:
+    "header header header"
+    "controls screen stats"
+    "footer footer footer";
   background: rgba(7, 8, 8, 0.88);
 }
 
@@ -113,8 +118,9 @@ button:focus-visible {
 }
 
 .topbar {
+  grid-area: header;
   min-width: 0;
-  padding: 0 20px;
+  padding: 0 22px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -131,8 +137,8 @@ button:focus-visible {
 }
 
 .brand-mark {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   display: grid;
@@ -147,15 +153,15 @@ button:focus-visible {
 }
 
 .brand-copy strong {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 850;
 }
 
 .brand-copy small {
-  margin-top: 4px;
+  margin-top: 5px;
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .session-summary {
@@ -165,7 +171,7 @@ button:focus-visible {
   align-items: center;
   justify-content: flex-end;
   gap: 9px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .status-indicator {
@@ -202,14 +208,16 @@ button:focus-visible {
   min-width: 0;
   overflow: hidden;
   color: var(--muted);
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .screen-wrap {
+  grid-area: screen;
   min-width: 0;
   min-height: 0;
-  padding: 14px 20px;
+  padding: 18px 22px;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -287,23 +295,20 @@ canvas {
 }
 
 .console-deck {
-  min-width: 0;
-  padding: 10px 18px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid #050505;
-  display: grid;
-  grid-template-columns: minmax(480px, 1fr) auto;
-  align-items: center;
-  gap: 22px;
-  background: var(--surface);
-  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.22);
+  display: contents;
 }
 
 .toolbar {
+  grid-area: controls;
   min-width: 0;
+  padding: 18px 14px;
+  border-right: 1px solid var(--line);
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  background: var(--surface);
+  box-shadow: 12px 0 36px rgba(0, 0, 0, 0.18);
 }
 
 .control-button,
@@ -322,10 +327,12 @@ canvas {
 }
 
 .control-button {
+  width: 100%;
   min-width: 0;
-  min-height: 42px;
-  padding: 0 14px;
-  font-size: 13px;
+  min-height: 48px;
+  padding: 0 13px;
+  justify-content: flex-start;
+  font-size: 15px;
   font-weight: 750;
   white-space: nowrap;
 }
@@ -379,19 +386,29 @@ canvas {
 }
 
 .runtime-stats {
-  min-width: 480px;
-  display: grid;
-  grid-template-columns: minmax(120px, 1fr) 92px minmax(210px, 1.35fr);
-  align-items: stretch;
+  grid-area: stats;
+  min-width: 0;
+  padding: 18px 14px;
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: -12px 0 36px rgba(0, 0, 0, 0.18);
 }
 
 .runtime-stat {
+  flex: 1 1 0;
   min-width: 0;
-  padding: 1px 14px;
-  border-left: 1px solid var(--line);
+  min-height: 112px;
+  padding: 16px 6px;
+  border-bottom: 1px solid var(--line);
   display: grid;
   align-content: center;
-  column-gap: 7px;
+  column-gap: 9px;
+}
+
+.runtime-stat:last-child {
+  border-bottom: 0;
 }
 
 .stat-label {
@@ -400,7 +417,7 @@ canvas {
   gap: 5px;
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -409,7 +426,7 @@ canvas {
   overflow: hidden;
   color: var(--text);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -432,7 +449,7 @@ canvas {
 .runtime-stat small {
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .fps-stat {
@@ -484,17 +501,18 @@ canvas {
 }
 
 .status-bar {
+  grid-area: footer;
   min-width: 0;
-  padding: 0 20px;
+  padding: 0 22px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 18px;
   overflow: hidden;
   background: #0d0e0f;
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .status-bar span {
@@ -582,27 +600,70 @@ kbd {
   text-align: center;
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1000px) {
   .app {
-    grid-template-rows: 52px minmax(0, 1fr) auto 30px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 56px minmax(0, 1fr) auto 38px;
+    grid-template-areas:
+      "header"
+      "screen"
+      "deck"
+      "footer";
   }
 
   .console-deck {
+    grid-area: deck;
+    min-width: 0;
     padding: 8px 14px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid #050505;
+    display: grid;
     grid-template-columns: 1fr;
+    align-items: center;
     gap: 8px;
+    background: var(--surface);
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.22);
   }
 
   .toolbar {
+    grid-area: auto;
+    padding: 0;
+    border-right: 0;
+    flex-direction: row;
+    align-items: center;
     justify-content: center;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .control-button {
+    width: auto;
+    min-height: 42px;
+    padding: 0 14px;
+    justify-content: center;
+    font-size: 13px;
   }
 
   .runtime-stats {
+    grid-area: auto;
     width: min(620px, 100%);
     min-width: 0;
+    padding: 7px 0 0;
     margin: 0 auto;
     border-top: 1px solid #292a2d;
-    padding-top: 7px;
+    border-left: 0;
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) 92px minmax(210px, 1.35fr);
+    align-items: stretch;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .runtime-stat {
+    min-height: 0;
+    padding: 1px 14px;
+    border-bottom: 0;
+    border-left: 1px solid var(--line);
   }
 
   .runtime-stat:first-child {

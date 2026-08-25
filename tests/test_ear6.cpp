@@ -270,6 +270,90 @@ TEST(Ear6State, SupportedNesMappersContinueDeterministically) {
     }
 }
 
+TEST(Ear6State, RealRomMappersContinueDeterministically) {
+    const char* roms[] = {
+        "mapper_0/10-Yard Fight (J).nes",
+        "mapper_1/'89 Dennou Kyuusei Uranai (J).nes",
+        "mapper_10/Famicom Wars (J).nes",
+        "mapper_117/sango4.nes",
+        "mapper_118/Arumajiro (J).nes",
+        "mapper_15/100IN1.NES",
+        "mapper_16/Crayon Shin Chan (J).nes",
+        "mapper_17/Dynamite Batman (J).nes",
+        "mapper_18/Saiyuuki World 2 - Tenjoukai No Mashou (J).nes",
+        "mapper_184/Toukaidou Gojuusan Tsugi (J).nes",
+        "mapper_19/Battle Fleet (J).nes",
+        "mapper_2/1943 (J).nes",
+        "mapper_21/Ganbare Goemon Gaiden 2 - Tenka No Zaihou (J).nes",
+        "mapper_22/Ganbare Penant Race! (J).nes",
+        "mapper_226/Super_42-in-1.nes",
+        "mapper_23/Akumajou Special - Boku Dracula Kun (J).nes",
+        "mapper_24/Akumajou Densetsu (J).nes",
+        "mapper_240/Gen Ke Le Zhuan (C).nes",
+        "mapper_243/Poker 3 - 5 in 1 (C).nes",
+        "mapper_245/Yong Ze Do Re Long 6 (C).nes",
+        "mapper_25/Bio Miracle Bokutte Upa (J).nes",
+        "mapper_252/3GO.NES",
+        "mapper_26/Esper Dream 2 - Aratanaru Tatakai (J).nes",
+        "mapper_3/ASO - Armored Scrum Object (J).nes",
+        "mapper_32/Meikyuujima (J).nes",
+        "mapper_33/Akira (J).nes",
+        "mapper_35/Bar Games (J).nes",
+        "mapper_4/1999 - Hore, Mitakotoka! Seikimatsu (J).nes",
+        "mapper_41/caltron.nes",
+        "mapper_45/BrainSeries13in1.nes",
+        "mapper_5/Nobunaga No Yabou - Sengoku Gunyuuden (J).nes",
+        "mapper_58/sag32-1.nes",
+        "mapper_62/s700in1.nes",
+        "mapper_64/Dig Dug 2 (J).nes",
+        "mapper_65/Ai Sensei No Oshiete - Watashi No Hoshi (J).nes",
+        "mapper_66/Bio Senshi Dan - Increaser To No Tatakai (J).nes",
+        "mapper_67/Fantasy Zone 2 - The Teardrop of Opa-Opa (J).nes",
+        "mapper_68/After Burner 2 (J).nes",
+        "mapper_69/Batman (J).nes",
+        "mapper_7/Battletoads Double Dragon (U).nes",
+        "mapper_70/Gegege No Kitarou 2 - Youkaigundan No Chousen (J).nes",
+        "mapper_73/Salamander (J).nes",
+        "mapper_74/d4cjqrdz.nes",
+        "mapper_75/Exciting Boxing (J).nes",
+        "mapper_76/Digital Devil Monogatari - Megami Tensei (J).nes",
+        "mapper_88/Devil Man (J).nes",
+        "mapper_89/Mito Koumon (J).nes",
+        "mapper_90/finalf3.nes",
+        "mapper_93/Fantasy Zone (J).nes",
+        "mapper_95/Dragon Buster (J).nes",
+        "mapper_99/vs battle city.nes",
+    };
+
+    int exercised = 0;
+    for (const char* relative_path : roms) {
+        SCOPED_TRACE(relative_path);
+        std::string path = std::string(EAR6_SOURCE_DIR)
+            + "/assets/nes/rom/" + relative_path;
+        FILE* file = std::fopen(path.c_str(), "rb");
+        if (!file) continue;
+        std::fclose(file);
+        ++exercised;
+
+        Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+        ASSERT_NE(ctx, nullptr);
+        ASSERT_EQ(ear6_load_from_file(ctx, path.c_str()), 0);
+        for (int i = 0; i < 60; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+
+        std::vector<uint8_t> checkpoint = save_state(ctx);
+        ASSERT_FALSE(checkpoint.empty());
+        for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+        std::vector<uint8_t> expected = save_state(ctx);
+        ASSERT_FALSE(expected.empty());
+
+        ASSERT_EQ(ear6_load_state_from_memory(ctx, checkpoint.data(), checkpoint.size()), 0);
+        for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+        EXPECT_EQ(save_state(ctx), expected);
+        ear6_destroy(ctx);
+    }
+    EXPECT_GT(exercised, 0);
+}
+
 TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);

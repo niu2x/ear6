@@ -148,6 +148,32 @@ TEST(Ear6State, RejectsInvalidStateWithoutMutation) {
     ear6_destroy(ctx);
 }
 
+TEST(Ear6State, RejectsOlderFormatVersionWithoutMutation) {
+    static_assert(EAR6_STATE_FORMAT_VERSION > 0, "state format version must be positive");
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+
+    size_t state_size = 0;
+    ASSERT_EQ(ear6_save_state_to_memory(ctx, nullptr, 0, &state_size), 0);
+    std::vector<uint8_t> state(state_size);
+    ASSERT_EQ(ear6_save_state_to_memory(ctx, state.data(), state.size(), &state_size), 0);
+
+    constexpr size_t VERSION_OFFSET = 8;
+    uint32_t old_version = EAR6_STATE_FORMAT_VERSION - 1;
+    for (size_t i = 0; i < sizeof(old_version); ++i) {
+        state[VERSION_OFFSET + i] = static_cast<uint8_t>(old_version >> (i * 8));
+    }
+
+    const uint8_t* before_data = ear6_get_framebuffer(ctx);
+    std::vector<uint8_t> before(before_data, before_data + 256 * 240 * 4);
+    EXPECT_NE(ear6_load_state_from_memory(ctx, state.data(), state.size()), 0);
+    EXPECT_EQ(std::memcmp(before.data(), ear6_get_framebuffer(ctx), before.size()), 0);
+
+    ear6_destroy(ctx);
+}
+
 TEST(Ear6State, NullArgumentsAreRejected) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);

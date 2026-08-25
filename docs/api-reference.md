@@ -217,9 +217,12 @@ int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 checksum 不匹配时返回非零，不修改当前模拟状态。加载成功后，先前取得的
 framebuffer 和音频指针均视为失效，宿主应重新查询。
 
-当前 Test 系统支持完整 state 往返。NES 的逐组件序列化正在实现，在 CPU、PPU、
-APU、输入和 mapper 状态全部覆盖前，这两个函数对 NES 返回非零，避免生成不完整
-且看似可用的 state。
+state 不包含 ROM 数据；宿主必须单独保留 ROM，并先调用 `ear6_load_from_file()` 或
+`ear6_load_from_memory()`。Ear6 会比较 state 中的内容身份与当前已加载的完整 ROM，
+两者不一致时拒绝恢复。
+
+当前 Test 系统和 NES mapper 0 支持完整 state 往返。其他 NES mapper 的私有状态
+尚未覆盖，因此这两个函数会返回非零，避免生成不完整且看似可用的 state。
 
 ## 7. 推进模拟
 

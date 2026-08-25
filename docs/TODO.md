@@ -71,7 +71,7 @@
 - [ ] FDS RAM adapter、寄存器、磁盘和扩展音频
 - [ ] PAL/Dendy 的 CPU、PPU、APU 帧时序与公共配置路径
 - [ ] battery-backed save RAM 的宿主持久化 API
-- [ ] save/load state 序列化 API 与版本策略
+- [ ] 完成 NES save/load state 的 CPU、PPU、APU、输入和全部 mapper 序列化覆盖
 - [ ] Zapper、Four Score、Arkanoid controller、Power Pad 等设备选择 API
 - [ ] VS System/DualSystem 的 coin、DIP switch 和双机设备模型
 - [ ] DMC DMA 与 sprite DMA 并发、cycle stealing 和边缘时序验证
@@ -102,7 +102,7 @@ Flash 是否作为第二个真实系统继续实现，需要先形成核心范�
 ## P2：用户能力
 
 - [ ] 游戏存档导入/导出和安全落盘
-- [ ] save state 管理
+- [ ] 在宿主层实现 save state 槽位、文件持久化和管理界面
 - [ ] 可配置控制器与多玩家输入
 - [ ] 调试器：CPU 寄存器、内存、PPU viewer、断点和 trace
 - [ ] cheat/Game Genie

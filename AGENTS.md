@@ -61,6 +61,13 @@ Returned buffers are owned by the context. Callers must not mutate or free
 them. See `docs/api-reference.md` before changing pointer lifetime, callback,
 or audio-consumption behavior.
 
+Save state is also a system-agnostic memory API. The core serializes and
+validates state buffers; host applications own file paths, slots, compression,
+databases, and cloud persistence. Do not add state-file I/O to the core, and do
+not confuse whole-machine state with battery-backed game save RAM. A system
+must reject save/load state until all state that affects future execution is
+covered.
+
 Current support must be stated precisely:
 
 | System | Runtime status |

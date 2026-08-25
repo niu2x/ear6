@@ -2,6 +2,7 @@
 
 #include <ear6/export.h>
 #include <ear6/version.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -25,6 +26,14 @@ EAR6_API void ear6_destroy(Ear6* ctx);
 
 EAR6_API int ear6_load_from_file(Ear6* ctx, const char* path);
 EAR6_API int ear6_load_from_memory(Ear6* ctx, const void* data, int size, const char* name_hint);
+
+EAR6_API int ear6_save_state_to_memory(
+    Ear6* ctx,
+    void* buffer,
+    size_t capacity,
+    size_t* state_size
+);
+EAR6_API int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 
 EAR6_API void ear6_set_frame_callback(Ear6* ctx, Ear6FrameCallback cb, void* user_data);
 EAR6_API void ear6_set_audio_callback(Ear6* ctx, Ear6AudioCallback cb, void* user_data);

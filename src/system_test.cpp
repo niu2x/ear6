@@ -1,4 +1,5 @@
 #include "system_test.h"
+#include "state_stream.h"
 
 #include <cmath>
 
@@ -14,6 +15,26 @@ TestSystem::TestSystem()
 int TestSystem::load(const void* data, int size) {
     (void)data;
     (void)size;
+    return 0;
+}
+
+int TestSystem::save_state(std::vector<uint8_t>& data) const {
+    StateStream stream;
+    int tick = tick_;
+    stream.sync(tick);
+    data = stream.get_data();
+    return 0;
+}
+
+int TestSystem::load_state(const void* data, size_t size) {
+    StateStream stream(data, size);
+    int tick = 0;
+    stream.sync(tick);
+    if (stream.has_error() || stream.get_remaining() != 0 || tick < 0) {
+        return -1;
+    }
+    tick_ = tick;
+    generate_wave();
     return 0;
 }
 

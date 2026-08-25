@@ -96,6 +96,71 @@ TEST(Ear6Load, LoadWithNullPathIsSafe) {
     ear6_destroy(ctx);
 }
 
+TEST(Ear6State, TestSystemRoundTrip) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+
+    for (int i = 0; i < 5; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+
+    size_t state_size = 0;
+    ASSERT_EQ(ear6_save_state_to_memory(ctx, nullptr, 0, &state_size), 0);
+    ASSERT_GT(state_size, 0u);
+    std::vector<uint8_t> state(state_size);
+    ASSERT_EQ(ear6_save_state_to_memory(ctx, state.data(), state.size(), &state_size), 0);
+
+    for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+    const uint8_t* expected_data = ear6_get_framebuffer(ctx);
+    ASSERT_NE(expected_data, nullptr);
+    std::vector<uint8_t> expected(expected_data, expected_data + 256 * 240 * 4);
+
+    ASSERT_EQ(ear6_load_state_from_memory(ctx, state.data(), state.size()), 0);
+    for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+    const uint8_t* actual = ear6_get_framebuffer(ctx);
+    ASSERT_NE(actual, nullptr);
+    EXPECT_EQ(std::memcmp(expected.data(), actual, expected.size()), 0);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, RejectsSmallOutputBuffer) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+
+    uint8_t buffer[1] = {};
+    size_t required = 0;
+    EXPECT_NE(ear6_save_state_to_memory(ctx, buffer, sizeof(buffer), &required), 0);
+    EXPECT_GT(required, sizeof(buffer));
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, RejectsInvalidStateWithoutMutation) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+
+    const uint8_t* before_data = ear6_get_framebuffer(ctx);
+    std::vector<uint8_t> before(before_data, before_data + 256 * 240 * 4);
+    const uint8_t invalid[] = {'N', 'O', 'T', 'S', 'T', 'A', 'T', 'E'};
+    EXPECT_NE(ear6_load_state_from_memory(ctx, invalid, sizeof(invalid)), 0);
+    EXPECT_EQ(std::memcmp(before.data(), ear6_get_framebuffer(ctx), before.size()), 0);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, NullArgumentsAreRejected) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    size_t size = 0;
+
+    EXPECT_NE(ear6_save_state_to_memory(nullptr, nullptr, 0, &size), 0);
+    EXPECT_NE(ear6_save_state_to_memory(ctx, nullptr, 0, nullptr), 0);
+    EXPECT_NE(ear6_load_state_from_memory(nullptr, &size, sizeof(size)), 0);
+    EXPECT_NE(ear6_load_state_from_memory(ctx, nullptr, 0), 0);
+
+    ear6_destroy(ctx);
+}
+
 TEST(Ear6Create, FlashSystemNotImplemented) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_FLASH);
     EXPECT_EQ(ctx, nullptr);

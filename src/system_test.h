@@ -11,6 +11,8 @@ public:
     TestSystem();
 
     int load(const void* data, int size) override;
+    int save_state(std::vector<uint8_t>& data) const override;
+    int load_state(const void* data, size_t size) override;
     int step() override;
 
     const uint8_t* get_framebuffer() const override;

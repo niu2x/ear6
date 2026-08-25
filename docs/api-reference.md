@@ -78,6 +78,7 @@ typedef enum {
 | `-1` | 无效上下文、无效参数、错误系统类型或系统拒绝输入 |
 | `-2` | C++ 实现抛出异常，已在 C ABI 边界捕获 |
 | `-3` | `ear6_load_from_file()` 打开、定位或读取文件失败 |
+| `-4` | state buffer 容量不足，或 state 格式、版本、系统、内容身份不匹配 |
 
 未来应增加公开错误枚举；见 [项目路线图](TODO.md)。
 
@@ -170,7 +171,53 @@ int ear6_load_from_memory(
 不要把 `name_hint` 当成通用自动检测 API。调用者已经在创建上下文时选择了系统；
 它只是供系统实现做格式或内容提示。
 
-## 6. 推进模拟
+## 6. Save State
+
+Ear6 只负责把整机状态写入内存或从内存恢复。文件名、槽位、压缩、数据库和云端
+同步都由宿主负责；这与游戏自身的 battery-backed save RAM 是两种不同能力。
+
+### `ear6_save_state_to_memory`
+
+```c
+int ear6_save_state_to_memory(
+    Ear6* ctx,
+    void* buffer,
+    size_t capacity,
+    size_t* state_size
+);
+```
+
+采用两阶段调用。先传入 `buffer == NULL` 查询所需大小，再由调用者分配内存：
+
+```c
+size_t size = 0;
+if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
+    void* state = malloc(size);
+    int rc = ear6_save_state_to_memory(ctx, state, size, &size);
+    /* 宿主可以把 state 写入文件、数据库或其他存储。 */
+    free(state);
+}
+```
+
+当容量不足时函数返回非零，并通过 `state_size` 返回所需容量。成功后 buffer 中是
+带 magic、格式版本、系统类型、内容身份、payload 长度和校验值的 Ear6 state。
+该二进制格式不等同于 Mesen2 state，也不承诺其他模拟器可以读取。
+
+### `ear6_load_state_from_memory`
+
+```c
+int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
+```
+
+恢复前必须先在上下文中加载同一个游戏内容。格式版本、系统类型、内容身份或
+checksum 不匹配时返回非零，不修改当前模拟状态。加载成功后，先前取得的
+framebuffer 和音频指针均视为失效，宿主应重新查询。
+
+当前 Test 系统支持完整 state 往返。NES 的逐组件序列化正在实现，在 CPU、PPU、
+APU、输入和 mapper 状态全部覆盖前，这两个函数对 NES 返回非零，避免生成不完整
+且看似可用的 state。
+
+## 7. 推进模拟
 
 ### `ear6_step`
 
@@ -190,7 +237,7 @@ int ear6_step(Ear6* ctx);
 `ear6_step()` 不负责按真实时间等待。宿主决定 60 Hz、PAL 速率、暂停、快进和
 掉帧策略。不要直接把浏览器刷新率等同于模拟帧率。
 
-## 7. 视频
+## 8. 视频
 
 ### `Ear6FrameCallback`
 
@@ -248,7 +295,7 @@ if (ear6_step(ctx) == 0) {
 当前尺寸：Test 为其内部测试画面尺寸，NES 为 `256 x 240`。宿主必须每次使用
 查询值，不能把 NES 尺寸写成跨系统常量。
 
-## 8. 音频
+## 9. 音频
 
 ### `Ear6AudioCallback`
 
@@ -305,7 +352,7 @@ if (pcm != NULL && frames > 0) {
 `ear6_consume_audio()` 消费一个完整包。它不接受部分 sample 数量；没有可用包或
 上下文无效时是 no-op。消费后先前的音频指针失效。
 
-## 9. NES 扩展
+## 10. NES 扩展
 
 NES API 在 `<ear6/nes.h>` 中。所有操作都要求 `ctx` 是由
 `EAR6_SYSTEM_NES` 创建的上下文。
@@ -375,7 +422,7 @@ void ear6_nes_clear_input(Ear6* ctx);
 `ear6_nes_clear_input()` 释放当前 NES 输入管理器中的全部按键。无效或非 NES
 上下文时是 no-op。窗口失焦、暂停或 ROM 切换时应调用它，避免粘键。
 
-## 10. Flash 扩展
+## 11. Flash 扩展
 
 ```c
 #include <ear6/flash.h>
@@ -386,7 +433,7 @@ int ear6_flash_set_version(Ear6* ctx, int version);
 **当前状态：Flash 核心和该函数实现都不存在。** 头文件只保留未来扩展边界，
 0.1.x 应用不能创建或链接使用 Flash 运行路径。
 
-## 11. 诊断函数
+## 12. 诊断函数
 
 ```c
 int ear6_test(void);
@@ -395,7 +442,7 @@ int ear6_test(void);
 当前固定返回 `42`，只用于早期链接/导出自检。它不是模拟器功能，也不应成为新
 集成的健康检查协议。
 
-## 12. 完整 C 示例
+## 13. 完整 C 示例
 
 下面的程序加载 NES ROM，按 60 帧推进，并读取最后一帧。真正的宿主需要把
 framebuffer 上传到图形 API，并按自己的时钟调度 `ear6_step()`。
@@ -448,7 +495,7 @@ int main(int argc, char** argv) {
 }
 ```
 
-## 13. 集成检查清单
+## 14. 集成检查清单
 
 - 每次创建后检查 `nullptr`，每次加载/推进后检查非零返回码。
 - 系统配置函数只用于匹配类型的上下文。

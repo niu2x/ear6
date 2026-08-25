@@ -2,9 +2,11 @@
 
 ## Product Goal
 
-The Web UI is an immersive, single-system NES emulator. The game framebuffer
-is the primary surface; controls and diagnostics stay compact and readable
-around it. UI effects must never alter the framebuffer pixels.
+The Ear6 project is a multi-system emulator library. The current Web UI is an
+immersive NES host because its file detection and input mapping only expose the
+NES system today. The game framebuffer is the primary surface; controls and
+diagnostics stay compact and readable around it. UI effects must never alter
+the framebuffer pixels.
 
 ## Visual Direction
 

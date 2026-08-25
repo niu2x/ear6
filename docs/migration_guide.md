@@ -1,1301 +1,323 @@
-# NES PPU Migration Guide: ear6 <-> Mesen2
+# NES 与 Mesen2 对比开发指南
 
-## 警告：必须先读
+本章是 Ear6 NES 核心的参考实现迁移、mapper 开发和精确性调试手册。Mesen2 是
+当前参考目标，但“与 Mesen2 不同”不自动等于 Ear6 错误：必须同时检查两边画面
+是否合理，并用日志与代码建立证据。
 
-本项目的 ear6 PPU 实现存在大量细微但致命的 bug。Mesen2 是精确到 PPU clock cycle 级别的模拟器。**任何看起来"无关紧要"的细节差异都会导致游戏无法正确渲染**。此前的实现者忽略了许多 Mesen2 中的关键细节，导致：
-- 黑屏（nametable 选择错误）
-- 调色板完全未写入（$2006/$2007 序列被 batch 模型破坏）
-- 颜色渲染错误（透明像素调色板处理错误）
-- 调色板镜像错误
+当前兼容性结果见 [nes-issue.md](../nes-issue.md)，项目级未完成能力见
+[TODO](TODO.md)。本文件只维护可重复的方法，不维护会迅速过期的 mapper 状态表。
 
-**迁移原则：逐行对照 Mesen2，不要自己发明。**
+## 1. 参考环境
 
----
-
-## 1. 执行模型差异：Interleaved vs Batch
-
-## 0. 调试方法论（先于任何个例）
-
-本节总结了近期迁移中“走弯路”的共同原因，并给出统一流程。目标是：
-**尽快逼近真相，避免拍脑袋猜 CPU/PPU/IRQ**。
-
-### A. 先分层，再定位
-
-任何画面不一致，先拆成三层比较：
-
-1. `raw_idx`（PPU 原始索引）
-2. `mapped_idx`（LUT 后索引）
-3. `final_rgb`（最终截图）
-
-如果 `raw_idx` 已一致，就不要继续猜 CPU/IRQ；优先查 LUT/调色板/后处理路径。
-
-### B. 双证据原则（必须同时满足）
-
-每个结论都必须同时有：
-
-1. **日志证据**：可复现实验命令 + 对比结果（百分比、首个差异点）
-2. **代码证据**：明确指出 mesen2 与 ear6 的对应代码路径与语义差异
-
-没有两者，不允许下“根因结论”。
-
-### C. 默认先排除“输出路径噪音”
-
-在比较 core 行为前，先固定输出口径：
-
-- 禁用或旁路后处理（filter/scanline/rotate/scale）
-- 对齐“取帧时机”（frame gating）
-- 对齐 PPU model / NES DB / LUT 语义
-
-否则会出现“core 已一致但截图不一致”的假分叉。
-
-### D. 单次迭代最小闭环
-
-每次只做一个小变更，然后立即回归：
-
-1. `frame 11`（首差异帧）
-2. `frame 60`（累计误差帧）
-
-并记录：
-- 匹配率变化
-- 首差异坐标是否后移/消失
-- 差异层级是否变化（raw -> mapped -> rgb）
-
-### D. 日志先行，代码次之
-
-遇到 mesen2 与 ear6 行为不一致时，**不要在两边代码里来回猜测**。先往 mesen2 源码里加日志确认实际行为，然后用同样的日志格式在 ear6 对应位置对比。
-
-原因：mesen2 的运行时行为受大量隐式条件影响（环境变量、配置文件、console type、DIP switches、硬件检测结果等），仅读代码无法覆盖所有路径。加日志是最短路径。
-
-操作步骤：
-1. 在 mesen2 相关函数入口/出口加 `fprintf(stderr, "...")`，打印输入参数和返回值，带上唯一标记（如 `[M2_TAG]`）。
-2. 构建 mesen2-cli：`make cli -C ../mesen2/DesktopApp`
-3. 在 ear6 同位置加同样格式的日志，带上 `[E6_TAG]` 标记。
-4. 分别运行同一 ROM，对比两边的日志行。
-5. 确认差异后，再定向追溯 mesen2 代码定位根因。
-
-这条原则和"先比 CPU TRACE"一脉相承：**先用黑盒手段确认差异在哪，再开代码推理**。
-
-### E. 迁移中的常见误区（已验证）
-
-1. 把“颜色异常”直接归因于 CPU/IRQ（常错）
-2. 忽略 NES DB 与 PPU model 对 VS 标题的影响
-3. 用最终截图直接判 core，没先拆 raw/mapped/rgb
-4. 在重日志状态下信任时序结果（可能被日志本身扰动）
-
-### F. 推荐起手顺序（以后固定执行）
-
-1. 固定 deterministic 运行 + 最小日志
-2. 确认 NES DB 命中同一 mapper id（见 I 节）
-3. 若双方画面有较大差异（如黑屏、花屏），**先做 CPU TRACE 对比**（见 H 节）：
-   - CPU trace 分叉 → 根因在 CPU 层面（寄存器读返回值、mapper 行为等），PPU 层排查无意义
-   - CPU trace 一致 → 根因在 PPU，继续下一步
-4. 比 `raw_idx`/`mapped_idx`/`rgb`
-5. 若 `raw` 不同：查 PPU 时序/寄存器状态
-6. 若 `raw` 相同但 `rgb` 不同：查 LUT/palette/后处理路径
-
-### G. Trace 开关基线（避免“日志干扰”与口径不一致）
-
-ear6 调试日志统一采用**两级开关**：
-
-1. 编译期开关：`EAR6_ENABLE_*`
-2. 运行期开关：`EAR6_TRACE_*`
-
-两者必须同时启用才会输出日志。常用组合：
-
-- `EAR6_ENABLE_CPU_TRACE` + `EAR6_TRACE_CPU`
-- `EAR6_ENABLE_PPU_TRACE` + `EAR6_TRACE_PPU`
-- `EAR6_ENABLE_CPU8448_TRACE` + `EAR6_TRACE_CPU8448`
-- `EAR6_ENABLE_MINIMAL_BAD_WINDOW_TRACE` + `EAR6_TRACE_MINIMAL_BAD_WINDOW`
-- `EAR6_ENABLE_CYCLE_ALIGN_TRACE` + `EAR6_TRACE_CYCLE_ALIGN`
-- `EAR6_ENABLE_EARLY_FRAME_SUMMARY_TRACE` + `EAR6_TRACE_EARLY_FRAME_SUMMARY`
-- `EAR6_ENABLE_DMARIO_TRACE11` + `EAR6_TRACE_DMARIO11`
-- `EAR6_ENABLE_PALETTE_TRACE` + `EAR6_TRACE_PALETTE`
-  - 可选：`EAR6_TRACE_PALETTE_FRAME`, `EAR6_TRACE_PALETTE_DUMP_PREFIX`
-- `EAR6_ENABLE_CPU_SEQ_TRACE` + `EAR6_TRACE_CPU_SEQ`
-
-建议：做像素对比时默认关闭所有 trace，只在定位阶段开启最小必要日志组。
-
-Mesen2 侧采用同样模式：`ENABLE_CPU_SEQ_TRACE`（编译期）+ `MESEN2_TRACE_CPU_SEQ`（运行期 env var）。
-
-### H. CPU 指令级对比（双模拟器 Trace 方法论）
-
-当画面差异无法通过 PPU/寄存器层面解释时，最后的手段是**逐指令对比 CPU 执行序列**。
-
-#### 开合原则
-
-```
-双开关（编译期 + 运行期），默认关闭，只在对齐阶段开启。
-```
-
-**编译期开关**（CMake option，默认 ON —— Trace 代码始终编译，仅由 runtime env var 控制是否输出）：
-
-| 项目 | CMake option | 编译期宏 | 运行期 env var |
-|------|-------------|---------|---------------|
-| ear6 | `EAR6_ENABLE_CPU_SEQ_TRACE` (def=ON) | `EAR6_ENABLE_CPU_SEQ_TRACE` | `EAR6_TRACE_CPU_SEQ` |
-| Mesen2 | `ENABLE_CPU_SEQ_TRACE` (def=ON) | `ENABLE_CPU_SEQ_TRACE` | `MESEN2_TRACE_CPU_SEQ` |
-
-如需关闭编译（零开销），使用：
-```bash
-cmake -B build -DEAR6_ENABLE_CPU_SEQ_TRACE=OFF   # ear6
-ENABLE_CPU_SEQ_TRACE=OFF make cli -C ../mesen2/DesktopApp  # mesen2
-```
-
-> ⚠️ 性能与 I/O 陷阱：
->
-> - **ear6** 输出到 stderr，性能开销约 5µs/条指令（含一次 `fprintf`）。31 帧约 290k 行，可以接受。
-> - **Mesen2** 曾经也输出到 stderr。但当 stderr 被设为无缓冲（`setbuf(stderr, NULL)`）时，每条指令都触发一次 `write()` 系统调用，导致约 17 帧后模拟线程不再调用 `RunFrame()`，无法捕获 18+ 帧的 trace。
->   2026-05 修复为写入文件 `/tmp/mesen2_cpu_seq.txt`，并使用 1MB 缓冲区（`setvbuf(fp, NULL, _IOFBF, 1024*1024)`），不再出现截断问题。
-
-#### 操作步骤
-
-1. **在 ear6 开启 trace**：
-   ```bash
-   EAR6_TRACE_CPU_SEQ=1 ./build/app/cli/ear6-cli screenshot -f <N> <rom> -o /dev/null 2>/tmp/e_trace.txt
-   ```
-
-2. **在 Mesen2 开启 trace**（trace 自动写入文件，无需 stderr 重定向）：
-   ```bash
-   LD_LIBRARY_PATH=../mesen2/dist/x86_64-PC-Linux/lib \
-       MESEN2_TRACE_CPU_SEQ=1 \
-       ../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot \
-       -f <N> <rom> -o /dev/null
-   # Trace 输出在 /tmp/mesen2_cpu_seq.txt，不是 stderr！
-   ```
-
-3. **对齐帧计数**：两个 trace 的 `f=` 都从 1 开始。确认前几帧 entry 数量一致，验证对齐：
-   ```bash
-   grep -c '\[EAR6_CPU_SEQ\] f=1' /tmp/e_trace.txt
-   grep -c '\[MESEN2_CPU_SEQ\] f=1' /tmp/mesen2_cpu_seq.txt
-   ```
-
-4. **逐帧对比 entry 总数**：若某帧总数不同，就是第一个分歧帧：
-   ```bash
-   for f in $(seq 1 31); do
-       ec=$(grep -c "f=$f " /tmp/e_trace.txt)
-       mc=$(grep -c "f=$f " /tmp/mesen2_cpu_seq.txt)
-       [ "$ec" != "$mc" ] && echo "Frame $f: ear6=$ec mesen2=$mc DIVERGE"
-   done
-   ```
-
-5. **定位首个不同指令**：对分歧帧做逐行 diff，过滤掉 cpu 周期号（容许时序偏移）：
-   ```bash
-   awk '/\[EAR6_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/e_trace.txt > /tmp/e_f17.txt
-   awk '/\[MESEN2_CPU_SEQ\] f=17 /{sub(/cpu=[0-9]* /,""); print NR, $0}' /tmp/mesen2_cpu_seq.txt > /tmp/m_f17.txt
-   diff /tmp/e_f17.txt /tmp/m_f17.txt | head -20
-   ```
-
-   首个 diff 行的 PC、opcode、寄存器的值会直接指出分歧原因。
-
-#### 输出格式
-
-每条 trace 行格式完全一致（便于 diff）：
-
-```
-[EMULATOR_CPU_SEQ] f=N sl=S cy=C cpu=U pc=XXXX op=XX a=XX x=XX y=XX sp=XX ps=XX
-```
-
-#### 已知局限性
-
-- 某些 PPU 寄存器读取（如 `$2002`）会返回当前 PPU 状态并清除标志，CPU trace 不会记录内存读写值，需结合 PPU trace 判断。
-- 若两个模拟器的 CPU trace entry 数目一致但画面仍有差异，问题在 PPU 或渲染路径，不需继续深追 CPU。
-
-#### 实战案例：Family BASIC V3 逐指令调试
-
-以下是从 1632 像素差异到 0 差异的三个根因，展示了 CPU trace 对比的实际使用方式。
-
-##### 案例 1：`$4017` 读返回值不同
-
-- **现象**：帧 19 首个 CPU trace 差异出现在 `LDA $4017` 后，ear6 的 A=0x40，mesen2 的 A=0x5E。
-- **根因**：Family BASIC 使用 Famicom 键盘（FamilyBasicKeyboard）。当键盘无按键时，`$4017` 的 bit 1-4 为 1（`0x1E`）。ear6 完全没有键盘模拟，只返回 open bus + 串行手柄位（`0x40`）。
-- **修复**：`NesControlManager` 添加 FamilyBasicKeyboard 协议支持：`$4016` 写解析 bit 0-2（行/列/使能），`$4017` 读时 OR 入键盘数据 `((~get_active_keys) << 1) & 0x1E`。
-
-##### 案例 2：`$6000` 读返回 open bus 而非初始化 RAM
-
-- **现象**：帧 19 `LDA $6000` 后 ear6 的 A=0x60（open bus）= 0x60，mesen2 的 A=0x00。
-- **根因**：NES DB 指定 Work RAM size = 8KB，ear6 的 `RomInfo` 没有 `work_ram_size` 字段，NES DB 解析也未使用该值。Mapper 000 未创建 work RAM，导致 `$6000` 读返回地址 hi-byte（`$60`）对应的 open bus。
-- **修复**：`RomInfo` 新增 `work_ram_size`，NES DB 解析 `FIELD_WORK_RAM_SIZE`，Mapper 000 按 size 创建 buffer 并映射 `$6000-$7FFF`。
-
-##### 案例 3：`Mapper000::write_ram` 为空函数
-
-- **现象**：帧 19 `STA $6000` 写入 `0x19` 后，后续 `CMP $6000` 本该相等，但 ear6 的 Z 标志为 0。
-- **根因**：`Mapper000::write_ram` 是空函数（注释"`NROM doesn't have writable registers`"），即使映射了 WRITE 权限的 work RAM，写入也被静默忽略。
-- **修复**：改为调用 `BaseMapper::write_ram(addr, value)`，基类已正确处理带 WRITE 权限页面的写入。
-
-##### 总结流程
-
-遇到 CPU trace 第一个差异时，分析思路：
-
-1. 取 ear6 和 mesen2 在差异指令前的寄存器状态（来自 trace）
-2. 确定差异点：是 A/X/Y/PS 不同？还是 PC/opcode 不同？
-3. 从差异点向上追溯查原因：
-   - 如果寄存器值不同：是前一条指令的运算结果不同（算数/逻辑/内存读）？
-   - 如果是内存读得到的值不同：是哪个地址？该地址由谁管理（RAM/mapper/APU/PPU/控制管理器）？
-   - 如果是控制流不同（PC/分支）：是 PS 标志不同？是哪个比较/条件指令导致的？
-4. 在 ear6 中添加该地址的运行时 trace（gate 在 env var 下），确认 ear6 和 mesen2 返回的值
-
-### I. NES DB 未命中排查（CRC 计算差异导致 mapper 不同）
-
-当两个模拟器对同一 ROM 使用不同 mapper 时，除非你有充分理由，**否则必然是 NES DB 的 CRC 计算方式或 DB 条目本身有问题**。
-
-**症状**：ear6 `[NES] Mapper: X` 与 mesen2 实际使用的 mapper 不同，导致从第 1 帧起 CPU trace 就完全不一致，像素差异 100%。
-
-**常见原因**：ROM 文件尾部存在填充数据（如空格 0x20、零字节 0x00 等），两个模拟器的 CRC 计算范围不同：
-- **ear6**（修复前）：只 CRC `prg_size + chr_size` 字节（按 iNES header 的 bank 数计算）
-- **mesen2**：CRC 整个文件除去 header 后的全部剩余数据
-
-**操作步骤**：
-
-1. 确认 mesen2 实际使用的 mapper：在 `MapperFactory.cpp` 的 `InitializeFromFile()` 中添加 `fprintf(stderr, "... mapper=%d db_mapper=%d\n", ...)`，观察 `mapper` 与 `db_mapper` 的值。
-2. 对比双方的 CRC 范围：用 Python 计算两种 CRC，看哪个命中 NES DB。
-   ```python
-   import zlib
-   data = open('rom.nes', 'rb').read()
-   header_size = 16  # + 512 if trainer
-   prg_size = data[4] * 0x4000
-   chr_size = data[5] * 0x2000
-   # ear6 方式（修复前）：CRC(PRG+CHR)
-   crc1 = zlib.crc32(data[header_size:header_size + prg_size + chr_size])
-   # mesen2 方式：CRC(整个文件除去 header)
-   crc2 = zlib.crc32(data[header_size:])
-   print(f'PRG+CHR CRC: {crc1:08X}  全文件 CRC: {crc2:08X}')
-   ```
-3. 用两种 CRC 分别查询 NES DB，查看各命中了什么 mapper。
-4. 如果 ear6 的 NES DB 命中而 mesen2 未命中，说明 mesen2 的 CRC 包含了尾部填充 —— **不应盲目修改 ear6 去匹配 mesen2**，应先判断填充数据是否有意义（无意义的填充则应修正 CRC 范围）。参见 commit `b182c01`。
-5. **反之**，如果 ear6 的 NES DB 条目本身有误（如 Choplifter 被错误标记为 mapper 6），则应在 `nes_db.txt` 中直接修正该条目，而非在代码中打补丁。参见 commit `0322dba`。
-
-**关键原则**：NES DB 是权威元数据来源，但条目本身也可能有 bug。永远用"两个模拟器最终渲染一致"作为判定标准。
-
-
-
-### Mesen2（正确的）
-```
-CPU cycles 和 PPU cycles 是交织的，每个 PPU clock 单独执行：
-Exec() {
-    _cycle++;
-    if (_cycle < 340) {
-        ProcessScanlineImpl();  // 处理当前 cycle
-    } else {
-        ProcessScanlineFirstCycle();  // cycle 0 的整理工作
-    }
-    UpdateState();  // 处理延迟状态更新
-}
-```
-
-### ear6（当前错误的 batch 模型）
-```cpp
-while (ppu_cycles < PPU_CYCLES_PER_FRAME) {
-    cpu_->exec();          // 执行一个 CPU 指令
-    ppu_->run(cpu_cycles * 3);  // 批量运行 3x CPU cycles 的 PPU
-}
-```
-
-**关键问题**：`$2006` 写入后，PPU 批量运行时 `v_` 被渲染逻辑修改。当紧接着的 `$2007` 写入时，`v_` 已经是错误的值。
-
-**修复方案**：使用独立的 `vram_access_addr_` 跟踪 CPU 寄存器访问地址，与渲染用的 `v_` 分离。每次 `$2006` 设置地址时同步两者，`$2007` 读写使用 `vram_access_addr_`。
-
-```cpp
-// set_addr （第二个写入）
-v_ = t_;
-vram_access_addr_ = v_;  // 保存寄存器访问地址
-
-// set_data
-write_vram(vram_access_addr_, value);  // 使用独立地址
-vram_access_addr_ += (ctrl_ & 0x04) ? 32 : 1;
-v_ = vram_access_addr_;  // 同步回 v_
-
-// get_data
-result = data_buffer_;
-data_buffer_ = read_vram(vram_access_addr_);
-vram_access_addr_ += (ctrl_ & 0x04) ? 32 : 1;
-v_ = vram_access_addr_;
-```
-
-### 理想方案（完全匹配 Mesen2）
-
-改为 cycle-interleaved 模型，不要 batch。每次 CPU 执行后只运行固定数量的 PPU cycles（而不是按 CPU instruction 消耗的周期成倍运行）。
-
----
-
-## 2. `$2006` PPUADDR 写入延迟
-
-### Mesen2
-```cpp
-// 第二个写入后，延迟 3 PPU cycles 才实际复制到 _videoRamAddr
-_updateVramAddrDelay = 3;
-_updateVramAddr = _tmpVideoRamAddr;
-_needStateUpdate = true;
-```
-
-延迟结束后在 `UpdateState()` 中复制，并处理 "scroll glitch"：
-- cycle 257：AND corruption
-- cycle 8 的倍数：partial AND corruption
-- 其他：正常复制
-
-### ear6（当前）
-```cpp
-t_ = (t_ & 0xFF00) | value;
-v_ = t_;   // 立即复制，没有延迟
-w_ = false;
-```
-
-**必须实现 3-cycle 延迟**，否则：
-- 某些游戏在渲染期间写入 `$2006` 时，地址会被 `inc_horizontal`/`inc_vertical` 破坏
-- 扫描线边界处的写入会选中错误的 nametable
-
----
-
-## 3. 水平/垂直滚动复制（Cycle 257 和 280-304）
-
-### Mesen2
-```cpp
-// Cycle 257: 从 t 复制水平滚动到 v（每个扫描线）
-_videoRamAddr = (_videoRamAddr & ~0x041F) | (_tmpVideoRamAddr & 0x041F);
-
-// Cycles 280-304: 从 t 复制垂直滚动到 v（仅预渲染线）
-if(_scanline == -1 && _cycle >= 280 && _cycle <= 304) {
-    _videoRamAddr = (_videoRamAddr & ~0x7BE0) | (_tmpVideoRamAddr & 0x7BE0);
-}
-```
-
-**掩码含义**：
-- `0x041F` = coarse X (bits 0-4) + nametable X (bit 10)
-- `0x7BE0` = fine Y (bits 12-14) + coarse Y (bits 5-9) + nametable Y (bit 11)
-
-### ear6 之前的错误
-```cpp
-// 错误！cycle 257 用了垂直掩码
-v_ = (v_ & 0x841F) | (t_ & 0x7BE0);
-```
-
-**后果**：nametable X 永远不会被重置，每个扫描线都读到错误的 nametable，产生黑屏。
-
-**修复**：
-```cpp
-// Cycle 257: 复制水平位
-v_ = (v_ & 0x7BE0) | (t_ & 0x041F);
-// Cycles 280-304: 复制垂直位（原代码的 0x841F 掩码在这里是正确的）
-v_ = (v_ & 0x841F) | (t_ & 0x7BE0);
-```
-
----
-
-## 4. 调色板镜像（Palette Mirroring）
-
-### Mesen2 的 WritePaletteRam
-```cpp
-if(addr == 0x00 || addr == 0x10) {
-    _paletteRam[0x00] = value;   // 双向镜像：写任一个，两个都写
-    _paletteRam[0x10] = value;
-} else if(addr == 0x04 || addr == 0x14) {
-    _paletteRam[0x04] = value;
-    _paletteRam[0x14] = value;
-} else if(addr == 0x08 || addr == 0x18) {
-    _paletteRam[0x08] = value;
-    _paletteRam[0x18] = value;
-} else if(addr == 0x0C || addr == 0x1C) {
-    _paletteRam[0x0C] = value;
-    _paletteRam[0x1C] = value;
-} else {
-    _paletteRam[addr] = value;
-}
-value &= 0x3F;  // NES palette 只有 6-bit
-```
-
-### ear6 之前的错误
-```cpp
-if ((addr & 0x13) == 0x10) addr &= 0x0F;  // 单向！只映射 0x10→0x00
-palette_ram_[addr] = value;  // 只写了一个位置
-```
-
-**差异**：Mesen2 是**双向**镜像 — 写 `$10` 同时更新 `$00` 和 `$10`。ear6 只更新单向。这会影响 sprite 调色板的颜色值。
-
----
-
-## 5. 透明像素的调色板处理
-
-### Mesen2 的 GetPixelColor + DrawPixel
-```cpp
-// GetPixelColor 返回 palette_offset + pixel_value（0-3 或 4/8/12+1-3）
-return paletteOffset + backgroundColor;
-
-// DrawPixel 中检查 pixel 是否为 0
-uint32_t color = GetPixelColor();
-_currentOutputBuffer[...] = _paletteRam[color & 0x03 ? color : 0];
-```
-
-关键：`color & 0x03` 检查 pixel_value 是否为 0。如果是 0，总是使用 backdrop（`palette_ram[0]`），忽略 attribute palette。
-
-### ear6 之前的错误
-```cpp
-bg_color = (palette << 2) | (hi_bit << 1) | lo_bit;
-// 当 pixel=0 时，bg_color = palette_offset（非零！）
-// 导致 palette_ram_[palette_offset] 被使用，而不是 palette_ram_[0]
-```
-
-**后果**：透明像素读取了错误的子调色板颜色。
-
-**修复**：
-```cpp
-uint8_t pixel = (hi_bit << 1) | lo_bit;
-if (pixel) {
-    uint8_t palette = (bg_attr_hi_ << 1) | bg_attr_lo_;
-    bg_color = (palette << 2) | pixel;
-}
-// pixel=0 时 bg_color 保持为 0 → backdrop
-```
-
----
-
-## 6. $2007 PPUDATA 写入屏蔽
-
-### Mesen2
-```cpp
-case PpuRegisters::VideoMemoryData:
-    if((_ppuBusAddress & 0x3FFF) >= 0x3F00) {
-        WritePaletteRam(_ppuBusAddress, value);  // 调色板写入不受屏蔽
-    } else {
-        if(_scanline >= 240 || !IsRenderingEnabled()) {
-            _mapper->WriteVram(_ppuBusAddress & 0x3FFF, value);
-        } else {
-            // 渲染期间写入被忽略！写入地址的 LSB 代替
-            _mapper->WriteVram(_ppuBusAddress & 0x3FFF, _ppuBusAddress & 0xFF);
-        }
-    }
-```
-
-### ear6（当前）
-```cpp
-// 无条件写入！渲染期间也写入真实值
-write_vram(v_, value);
-```
-
-**必须实现**：在可见扫描线（0-239）且渲染启用时，屏蔽 nametable 写入。
-
----
-
-## 7. vblank 读取清除 write toggle
-
-### Mesen2
-```cpp
-case PpuRegisters::Status:
-    // 读取 $2002 会清除 write toggle
-    _writeToggle = false;
-    ...
-```
-
-### ear6（已正确）
-```cpp
-case 0x02:
-    status_ &= 0x7F;
-    w_ = false;  // 正确
-    ...
-```
-
-这个逻辑是正确的，但要注意：**NMI handler 中读取 $2002 也会清除 w_**。如果游戏在 `$2006` 两次写入之间触发了 NMI，NMI handler 读取了 `$2002`，就会破坏 `$2006` 写入序列。
-
----
-
-## 8. 精灵评估和加载
-
-### 评估时机
-- Mesen2：在 cycle 257-320 期间逐步评估 64 个精灵
-- ear6：在 cycle 257 一次性调用 `evaluate_sprites()`，扫描所有 64 个条目
-
-Mesen2 的精灵评估更复杂，涉及 OAM 地址起始、溢出 bug、secondary OAM 清零等。ear6 的简化实现可能对有复杂精灵场景的游戏产生问题。
-
-### 精灵 Tile 加载
-- Mesen2：在 cycle 260+ 期间逐步加载精灵 tile（每 8 个 cycle 一个）
-- ear6：在 cycle 257 一次性调用 `load_sprite_tiles()`
-
-### 必须检查的细节
-1. **OAMADDR 在渲染期间被重置为 0**（Mesen2 在 cycle 257-320 期间设置 `_spriteRamAddr = 0`）
-2. **精灵 0 命中检测**：Mesen2 有额外检查：
-   - `_cycle != 256`（x=255 时不会命中）
-   - `_mask.BackgroundEnabled`（背景必须启用）
-   - `!_statusFlags.Sprite0Hit`（只触发一次）
-3. **溢出标志**：检测到第 9 个精灵时设置，但 Mesen2 有更复杂的溢出 bug 模拟
-
----
-
-## 9. 渲染启用的 1-cycle 延迟
-
-### Mesen2
-```cpp
-// UpdateState 中检查
-if(_prevRenderingEnabled != _renderingEnabled) {
-    // 渲染状态改变有一个 cycle 的延迟
-    _prevRenderingEnabled = _renderingEnabled;
-    ...
-}
-```
-
-ear6 当前在每个 cycle 都检查 `mask_` 的变化并立即更新 `rendering_enabled_`。**必须改为 1-cycle 延迟**。
-
----
-
-## 10. 扫描线/cycle 编号
-
-### Mesen2
-- 复位：`_scanline = -1, _cycle = 340`
-- scanline -1 = 预渲染行
-- scanline 0-239 = 可见行
-- scanline 240-260 = VBlank
-- 下一个 scanline 261 → 回到 -1
-
-### ear6
-- 复位：`scanline_ = 261, cycle_ = 0`
-- scanline 261 = 预渲染行
-- scanline 0-239 = 可见行
-- scanline 240-260 = VBlank
-- 下一个 scanline 261 → 回到 261
-
-两种编号方式等价（偏移 262）。**关键是 cycle 0 的处理**：
-- Mesen2：cycle 0 在 `ProcessScanlineFirstCycle()` 中处理（整理工作，不渲染）
-- ear6：cycle 0 不做任何特殊处理
-
----
-
-## 11. 必须实现的 Mesen2 功能清单
-
-### 核心功能（必须实现，否则游戏不工作）
-
-| 功能 | 文件 | 状态 |
-|------|------|------|
-| `$2006` 3-cycle 延迟 | `NesPpu.cpp` UpdateState | ❌ 缺失 |
-| PPUADDR 延迟中的 scroll glitch | `NesPpu.cpp` UpdateState | ❌ 缺失 |
-| Cycle 257 水平复制掩码正确 | `NesPpu.cpp` ProcessScanlineImpl | ✅ 已修复 |
-| Cycles 280-304 垂直复制 | `NesPpu.cpp` ProcessScanlineImpl | ✅ 正确 |
-| 调色板双向镜像 | `NesPpu.cpp` / BaseNesPpu.cpp WritePaletteRam | ✅ 已修复 |
-| 透明像素 backdrop 处理 | `DefaultNesPpu.h` DrawPixel | ✅ 已修复 |
-| `vram_access_addr_` 分离 | `NesPpu.cpp` set_data/get_data | ✅ 已修复 |
-| `$2007` 渲染期间写入屏蔽 | `NesPpu.cpp` VideoMemoryData | ❌ 缺失 |
-| 渲染启用 1-cycle 延迟 | `NesPpu.cpp` UpdateState | ❌ 缺失 |
-| 值 mask 到 6-bit（`value &= 0x3F`） | `BaseNesPpu.cpp` WritePaletteRam | ⚠️ 部分 |
-
-### 次要功能（影响兼容性）
-
-| 功能 | 文件 | 状态 |
-|------|------|------|
-| NMI handler 中的 `_preventVblFlag` | `NesPpu.cpp` UpdateStatusFlag | ❌ 缺失 |
-| OAM 地址在 cycle 257-320 重置为 0 | `NesPpu.cpp` ProcessScanlineImpl | ❌ 缺失 |
-| 精灵评估的 cycle 精确实现 | `NesPpu.cpp` ProcessSpriteEvaluation | ❌ 缺失 |
-| OAM corruption（渲染开启时的硬件 bug） | `NesPpu.cpp` ProcessOamCorruption | ❌ 缺失 |
-| OAM decay | `BaseNesPpu.h` | ❌ 缺失 |
-| 预渲染线上的 sprite 加载 dummy $FF | `NesPpu.cpp` ProcessScanlineFirstCycle | ❌ 缺失 |
-| 奇帧 cycle 跳过（NTSC） | `NesPpu.cpp` ProcessScanlineImpl | ❌ 缺失 |
-| PAL 支持（260 vs 310 scanlines） | `NesPpu.cpp` UpdateTimings | ❌ 缺失 |
-| Grayscale 和 intensify bits | `BaseNesPpu.cpp` UpdateGrayscaleAndIntensifyBits | ❌ 缺失 |
-| `_paletteRamMask` 应用 | `BaseNesPpu.h` | ❌ 缺失 |
-| Open bus decay | `BaseNesPpu.h` | ❌ 缺失 |
-
----
-
-## 12. 关键参考代码位置
-
-```
-Mesen2/Core/NES/NesPpu.cpp:
-  - Exec()           :1331  - 主执行循环
-  - ProcessScanlineImpl() :868  - 每个 PPU cycle 的渲染逻辑
-  - LoadTileInfo()   :667  - 背景 tile 读取管线
-  - GetPixelColor()  :817  - 像素合成（背景+精灵）
-  - LoadSpriteTileInfo() :805  - 精灵 tile 读取
-  - ProcessSpriteEvaluationStart() :959  - 精灵评估开始
-  - ProcessSpriteEvaluationEnd() :979  - 精灵评估结束
-  - UpdateState()    :1421 - 延迟状态更新（渲染启用、$2006、$2007）
-  - UpdateVideoRamAddr() :201  - VRAM 地址增量
-  - IncHorizontalScrolling() :622 - 水平滚动增量
-  - IncVerticalScrolling() :597   - 垂直滚动增量
-  - ProcessScanlineFirstCycle() :1368 - cycle 0 处理
-
-Mesen2/Core/NES/BaseNesPpu.h:
-  - _videoRamAddr (v)
-  - _tmpVideoRamAddr (t)
-  - _xScroll (x)
-  - _writeToggle (w)
-  - _lowBitShift / _highBitShift
-  - _spriteRam[0x100]
-  - _secondarySpriteRam[0x20]
-  - _paletteRam[0x20]
-  - _tile (LowByte, HighByte, PaletteOffset, TileAddr)
-  - _currentTilePalette / _previousTilePalette
-
-Mesen2/Core/NES/DefaultNesPpu.h:
-  - DrawPixel()      :24   - 最终像素输出
-
-Mesen2/Core/NES/BaseNesPpu.cpp:
-  - WritePaletteRam  :83   - 调色板写入（镜像逻辑）
-  - IsRenderingEnabled :58 - 渲染启用判断
-```
-
-## 14. 完整架构：类间关系
-
-### Mesen2 对象关系图
-
-```
-NesConsole
-  |-- _cpu  (NesCpu)             -> has _memoryManager, _console
-  |-- _ppu  (BaseNesPpu*)        -> has _mapper, _console, _emu
-  |-- _apu  (NesApu)             -> has _console
-  |-- _memoryManager (NesMemoryManager)  -> _ramReadHandlers[65536],
-  |                                            _ramWriteHandlers[65536]
-  |-- _mapper (BaseMapper)       -> has _console, _emu, _{prg,chr}Pages[256]
-  |-- _controlManager (NesControlManager)
-  +-- _mixer (NesSoundMixer)
-```
-
-所有子系统的构造函数都接收 `NesConsole*`，通过 `console->GetXxx()` 互相访问。
-
-### ear6 当前的对象关系（需要重构）
-
-```
-NesConsole
-  |-- cpu_ (NesCpu)          -> has console_
-  |-- ppu_ (NesPpu)          -> has console_ (通过 console_->get_cpu/mapper)
-  |-- apu_ (NesApu)          -> has console_
-  +-- mapper_ (BaseMapper)
-```
-
-关键缺失：
-- ear6 没有 `NesMemoryManager`，CPU 地址路由直接在 `NesConsole::cpu_read/cpu_write` 中用 if-else 硬编码
-- ear6 的 `run_frame()` 是 batch 模型，不是 cycle-interleaved
-
----
-
-## 15. CPU 地址路由（必须改为 dispatch table）
-
-### Mesen2
-
-Mesen2 使用 **两个 65536 条目的直查表** 来路由 CPU 读写：
-
-```cpp
-INesMemoryHandler** _ramReadHandlers;   // [0x10000]
-INesMemoryHandler** _ramWriteHandlers;  // [0x10000]
-```
-
-每个 device 在初始化时注册自己的地址范围：
-
-```cpp
-// NesMemoryManager 构造函数：全部初始化为 OpenBusHandler
-for (int i = 0; i < CpuMemorySize; i++) {
-    _ramReadHandlers[i] = &_openBusHandler;
-    _ramWriteHandlers[i] = &_openBusHandler;
-}
-RegisterIODevice(_internalRamHandler.get());  // $0000-$1FFF
-
-// NesConsole::LoadRom 中：
-_memoryManager->RegisterIODevice(_ppu.get());            // $2000-$3FFF, $4014
-_memoryManager->RegisterIODevice(_apu.get());            // $4000-$4015, $4017
-_memoryManager->RegisterIODevice(_controlManager.get()); // $4016-$4017
-_memoryManager->RegisterIODevice(_mapper.get());         // $4020-$FFFF
-```
-
-每个 device 实现 `INesMemoryHandler` 接口：
-
-```cpp
-class INesMemoryHandler {
-    virtual void GetMemoryRanges(MemoryRanges &ranges) = 0;
-    virtual uint8_t ReadRam(uint16_t addr) = 0;
-    virtual void WriteRam(uint16_t addr, uint8_t value) = 0;
-};
-```
-
-CPU 读写直接查表，O(1)，无需任何 decode 逻辑：
-
-```cpp
-uint8_t NesMemoryManager::Read(uint16_t addr, ...) {
-    return _ramReadHandlers[addr]->ReadRam(addr);
-}
-void NesMemoryManager::Write(uint16_t addr, uint8_t value, ...) {
-    _ramWriteHandlers[addr]->WriteRam(addr, value);
-}
-```
-
-### ear6（当前，需要重写）
-
-```cpp
-// NesConsole::cpu_read 用 if-else 逐段判断：
-if (addr < 0x2000) { return wram_[addr & 0x7FF]; }
-if (addr < 0x4000) { return ppu_read(0x2000 + (addr & 0x7)); }
-if (addr < 0x4020) { return apu_read(addr); }
-if (mapper_) { return mapper_->read(addr); }
-return 0;
-```
-
-**问题**：
-- 每个读操作都要执行 3-4 次分支判断（慢 + 无法缓存）
-- 没有考虑 mirroring（比如 $2008 应该 mirror 到 $2000）
-- `$4014` OAMDMA 写被放在这里，但对 PPU 来说它是另一个地址
-
-### CPU 地址空间对照
-
-| 地址范围 | Mesen2 所有者 | ear6 所有者 | 说明 |
-|----------|---------------|-------------|------|
-| `$0000-$1FFF` | InternalRamHandler | `wram_[addr & 0x7FF]` | ear6 需要处理 mirroring |
-| `$2000-$3FFF` | NesPpu | NesPpu (if-else) | 每 8 字节重复，ear6 用 `addr & 0x7` 可以 |
-| `$4000-$4013` | NesApu | NesApu | 正确 |
-| `$4014` | NesPpu (OAM DMA) | NesConsole (特殊处理) | ear6 在 cpu_write 中处理 |
-| `$4015` | NesApu | NesApu | 正确 |
-| `$4016` | NesControlManager | ❌ 未实现 | 控制器读/写 |
-| `$4017` | NesControlManager (读) / NesApu (写) | ❌ 未实现 | 控制器读、APU 帧序列器 |
-| `$4018-$401F` | 通常 open bus 或 APU | ❌ 未实现 | |
-| `$4020-$FFFF` | BaseMapper | BaseMapper | 正确 |
-
----
-
-## 16. CPU-PPU 交织执行模型（最关键）
-
-### Mesen2：cycle-interleaved
-
-每次 CPU 访问内存时，PPU 都会同步推进：
-
-```cpp
-// 在 NesCpu 的每次 memory_read/memory_write 内部：
-StartCpuCycle(forRead) {
-    _masterClock += ...;
-    _state.CycleCount++;
-    _console->GetPpu()->Run(_masterClock - _ppuOffset);  // PPU 追赶到当前 master clock
-}
-
-EndCpuCycle(forRead) {
-    _masterClock += ...;
-    _console->GetPpu()->Run(_masterClock - _ppuOffset);  // PPU 再次追赶
-}
-```
-
-PPU 的 `Run(runTo)` 内部循环执行 `Exec()`：
-
-```cpp
-template<class T>
-void NesPpu<T>::Run(uint64_t runTo) {
-    do {
-        Exec();                     // 一个 PPU dot
-        _masterClock += _masterClockDivider;  // NTSC=4, PAL=5
-    } while (_masterClock + _masterClockDivider <= runTo);
-}
-```
-
-每个 `Exec()`：
-1. 递增 `_cycle`（1-340）
-2. 对可见扫描线调用 `ProcessScanlineImpl()`
-3. 对 cycle 340 调用 `ProcessScanlineFirstCycle()`（推进扫描线）
-4. 调用 `UpdateState()`（处理延迟更新）
-
-### ear6：batch 模型（必须改）
-
-```cpp
-void NesConsole::run_frame() {
-    while (ppu_cycles < PPU_CYCLES_PER_FRAME) {
-        cpu_->exec();                     // 执行完整指令（可能消耗 2-7 CPU cycles）
-        int cpu_cycles = cpu_cycles_diff;
-        ppu_->run(cpu_cycles * 3);        // PPU 批量运行 3x CPU cycles
-        ppu_cycles += cpu_cycles * 3;
-    }
-}
-```
-
-**致命问题**：PPU 批量运行时，CPU 不执行任何代码。这意味着：
-
-1. **$2006 → $2007 时序破坏**：`$2006` 写入后 v_ 被渲染修改，`$2007` 写入错误地址（已在 ear6 中用 `vram_access_addr_` 打补丁）
-2. **中断响应延迟**：PPU 可能在批量运行时到达 vblank 并设置 NMI flag，但 CPU 要到批量结束后才看到
-3. **寄存器写覆盖**：如果 CPU 在同一条指令内写多个 PPU 寄存器，PPU 批量运行会破坏中间状态
-
-**必须改为 cycle-interleaved 模型**，让 PPU 每条指令的每次内存访问后都同步推进。
-
----
-
-## 17. 通过 Mapper 的 PPU VRAM 访问路径
-
-### Mesen2
-
-PPU 不直接访问任何内存。所有 VRAM 读写都通过 mapper：
-
-```cpp
-// NesPpu::ReadVram
-uint8_t NesPpu::ReadVram(uint16_t addr, MemoryOperationType type) {
-    SetBusAddress(addr);                  // 更新 _ppuBusAddress，通知 MMC3 IRQ 计数器
-    return _mapper->ReadVram(addr, type); // → BaseMapper::InternalReadVram
-}
-
-// BaseMapper::InternalReadVram
-__forceinline uint8_t InternalReadVram(uint16_t addr) {
-    if (_chrMemoryAccess[addr >> 8] & MemoryAccessType::Read) {
-        return _chrPages[addr >> 8][(uint8_t)addr];  // 256 条目的页表直接解引用
-    }
-    return addr;  // 不可读时返回地址 LSB（open bus）
-}
-```
-
-mapper 内部维护两张页表：
-
-```cpp
-uint8_t* _prgPages[0x100];  // CPU 地址 $8000-$FFFF 的 256 页（每页 256 字节）
-uint8_t* _chrPages[0x100];  // PPU 地址 $0000-$3FFF 的 256 页
-MemoryAccessType _chrMemoryAccess[0x100];
-ChrMemoryType _chrMemoryType[0x100];  // ChrRom / ChrRam / NametableRam / MapperRam
-```
-
-页表初始化逻辑：
-
-```cpp
-void BaseMapper::SelectChrPage(int slot, uint8_t page, MemoryAccessType type) {
-    SetPpuMemoryMapping(slot * 0x400, (slot + 1) * 0x400 - 1, page * 0x400, type);
-}
-```
-
-Nametable 通过 `SetPpuMemoryMapping` 映射到 `_chrPages`：
-
-```cpp
-void BaseMapper::SetNametable(uint8_t index, uint8_t nametableIndex) {
-    SetPpuMemoryMapping(0x2000 + index * 0x400, 0x2000 + (index + 1) * 0x400 - 1,
-                        nametableIndex, ChrMemoryType::NametableRam);
-    // $3000-$3FFF 镜像
-    SetPpuMemoryMapping(0x3000 + index * 0x400, 0x3000 + (index + 1) * 0x400 - 1,
-                        nametableIndex, ChrMemoryType::NametableRam);
-}
-
-void BaseMapper::SetMirroringType(MirroringType type) {
-    switch(type) {
-        case Vertical:   SetNametables(0, 1, 0, 1); break;
-        case Horizontal: SetNametables(0, 0, 1, 1); break;
-        case FourScreens: SetNametables(0, 1, 2, 3); break;
-        case ScreenAOnly: SetNametables(0, 0, 0, 0); break;
-        case ScreenBOnly: SetNametables(1, 1, 1, 1); break;
-    }
-}
-```
-
-### ear6 当前（需要重写）
-
-```cpp
-uint8_t NesPpu::read_vram(uint16_t addr) {
-    addr &= 0x3FFF;
-    if (addr < 0x2000) {
-        return mapper->read_chr(addr);  // 通过 mapper 读 CHR
-    }
-    if (addr < 0x3F00) {
-        uint8_t nt_index = (addr >> 10) & 3;
-        uint8_t* nt = mapper->get_nametable(nt_index);
-        return nt[addr & 0x3FF];       // ear6 直接索引 nametable
-    }
-    return palette_ram_[addr & 0x1F];
-}
-```
-
-### ear6 mapper 当前模型（需要重写）
-
-```cpp
-// 当前：固定 1KB chr_pages_[8]，硬编码 8 个页
-uint8_t* chr_pages_[8] = {};
-uint16_t get_chr_page_size() { return 0x400; }  // 默认 1KB 每页
-
-uint8_t read_chr(uint16_t addr) {
-    uint8_t slot = (addr >> 10) & 0x7F;  // 用 bits 10-16 做 slot 索引
-    uint16_t offset = addr & (get_chr_page_size() - 1);
-    if (slot < 8 && chr_pages_[slot]) {
-        return chr_pages_[slot][offset];
-    }
-    return 0;
-}
-```
-
-**必须改为 256 条目的页表**，才能支持：
-- 1KB、2KB、4KB、8KB 混合页大小
-- MMC1/MMC3/MMC5 等复杂 mapper 的任意页映射
-- Nametable RAM 统一通过页表访问
-- 地址的读写权限单独控制
-
----
-
-## 18. 必须实现的 Mesen2 核心机制
-
-### NesMemoryManager（新增类）
-
-```
-class NesMemoryManager {
-    INesMemoryHandler* _ramReadHandlers[0x10000];
-    INesMemoryHandler* _ramWriteHandlers[0x10000];
-
-    void RegisterIODevice(INesMemoryHandler* device);
-    uint8_t Read(uint16_t addr);
-    void Write(uint16_t addr, uint8_t value);
-};
-```
-
-- 将 `NesConsole::cpu_read/cpu_write` 中的 if-else 逻辑替换为查表
-- 将 PPU 寄存器、APU、控制器、mapper 全部注册为 `INesMemoryHandler`
-
-### BaseMapper 页表系统
-
-```cpp
-// 将 ear6 的固定 8 页改为 256 页
-uint8_t* chr_pages_[0x100] = {};
-MemoryAccessType chr_memory_access_[0x100];
-ChrMemoryType chr_memory_type_[0x100];
-
-// 页选择函数改为通用的
-void select_chr_page_1k(int slot, uint8_t page);
-void select_chr_page_2k(int slot, uint8_t page);
-void select_chr_page_4k(int slot, uint8_t page);
-void select_chr_page_8k(uint8_t page);
-void set_ppu_memory_mapping(uint16_t start, uint16_t end, uint8_t page, ChrMemoryType type);
-
-// VRAM 读写统一走页表
-uint8_t read_vram(uint16_t addr);   // 取代 ear6 的 read_chr
-void write_vram(uint16_t addr, uint8_t value);
-
-// Nametable 管理
-void set_mirroring_type(MirroringType type);
-void set_nametable(uint8_t index, uint8_t nametable_index);
-```
-
-### NesPpu::ReadVram/WriteVram 改为走 mapper
-
-```cpp
-// PPU 端：
-uint8_t read_vram(uint16_t addr) {
-    return console_->get_mapper()->read_vram(addr);
-}
-```
-
-### CPU-PPU 交织
-
-将 `NesConsole::run_frame()` 改为：
-
-```cpp
-void NesConsole::run_frame() {
-    uint32_t frame = ppu_->get_frame_count();
-    while (frame == ppu_->get_frame_count()) {
-        cpu_->exec();
-    }
-}
-```
-
-CPU 的每次 `memory_read`/`memory_write` 内部都需要调用 `console_->get_ppu()->run()`。
-
----
-
-## 19. 实施路线图
-
-### Phase 1：基础设施（不改渲染逻辑）
-1. 新增 `NesMemoryManager` 类，实现 dispatch table
-2. 让 PPU、APU、mapper 实现 `INesMemoryHandler`
-3. 用 dispatch table 替换 `cpu_read/cpu_write` 的 if-else
-
-### Phase 2：Mapper 页表系统
-1. 将 `chr_pages_[8]` 扩展为 `chr_pages_[0x100]`
-2. 实现 `set_ppu_memory_mapping`、`read_vram`、`write_vram`
-3. 将 nametable 映射改为通过页表
-4. 重写现有 mapper 使用新的页表 API
-
-### Phase 3：Cycle-interleaved 执行
-1. 在 CPU 的每次内存访问中加入 `console_->get_ppu()->run()` 调用
-2. 删除 ear6 的 batch 模型
-3. 实现 `$2006` 3-cycle 延迟（`UpdateState`）
-4. 实现 `$2007` 增量延迟（`_needVideoRamIncrement`）
-
-### Phase 4：PPU 细节
-1. 实现 `$2007` 渲染期间写入屏蔽
-2. 实现渲染启用 1-cycle 延迟
-3. 实现精灵评估的 cycle 精确版本
-4. 实现 OAM corruption
-5. 实现奇帧 cycle 跳过
-
----
-
-## 13. 测试清单
-
-### 单 ROM 截图对比流程（ear6 vs mesen2）
-
-当你要验证某一个 NES ROM 的迁移结果时，**不要主观判断画面**，直接分别运行 ear6-cli 和 mesen2-cli 截图，再比较结果。
-
-1. 先编译两个 CLI（只允许这两种编译方法）：
+Ear6：
 
 ```bash
-make
+make ear6
+```
+
+Mesen2 CLI 只使用以下入口构建：
+
+```bash
 make cli -C ../mesen2/DesktopApp
 ```
 
-2. 对同一个 ROM 在 60 帧和 120 帧分别截图：
+不要为 Mesen2 猜测仓库根目录 CMake 命令。对比前记录两边 commit、构建类型、
+ROM hash、命令行和环境变量。
+
+## 2. 当前执行模型
+
+不要再依据旧文档把 Ear6 描述为“整条 CPU 指令后批量运行 PPU”。当前模型是：
+
+1. `NesConsole::run_frame()` 重复调用 `NesCpu::exec()`，直到 PPU frame count 改变。
+2. CPU 的每个读写周期分别调用 `start_cpu_cycle()` 和 `end_cpu_cycle()`。
+3. 两个半周期都按 CPU master clock 调用 `NesPpu::run()`。
+4. PPU 在 `run()` 内逐个 `exec()` 到目标 master clock。
+5. mapper/APU/输入 pending writes 在 CPU clock hook 中推进。
+
+当前内存模型也已经包含：
+
+- `NesMemoryManager` 的 64K read/write handler 分发表
+- `BaseMapper` 的 PRG/CHR 256-entry page tables
+- 统一的 PPU bus address notification 路径
+- `RomInfo.submapper_id`、work RAM、battery、chip 和 NES DB 覆盖
+
+因此调试必须从当前代码开始，不能把历史迁移计划当作尚未实现的事实。
+
+## 3. 一次最小闭环
+
+每次只验证一个明确假设：
+
+1. 固定双方输入和外部状态。
+2. 确认最终 mapper/metadata。
+3. 找到首个差异帧。
+4. 先做视觉分类。
+5. 判断差异在 CPU、PPU index、palette mapping 还是 final RGB。
+6. 用双方代码路径解释首差异。
+7. 做一个最小修改。
+8. 回归首差异帧、后续累计帧和同 mapper 其他 ROM。
+9. 更新 `nes-issue.md` 并提交这个独立改动。
+
+不要一次迁移一大片代码后再看最终截图。那样无法知道哪一条语义真正改变了结果。
+
+## 4. 固定输入与外部状态
+
+### ROM
+
+记录文件 hash，不只记录文件名：
 
 ```bash
-./build/app/cli/ear6-cli screenshot <rom.nes> -f 60 -o /tmp/ear6_60.ppm
-./build/app/cli/ear6-cli screenshot <rom.nes> -f 120 -o /tmp/ear6_120.ppm
-
-../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot <rom.nes> -f 60 -o /tmp/mesen2_60.ppm
-../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot <rom.nes> -f 120 -o /tmp/mesen2_120.ppm
+shasum -a 256 path/to/game.nes
+./build/app/cli/ear6-cli info path/to/game.nes
 ```
 
-3. 分别比较 60 帧和 120 帧截图是否一致：
+CLI `info` 显示 header mapper；运行时日志显示 NES DB 覆盖后的最终 mapper。两者都要
+记录。iNES header 里的旧格式垃圾位、尾部填充和 trainer 都可能改变判断。
+
+### Save 与配置
+
+Mesen2 可能自动读取已有 `.sav`，Ear6 当前通常从内存初始值开始。对比前隔离双方
+save 目录，或明确使用同一份初始 save。不要把持久化状态差异误判为 CPU/mapper
+错误。
+
+同时固定：
+
+- region 和 PPU model
+- controller/input device
+- palette 与后处理
+- 帧号定义和启动输入
+- ROM DB 版本
+
+## 5. 截图和帧对齐
+
+生成 Ear6 截图：
 
 ```bash
-cmp /tmp/ear6_60.ppm /tmp/mesen2_60.ppm
-cmp /tmp/ear6_120.ppm /tmp/mesen2_120.ppm
+./build/app/cli/ear6-cli screenshot \
+  -f 60 path/to/game.nes -o /tmp/ear6-f60.ppm
 ```
 
-`cmp` 无输出表示两个文件完全一致；有输出表示存在差异。
+使用同一 ROM、同一帧号生成 Mesen2 截图。先采样 `1/2/3/4/5/10/30/60/128/256`，
+再在第一个不一致区间二分或逐帧查找。
 
-4. 若对比不一致，进入细节调试：
-- 可以分别修改 ear6 和 mesen2 代码，在关键路径加日志（PPU 寄存器写入、scanline/cycle、mapper 写入等）。
-- 修改后重新编译：ear6 用 `make`，mesen2 用 `make cli -C ../mesen2/DesktopApp`。
-- 重新运行同一组截图与比较命令，持续对齐日志与像素结果，直到 60/120 帧都一致。
+比较时区分三个问题：
 
-每次修改后，用以下 ROM 测试：
+1. framebuffer 尺寸和输出格式是否一致？
+2. 游戏状态是否处于同一帧阶段？
+3. 同一坐标的像素是否一致？
 
-1. **nestest.nes** — CPU 指令集正确性
-2. **blargg_ppu_tests** — PPU 功能测试（palette, sprite, vblank, scroll）
-3. **Super Mario Bros.** — 综合功能测试
-4. **Donkey Kong** — 简单 sprite 测试
-5. **SMB3** — 复杂 mapper + PPU 交互测试
+只有第 3 项是纯像素差异。完整、合理但早一帧出现的版权画面属于 frame-phase
+差异；不能描述成乱码或 mapper banking 完全错误。
 
-测试命令：
+## 6. 先看两幅图
+
+像素百分比之前，必须同时查看 Ear6 和 Mesen2 图像，可使用人工或多模态检查。
+把结果归入一种：
+
+| 分类 | 后续方向 |
+|---|---|
+| 一方合理、一方黑屏/乱码 | 合理一方可能正确；追踪另一方加载、bank、VRAM 或设备 |
+| 双方都合理，局部不同 | 优先 sprite、scroll、palette、IRQ 或帧相位 |
+| 双方都乱码但像素不同 | 不能宣称任一方正确；先找共同的内容/初始化问题 |
+| 双方合理但处于不同画面 | 检查输入、save、随机状态和帧计数 |
+| 画面结构一致，仅颜色不同 | 分离 raw index、mapped index 和 final RGB |
+
+所有结论都应写清“画面合理性”和“像素一致性”是两种证据。
+
+## 7. 分层定位
+
+视频路径至少分三层：
+
+```text
+PPU raw palette index
+        |
+        v
+PPU model / NES DB LUT mapped index
+        |
+        v
+palette + emphasis -> final RGBA8888
+```
+
+- `raw_idx` 已不同：继续查 PPU fetch、VRAM、sprite、scroll 或 mapper。
+- `raw_idx` 相同、`mapped_idx` 不同：查 VS PPU model 与 LUT。
+- mapped 相同、RGB 不同：查调色板、emphasis、grayscale 或输出路径。
+
+不要在 raw index 已一致时继续猜 CPU IRQ；也不要在 final RGB 未对齐时直接改
+mapper bank logic。
+
+## 8. CPU sequence 对比
+
+默认构建启用 `EAR6_ENABLE_CPU_SEQ_TRACE` 编译 gate，运行时用环境变量开启：
+
 ```bash
-# 不输出调试信息
-./build/app/cli/ear6-cli -f 120 <rom> -o /tmp/test.ppm 2>/dev/null
-# 用 xxd 检查输出颜色
-xxd /tmp/test.ppm | head -20
+EAR6_TRACE_CPU_SEQ=1 \
+  ./build/app/cli/ear6-cli screenshot \
+  -f 30 path/to/game.nes -o /dev/null \
+  2>/tmp/ear6-cpu-seq.txt
 ```
 
----
+Mesen2 的对应 trace：
 
-## 21. 修改 Mesen2 用于对照调试（构建与编辑规范）
-
-当你需要在 Mesen2 中加 trace 做对照时，遵循以下规则，避免不必要的大规模重编译：
-
-1. **优先只改 `.cpp`，尽量不改 `.h`**。
-   - Mesen2 头文件变更会触发大范围重编译，调试迭代会明显变慢。
-
-2. **Mesen2 CLI 只允许这条构建命令**：
-   - `make cli -C ../mesen2/DesktopApp`
-
-3. **不要删除 Mesen2 的 build 目录**。
-   - 全量重建代价很高（通常 >10 分钟），会打断迁移排查节奏。
-
-4. **需要强制重编某个文件时，只删对应单个 `.o` 文件**。
-   - 例如：
-   ```bash
-   rm -f build-Release/x86_64-PC-Linux/MesenRT/CMakeFiles/MesenLib.dir/Core/NES/NesPpu.cpp.o
-   make cli -C ../mesen2/DesktopApp
-   ```
-   - 这样 CMake 会仅重编目标文件并重链接。
-
-5. **若必须改 `.h`（如 `SettingTypes.h`）**：
-   - 尽量控制改动范围，只触发必要的 `.cpp` 级联重编；
-   - 若无法避免，接受这次构建会变慢。
-
-### 补充调试原则（避免误判）
-
-- **先做代码路径对照，再做日志推断**：先确认 Mesen2/ear6 对应代码语义，再用日志验证，不靠日志“猜行为”。
-- **区分“观测改动”和“行为改动”**：可先加 trace 收集证据，证据未闭环前不要同时做语义修复。
-- **NES DB 视为权威元数据**：mirroring/input/PPU model 等覆盖要做字段级映射与边界检查。
-- **NES DB 加载方式**：ear6 不在运行时读取外部 DB 文件。构建阶段会把 `assets/nes/nes_db.txt` 生成并嵌入为 `build/generated/nes_db_embedded.h`，`apply_nesdb_overrides()` 直接解析内嵌文本（兼容 wasm）。
-- **分层定位**：RGB 不一致 -> raw index -> 寄存器/事件时间线 -> 内存读写来源。
-- **修复后做定向回归**：除目标 ROM 外，至少回归 1-2 个同类 mapper 的已知正常 ROM。
-
-## 20. 迁移教训与反思
-
-### 2026-05-15：MMC1 写入时序守卫 — 批量模型 vs 交织模型的潜藏差异
-
-**Bug：部分 Mapper 001 游戏 CHR bank 配置错误，画面异常。**
-如 AD&D Hillsfar (J).nes，ear6 输出完全错误，mesen2 正确。
-
-**根因：MMC1 `WriteRegister` 的 dummy-write 过滤器不生效。**
-
-MMC1 通过 5 位串行协议配置寄存器：
-- CPU 的 RMW 指令（`INC`/`DEC`/`ASL`/`LSR`/`ROL`/`ROR`）在写回修改值之前
-  会先写回**原始值**（dummy write）。
-- 如果 dummy write 的 bit 7 被置位（原始值恰为 `0x80-0xFF`），
-  MMC1 会误触发 RESET，导致移位寄存器清空、模式寄存器回退。
-
-防止机制：**写入时序守卫**——连续两次写入若相隔太近，忽略第二次写入。
-
-**Mesen2（正确）：**
-```cpp
-// 用 master clock 计数，单位是 PPU dot ÷ 4（NTSC）
-uint64_t currentCycle = _console->GetMasterClock();
-if ((value & 0x80) || currentCycle - _lastWriteCycle >= 2) {
-    ProcessBitWrite(addr, value);
-}
-_lastWriteCycle = currentCycle;
-```
-RMW 的两笔写入相隔仅 **1 master clock tick**（`diff=1 < 2`），dummy write 后的真实写入被过滤。
-
-**ear6（错误）：**
-```cpp
-// 用 CPU cycle 计数
-uint64_t current_cycle = console_->get_cpu()->get_cycle_count();
-if ((value & 0x80) || current_cycle - last_write_cycle_ >= 1) {
-    process_bit_write(addr, value);
-}
-last_write_cycle_ = current_cycle;
-```
-RMW 的两笔写入相隔 **1 CPU cycle**（`diff=1 >= 1`），未被过滤。
-移位寄存器多接收了 1 bit，使后续全部 5 位串行协议偏移一位。
-控制寄存器的 `chr_mode` 被错误设置为 1（4KB 模式），而正确值应为 0（8KB 模式）。
-
-**为什么抄错？**
-
-两个问题叠加。
-
-**问题 1：数值本身不对。** Mesen2 的 guard 是 `>= 2`，ear6 直接写了 `>= 1`。
-即使计数器基准完全相同，这两个值也不相等。抄的时候没有逐字核对门槛值。
-
-**问题 2：即使数值对了，不同计数基准下效果也不同。**
-Mesen2 用 **master clock**（PPU dot ÷ 4，一个 CPU cycle ≈ 12 master clock ticks），
-ear6 用 **CPU cycle**（`state_.cycle_count`）。
-
-| 场景 | Mesen2 master clock diff | ear6 CPU cycle diff |
-|------|--------------------------|---------------------|
-| RMW dummy write → real write | 1（< 2 → 过滤） | 1（>= 1 → 不过滤） |
-| 两个独立 `STA` 指令 | 16+（>= 2 → 通过） | 4+（>= 1 → 通过） |
-
-`>= 1` 在 ear6 的 CPU cycle 尺度上等价于 `>= 12` master clock ticks，
-远超 Mesen2 `>= 2` 的容限，因此无法过滤 RMW 的紧挨着写入。
-
-**修复：数值改为 `2` + 在 CPU cycle 基准下用 `>= 2` 等价截断。**
-```cpp
-if ((value & 0x80) || current_cycle - last_write_cycle_ >= 2) {
-```
-在 ear6 的 CPU cycle 尺度下：
-- RMW 两笔写入 diff = 1 < 2 → **过滤**（匹配 Mesen2）
-- 两个独立指令 diff = 4+ >= 2 → **通过**（匹配 Mesen2）
-
-**教训与知识记录：**
-
-1. **先追数值，再追基准。** 第一步应该发现 `>= 2` 和 `>= 1` 不一样。
-   第二步再问计数器物理含义。两个问题会同时出现，不能只看一个。
-
-2. **RMW 指令的 dummy write 是所有映射器寄存器的共同陷阱。**
-   不光是 MMC1，任何需要在 `$8000-$FFFF` 范围内用写入序列编程的 mapper
-   （MMC3、VRC 系列、FME-7 等）都可能受此影响。实现写入时序守卫时，
-   必须确保 RMW 内部的两笔写入被过滤，同时保持独立指令间的正常写入。
-
-3. **逐字对照 Mesen2 的魔法数字，不要凭"差不多"的印象写。**
-   `>= 2` 就是 `>= 2`，不能写成 `>= 1`。先确保数值一致，
-   再考虑不同的计数器基准是否需要换算。
-
-4. **调试技巧：在双方代码同时打印时序守卫日志。**
-   ```
-   [MMC1W] addr=$FFD7 val=$FF cycle=14 last=0 diff=14 proc=1   // RESET
-   [MMC1W] addr=$FFD7 val=$00 cycle=15 last=14 diff=1 proc=0   // 被过滤！
-   ```
-   这种日志可以直观看到 Mesen2 `diff=1 < 2` 过滤了第二笔写入，
-   而 ear6 `diff=1 >= 1` 让它通过了。不需要推测，数据说话。
-
-### 2026-05-15：PPU VBlank 触发位置 — exec() vs ProcessScanlineFirstCycle
-
-**Bug：部分 MMC1 游戏在 VBlank 期间产生多余的 PPU 寄存器写入，渲染异常。**
-如 Final Fantasy 2 (J)、Arabian Dream Sharezerd 等，ear6 输出与 mesen2 不同。
-
-**根因：VBlank 触发位置在 `exec()` 中而非 `process_scanline_first_cycle()`。**
-
-Mesen2 在 `ProcessScanlineFirstCycle` 中触发 VBlank：
-```cpp
-// Mesen2 在 scanline 从 240 切换到 241 时（cycle 340）触发
-void ProcessScanlineFirstCycle() {
-    _cycle = 0;
-    if(++_scanline == 241) {
-        BeginVblank();      // 设置 _statusFlags.VerticalBlank = true，触发 NMI
-    }
-}
+```bash
+MESEN2_TRACE_CPU_SEQ=1 \
+  ../mesen2/dist/x86_64-PC-Linux/bin/mesen2-cli screenshot \
+  -f 30 path/to/game.nes -o /dev/null
 ```
 
-ear6 原先在 `exec()` 中触发：
-```cpp
-// ear6 在 scanline 241 的 cycle 1 时才触发
-void exec() {
-    cycle_++;
-    if (cycle_ < 340) {
-        if (scanline_ < 240) { ... }
-        else if (cycle_ == 1 && scanline_ == nmi_scanline_) {
-            begin_vblank();   // 晚了一个 cycle
-        }
-    } else {
-        process_scanline_first_cycle();
-    }
-}
+Mesen2 trace 当前写入 `/tmp/mesen2_cpu_seq.txt`。不同平台的 dist 目录可能不同，
+先定位 `mesen2-cli` 实际产物。
+
+双方行格式应包含：
+
+```text
+f sl cy cpu pc op a x y sp ps
 ```
 
-**为什么抄错？**
+先按帧比较指令条数，再规范化 emulator prefix 和必要的绝对 cycle offset。不能
+一开始删除 PC、opcode、寄存器或 PPU frame/scanline/cycle；这些正是首差异证据。
 
-Mesen2 的 `BeginVblank` 调用在 `ProcessScanlineFirstCycle` 里：
-```cpp
-void ProcessScanlineFirstCycle() {
-    _cycle = 0;
-    _scanline++;
-    if(_scanline > 260) { ... }
-    if(_scanline == 241) {
-        BeginVblank();        // ← 在这里
-    }
-}
+CPU trace 的判断：
+
+- 首个不同是 load 后寄存器值：追踪该内存地址的 owner 和 read handler。
+- PC/opcode 分叉：向前找首次 status 或读取值不同。
+- CPU sequence 完全一致但画面不同：停止修改 CPU/PRG banking，转向 PPU、CHR、
+  palette 或 frame output。
+- 指令序列一致但 PPU cycle 坐标有固定偏移：检查 reset 和 CPU/PPU phase。
+
+## 9. PPU 与内存事件
+
+只在 CPU sequence 无法解释差异时增加更窄的 trace。优先复用当前已有 gate：
+
+| Runtime gate | 用途 |
+|---|---|
+| `EAR6_TRACE_NESDB` | NES DB 命中和覆盖字段 |
+| `EAR6_TRACE_CPU_SEQ` | 每条 CPU 指令状态 |
+| `EAR6_TRACE_REG_WRITES` | PPU register writes，可按 frame 限制 |
+| `EAR6_TRACE_TILE_INDEX` | tile/raw index，可按 frame/scanline 限制 |
+| `EAR6_TRACE_TILE_FETCH` | nametable/attribute/pattern fetch |
+| `EAR6_TRACE_PIXEL_PROBE` | 指定 frame/x/y 的像素路径 |
+| `EAR6_TRACE_PALETTE` | raw/mapped/RGB 与 palette dump；需要对应编译 gate |
+
+某些专用 trace 还受 `EAR6_ENABLE_*` 编译宏保护。开启环境变量没有输出时先检查
+源代码 gate 和 CMake 定义，不要以为执行路径没有发生。
+
+新增 trace 必须：
+
+- 默认关闭
+- 能按 frame/scanline/address 缩小输出
+- 使用稳定字段，便于双方脚本规范化
+- 不改变模拟状态或额外读取有副作用的寄存器
+- 在问题完成后保留为通用 gate，或删除一次性噪音
+
+## 10. 从首差异追到代码
+
+每个根因结论需要两种证据：
+
+1. 运行证据：可重复命令和首差异点。
+2. 代码证据：Ear6 与 Mesen2 对应函数、条件和状态更新顺序。
+
+常见地址 owner：
+
+| 范围 | 优先检查 |
+|---|---|
+| `$0000-$1FFF` | internal RAM mirror |
+| `$2000-$3FFF` | PPU registers 和 register mirror |
+| `$4000-$4015` | APU、DMA |
+| `$4016-$4017` | controller、扩展输入、open bus |
+| `$4020-$5FFF` | mapper/FDS/扩展设备 |
+| `$6000-$7FFF` | work/save RAM、mapper registers |
+| `$8000-$FFFF` | PRG ROM、mapper registers、bus conflict |
+
+如果内存读取不同，先确认 `NesMemoryManager` 最终注册的是哪个 handler；如果 CHR
+数据不同，确认 `BaseMapper` 的 page pointer、memory type 和 access flag；如果地址
+不同，检查 PPU `v/t/x/w`、延迟状态和 fetch cycle。
+
+## 11. NES DB 与 CRC
+
+当 header mapper 和最终 mapper 不同，先判断 NES DB 是否命中。Ear6 当前按 ROM
+header/trainer 之后的剩余内容计算 CRC，并用嵌入数据库覆盖 mapper 等字段。
+
+常见误区：
+
+- 只对 header 声明的 PRG+CHR 长度计算 CRC，忽略尾部数据。
+- 双方使用不同版本 NES DB。
+- 把错误 DB 条目当成核心真值。
+- 修改 mapper 逻辑去适配一个错误 hash 条目。
+
+数据库是元数据参考，不是不可质疑的输出 oracle。若一方因为错误 mapper 渲染
+异常，而修正条目后双方合理且一致，应修正数据并记录证据。
+
+## 12. 输入与 save 导致的假差异
+
+CPU/PPU 完全正确时，以下状态仍可让画面分叉：
+
+- Mesen2 自动加载 `.sav`
+- 标准 controller 与 Family BASIC keyboard/Zapper 等设备不同
+- `$4017` 的设备位与 open bus 组合不同
+- Start/coin 输入发生在不同帧
+- VS DIP switch、coin 或 PPU model 不同
+
+在修改核心前，先用 CPU trace 找到分叉是否来自 `$4016/$4017` 或 `$6000-$7FFF`。
+
+## 13. Mapper 工作流
+
+新增或修正 mapper 时使用 [Mapper 实现清单](mapper_checklist.md)。最小交付包括：
+
+1. factory 支持和正确 variant 选择。
+2. 初始化 PRG/CHR/mirroring/RAM。
+3. register、IRQ、hook 和 expansion audio（如有）。
+4. 至少一个能进入有效画面的 ROM 对比。
+5. 首差异定位或列定帧 100% 证据。
+6. 永久回归测试。
+7. `nes-issue.md` 记录。
+
+Mapper source file 存在只说明可创建，不说明行为完整。
+
+## 14. 修改 Mesen2
+
+只有现有 CLI/trace 无法暴露首差异时才修改参考仓库。修改前：
+
+- 记录 Mesen2 commit 和工作区状态。
+- 先找到对应代码路径，不做大范围重构。
+- 新日志默认关闭，并使用 `MESEN2_*` gate。
+- 保持字段与 Ear6 trace 一致。
+- 使用 `make cli -C ../mesen2/DesktopApp` 重建。
+
+Mesen2 的临时 instrumentation 不应混入 Ear6 提交，也不能把未重建的旧二进制
+输出当成新代码证据。
+
+## 15. 回归范围
+
+一次修复至少检查：
+
+- 首差异帧
+- 一个较晚累计帧（通常 60、128 或 256）
+- 同 mapper 的其他本地 ROM
+- 共享基类/family 的已知 100% ROM
+- `./build/ear6-test` 中相关测试
+
+像素 100% 结果记录 sampled ROM 和 frame。只有覆盖所有相关 ROM、启动与游戏路径、
+bank/IRQ/submapper 分支后，才讨论更强的“mapper 完成”结论。
+
+## 16. 记录模板
+
+在 `nes-issue.md` 中使用以下信息结构：
+
+```markdown
+## Mapper N
+
+- ROMs: X
+- Frames: 1/30/60/128/256
+- Perfect: X/Y
+- Partial: X/Y
+- None: X/Y
+
+| ROM | Match | Visual classification | First difference |
+|---|---:|---|---|
+| `game.nes` | 99.90% | both valid, local sprite drift | frame 11 |
+
+Evidence: CPU sequence matches through ..., first PPU difference is ...
+Permanent regression: test name and frame.
 ```
 
-ear6 的 `process_scanline_first_cycle` 里没有对应代码（只处理了 scanline < 240 和 scanline == 240 的情况），
-导致 VBlank 触发被错误地放到了 `exec()` 函数里，且偏移了 1 个 cycle。
-
-**后果：**
-
-VBlank 延迟 1 个 cycle 触发，导致游戏在 VBlank 期间写入 PPU 寄存器（`$2005`/`$2006`/`$2007`）
-时的 timing 偏移。在 CHR RAM 游戏中，这会导致：
-- 多余的 `$2005`/`$2006` 写入（scroll/address 设置偏移）
-- 多余的 `$2007` 写入（CHR RAM 数据偏移）
-- 最终画面渲染错误
-
-**修复：将 VBlank 触发从 `exec()` 移到 `process_scanline_first_cycle()`，完全对齐 Mesen2。**
-
-```cpp
-void NesPpu::process_scanline_first_cycle() {
-    ...
-    } else if (scanline_ == 241) {
-        if (!prevent_vbl_flag_) {
-            status_flags_.vertical_blank = true;
-            begin_vblank();
-        }
-        prevent_vbl_flag_ = false;
-    }
-}
-```
-
-移除了 `exec()` 中的冗余检查。修正后 4 个 MMC1 游戏输出与 mesen2 像素一致。
-
-**教训与知识记录：**
-
-1. **逐函数对照 Mesen2 的结构，不要漏掉任何一个 case 分支。**
-   ear6 的 `process_scanline_first_cycle` 只复制了 scanline < 240 和 scanline == 240 的分支，
-   完全漏掉了 scanline == 241 的分支。而 Mesen2 的 `ProcessScanlineFirstCycle` 显式处理了
-   `_scanline == 241` 的 VBlank 触发。
-
-2. **"看起来结构一样"不等于真的样。** ear6 的 `exec()` 和 mesen2 的 `Exec()` 表面结构相似
-  （都调用 process_scanline_impl/ProcessScanlineImpl 和
-   process_scanline_first_cycle/ProcessScanlineFirstCycle），
-   但 ear6 在 `exec()` 中偷偷塞了一个额外的 VBlank 检查。这个"多余"的代码就是 bug 来源。
-
-3. **PPU 时序相关的移植，应先确保关键事件（VBlank、NMI、$2002 状态）的触发时机对齐。**
-   对比双方应同时打日志比对 `$2002` 读取数量及 VBlank 触发的 scanline/cycle，而不是直接比像素。
-   像素不同再排查太慢，时序匹配了像素自然就对了。
-
-4. **调试方法：双方同时打印所有 PPU 寄存器写入日志。**
-   通过 `diff` 对比双方的 `[PPUW] a=$200X` 日志，可以精确定位多余的寄存器写入发生在哪个
-   scanline/cycle。这次就是通过 `diff` 发现 ear6 在 VBlank 区域多了 10 笔 `$2005`/`$2006` 写入
-   才追到根因。
-
-### 2026-05-14：三次漏细节的教训
-
-**Bug：uint16_t 回绕死循环**。`add_register_range(0x8000, 0xFFFF, WRITE)` 用
-`uint16_t i` 做循环变量，`i++` 到 0xFFFF 后回绕到 0x0000，`i <= 0xFFFF` 永远为真。
-加载 mapper 1 的 ROM 时卡在初始化阶段。**C++ 无符号整型回绕是经典陷阱，
-但凡看一眼 Mesen2 的参数类型（`int32_t start, int32_t end`）就能避免**。
-
-**Bug：NROM 16KB PRG 越界**。Mesen2 NROM 用 `SelectPrgPage(0,0)` + `SelectPrgPage(1,1)`，
-`SelectPrgPage` 内部以 `page % max_page` 做自动 wrap。ear6 直接写
-`set_cpu_memory_mapping(0x8000, 0xFFFF, 0)` 一段覆盖 32KB，`source_offset`
-在 $C000-$FFFF 段突破 16KB ROM 边界读到垃圾。**对照只看接口、没追到内部实现**。
-
-**Bug：DMA 死循环**。Mesen2 的 `processCycle` lambda 在每轮 DMA 循环开头清
-`_needHalt`/`_needDummyRead`，保证 DMC 重新请求后 `need_halt_` 能被清掉、
-DMC 能被服务。ear6 抄了 while 框架但漏了这 5 行，`need_halt_` 永远无人清，
-DMC 永远不服务→死循环。**漏看了过程性逻辑**。
-
-教训：**"看起来差不多"就是差很多**。迁移时必须逐行对照 Mesen2 源码，
-对每一个局部变量、每一个 flag 的读写生命周期都要理解，不能凭印象抄框架。
-遇到条件分支多、状态机复杂的函数（`process_pending_dma`、`update_state`），
-应该把 Mesen2 源码和 ear6 代码并排打开，逐行核验。
+100% 结果也必须记录。没有差异不等于没有信息，它能保护已完成路径并确定后续
+改动的回归边界。

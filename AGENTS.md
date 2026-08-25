@@ -1,120 +1,176 @@
-# Ear6 - Game Emulator Library
+# Ear6 Agent Guide
 
-## Build
+Ear6 is a cross-platform, multi-system game emulator library. NES is currently
+the most complete system, but do not describe or design the project as an
+NES-only emulator.
+
+## Required Reading
+
+Agents must open the relevant source document before changing that area. The
+following links are the maintained entry points:
+
+- [Documentation map](docs/README.md): use at the start of documentation or
+  unfamiliar cross-cutting work
+- [Architecture and system model](docs/architecture.md): required for core,
+  system, host-boundary, and new-system work
+- [Public API manual](docs/api-reference.md): required for public headers, C
+  ABI, callbacks, media buffers, installation, or host integration
+- [Project roadmap](docs/TODO.md): required when assessing current support,
+  choosing priorities, or completing roadmap work
+- [NES compatibility results](nes-issue.md): required for any NES accuracy,
+  ROM, mapper, PPU, CPU, APU, or input task
+- [NES/Mesen2 comparison guide](docs/migration_guide.md): required before
+  reference-porting, frame comparison, or trace debugging
+- [Mapper implementation checklist](docs/mapper_checklist.md): required before
+  adding or changing a mapper
+- [Development guide](docs/development.md): required for build, test, repository
+  layout, or contribution-process changes
+- [Quick start](docs/getting-started.md): required when user-facing build, CLI,
+  install, or Web startup steps change
+- [Web UI design constraints](docs/web_ui_design.md): required for Web UI
+  behavior or visual changes
+
+Treat code as the source of truth. Update affected documentation in the same
+change whenever behavior, commands, API, system support, or test coverage
+changes.
+
+## Product And API Boundaries
+
+Public headers are split by responsibility:
+
+- `<ear6/ear6.h>`: system-agnostic lifecycle, stepping, video, and audio
+- `<ear6/nes.h>`: NES-only region, mapper, palette, and controller concepts
+- `<ear6/flash.h>`: reserved Flash extension; the Flash core is not implemented
+
+All declarations in `<ear6/ear6.h>` must have consistent semantics for every
+implemented `Ear6SystemType`. Put new system-specific concepts in
+`<ear6/<system>.h>`, never in the common header.
+
+The public API is pure C (`extern "C"`) even though internals are C++. C++
+exceptions must never cross the ABI boundary. Every fallible C entry point must
+catch all exceptions and return an error result.
+
+Public media guarantees:
+
+- framebuffer: tightly packed RGBA8888, four bytes per pixel
+- dimensions: current valid framebuffer width and height
+- audio: signed 16-bit PCM; `nullptr` and zero when no packet is available
+- `ear6_step()`: advances one emulated frame; zero means success
+
+Returned buffers are owned by the context. Callers must not mutate or free
+them. See `docs/api-reference.md` before changing pointer lifetime, callback,
+or audio-consumption behavior.
+
+Current support must be stated precisely:
+
+| System | Runtime status |
+|---|---|
+| Test | Implemented |
+| NES | Implemented; compatibility varies by mapper and ROM |
+| Flash | Not implemented; `ear6_create(EAR6_SYSTEM_FLASH)` returns `nullptr` |
+
+Some declared extension functions are not yet implemented. Keep that status
+visible in the API manual and `docs/TODO.md`; never present declaration alone
+as runtime support.
+
+## Repository Layout
+
+- `include/ear6/`: installed public C headers
+- `src/`: private core and system interface
+- `src/nes/`: NES implementation
+- `app/cli/`: CLI host
+- `app/desktop/`: Qt host
+- `app/web/`: Emscripten bridge
+- `app/web-ui/`: browser host
+- `tests/`: API and ROM regression tests
+- `assets/nes/`: embedded NES DB source and local ROM fixtures
+- `docs/`: user, API, architecture, and development book
+
+Generated `version.h` and `export.h` belong in `${CMAKE_BINARY_DIR}/ear6/` so
+build and install consumers always include `<ear6/version.h>` and
+`<ear6/export.h>`.
+
+## Build And Test
 
 ```bash
-make ear6          # native: libear6.so + ear6-desktop
-make ear6-web      # wasm: libear6.a + ear6-web.js (requires Emscripten in .env)
+make ear6
+make ear6-web
 make clean
 
-# Mesen2 reference (for trace comparison):
-make cli -C ../mesen2/DesktopApp   # ONLY valid way to build mesen2-cli
+cmake -B build -S . -DEAR6_BUILD_TESTS=ON
+cmake --build build --target ear6-test
+./build/ear6-test
+./build/ear6-test --gtest_filter=ChoplifterRegression.*
 ```
 
-## Lint / Typecheck
+`make ear6` builds the native shared library, CLI, and Qt desktop app when Qt 6
+is available. `make ear6-web` requires `EMSCRIPTEN_CMAKE_TOOLCHAIN` in `.env`.
+A rebuild is the C/C++ lint/type check:
 
 ```bash
-cmake --build build --target ear6   # rebuild catches compile errors
+cmake --build build --target ear6
 ```
 
-## Test
+For Mesen2, the only supported build command is:
 
 ```bash
-cmake -B build -DEAR6_BUILD_TESTS=ON && cmake --build build --target ear6-test
-./build/ear6-test                    # run all tests
-./build/ear6-test --gtest_filter=Choplifter*   # single test suite
+make cli -C ../mesen2/DesktopApp
 ```
 
-**ROM directory**: Tests search `assets/nes/rom/`. Actual ROMs are organized under
-`assets/nes/roms/mapper_N/`. Create a symlink if needed:
-```bash
-mkdir -p assets/nes/rom && ln -sf ../roms/mapper_3/Choplifter\ \(J\).nes assets/nes/rom/
-```
+## NES Assets And Evidence
 
-## Migration Notes
+Tests use ROMs under `assets/nes/rom/mapper_N/`. ROM filenames and extensions
+may vary in case. Do not commit copyrighted ROMs.
 
-- NES <-> Mesen2 migration workflow, debug methodology, trace gating, and Mesen2-specific build/edit rules are maintained in `docs/migration_guide.md`.
-- Keep this file focused on project-wide conventions and stable API/engineering constraints.
+`assets/nes/nes_db.txt` is the NES DB source of truth. CMake embeds it through
+`cmake/embed_nes_db.cmake`; runtime code must consume embedded text so native
+and WASM behavior remain identical.
+
+For every NES mapper or compatibility task:
+
+1. Use `./build/app/cli/ear6-cli info <rom>` to confirm header mapper metadata.
+2. Compare ear6 and Mesen2 at the same sampled frames.
+3. Visually inspect both images before classifying a pixel difference: one may
+   be valid while the other is corrupt, or both may be valid with local drift.
+4. Find the first divergent frame, then compare CPU/PPU evidence as needed.
+5. Record both 100% matches and known differences in `nes-issue.md`.
+6. Add a focused regression test when the ROM can be represented by a stable
+   local fixture path.
+7. Commit each completed mapper or independent correction promptly when the
+   user has requested incremental commits.
+
+Do not infer full mapper correctness from mapper-factory support or one green
+frame. `nes-issue.md` must state ROM count, sampled frames, match scope, and any
+probe limitations.
 
 ## Naming
 
-- **Classes / type aliases**: PascalCase (`NesCpu`, `MapperType`)
-- **Enum constants**: UPPER_SNAKE_CASE (`DISCONNECTED`, `HANDSHAKING`, `CHOKE`, `BITFIELD`)
-- **Constants (`constexpr` / `const` at file or namespace scope)**: UPPER_SNAKE_CASE (`DEFAULT_NES_PALETTE`)
-- **Functions / variables**: snake_case (`parse_value`, `piece_length`)
-- **Non-public members**: snake_case + trailing underscore (`data_`, `pos_`)
-- **Getters**: MUST use `get_xxx()` prefix — no bare noun or property name. Example: `get_framebuffer()`, `get_frame_width()`, `get_state()`, `get_peer_info()`. Wrong: `framebuffer()`, `width()`, `state()`.
-- **Boolean getters**: MUST use `is_xxx()` prefix. Example: `is_connected()`, `is_ready()`. Wrong: `connected()`, `ready()`.
-- **Setters**: MUST use `set_xxx()` prefix. Example: `set_state()`, `set_callback()`. Wrong: `state()`, `callback()`.
+- Classes and type aliases: PascalCase (`NesCpu`, `MapperType`)
+- Enum constants: UPPER_SNAKE_CASE (`EAR6_SYSTEM_NES`)
+- Namespace/file constants: UPPER_SNAKE_CASE (`DEFAULT_NES_PALETTE`)
+- Functions and variables: snake_case (`parse_value`)
+- Non-public members: snake_case plus trailing underscore (`data_`)
+- Getters: `get_xxx()`; boolean getters: `is_xxx()`
+- Setters: `set_xxx()`
 
-## Project Structure
+## Debugging
 
-- `include/ear6/` — public API headers (installed)
-- `src/` — library implementation (private)
-- `app/desktop/` — Linux/macOS desktop app
-- `app/web/` — HTML5/WASM app (Emscripten)
-- `cmake/` — CMake modules and package config
+Do not guess at hangs or crashes. Build Debug and use GDB:
 
+```bash
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+gdb --args ./build/app/cli/ear6-cli screenshot -f 1 game.nes -o /tmp/frame.ppm
+```
 
-## Public API Contract
+Use `bt` after a crash or after interrupting a hang. For behavior differences,
+follow `docs/migration_guide.md`; it defines trace gates, frame alignment, and
+first-divergence rules.
 
-All functions declared in `<ear6/ear6.h>` must be **system-agnostic** — their behavior and return values must be semantically consistent across every `Ear6SystemType` (NES, Test, Flash).
+## Worktree And Commits
 
-| API | 保证 |
-|-----|------|
-| `ear6_get_framebuffer()` | 返回 RGBA8888，每像素 4 字节，R/G/B/A 各 8 bit |
-| `ear6_get_frame_width()` | 返回有效宽度 |
-| `ear6_get_frame_height()` | 返回有效高度 |
-| `ear6_get_audiobuffer()` | 返回 16-bit PCM 样本，无音频时返回 nullptr |
-| `ear6_get_audio_num_samples()` | 返回样本数，无音频时返回 0 |
-| `ear6_step()` | 推进一帧，返回 0 表示成功 |
-| `ear6_load()` | 加载 ROM/Swap 数据，空数据可用于初始化 |
-
-系统特有的行为（如 NES 调色板配置、Flash 版本设置）必须放在对应的系统专用头文件（`nes.h`、`flash.h`）中，不得在 `ear6.h` 中添加系统相关的 API。
-
-## Known Limitations
-
-- **FDS hardware is not implemented**: FDS BIOS/classic FDS-dependent code paths can diverge because `$4024-$403F` and FDS RAM adapter behavior are missing.
-- **PPU model parity is incomplete**: Some VS/System and mapper-heavy titles still require tighter cycle-level parity with mesen2's interleaved model.
-- **Mapper-specific submapper logic is partial**: `RomInfo.submapper_id` exists and can be filled from NES DB, but mapper behavior must be implemented per mapper.
-
-## NES DB Asset Flow
-
-- `assets/nes/nes_db.txt` is the source-of-truth DB snapshot (from Mesen).
-- ear6 embeds this file at build time via `cmake/embed_nes_db.cmake`, generating `build/generated/nes_db_embedded.h`.
-- Runtime code (`apply_nesdb_overrides`) must consume embedded text, not filesystem reads, so native and wasm behavior stay consistent.
-
-
-## Debugging with GDB (Lesson Learned)
-
-**Never guess — use GDB.** When facing hangs/crashes:
-1. Build debug: `cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug && cmake --build build`
-2. Run under GDB: `gdb --args ./build/ear6-cli <rom>`
-3. On hang: Ctrl+C, then `bt` to get the full call chain
-4. On crash: `run` lets it crash, then `bt` shows where
-
-**Example** — infinite recursion in `read_register(0xFFFA)`:
-The hang was `read_register → BaseMapper::read_ram → is_read_register_addr_ true → read_register → ...`
-A single GDB `bt` would have shown this loop instantly, instead of 2 hours of guessing.
-
-**Useful GDB commands for this project:**
-- `bt` — backtrace (shows the call chain)
-- `frame N` — switch to frame N
-- `p variable` — print variable
-- `p/x variable` — print in hex
-- `info functions <regex>` — find function addresses
-- `b file.cpp:line` — set breakpoint
-- `b funcname` — set breakpoint on function
-- `watch variable` — break when variable changes
-- `c` — continue
-- `n` — step over, `s` — step into
-- `finish` — run until current function returns
-- `l` — list source near current line
-
-## Notes for AI Agent
-
-- **NEVER auto-commit.** Only commit when the user explicitly asks with `/commit` or says "commit". All changes should remain unstaged/untracked until the user requests a commit.
-- Do not use backticks in git commit messages — bash interprets them as command substitution. Use single quotes instead.
-- Exported API must be pure C (`extern "C"`), not C++. Internal implementation can use C++.
-- C++ exceptions must never cross the `extern "C"` boundary. Every C API entry point must catch all exceptions and convert them to error codes (0 = success, non-zero = error).
-- All public headers must live under `ear6/` namespace in both build and install: `#include <ear6/version.h>`, not `#include <version.h>`. CMake generated headers (version.h, export.h) must be placed in `${CMAKE_BINARY_DIR}/ear6/` so they are consistently accessed as `<ear6/xxx.h>` everywhere.
+- Preserve unrelated user changes and stage only explicit paths.
+- Never use destructive Git commands unless the user explicitly requests them.
+- Do not auto-commit unless the user says `commit` or requests incremental
+  commits. When they do, commit each completed independent change promptly.
+- Do not use backticks in commit messages; the shell interprets them.

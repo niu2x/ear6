@@ -1,152 +1,123 @@
-# NES Core: All Known Issues versus Mesen2
+# Ear6 路线图
 
-This file catalogs every known discrepancy between ear6 and Mesen2.
-Priority: 🔴 CRITICAL (game-breaking) / 🟡 HIGH (visible artifacts) / 🔵 MEDIUM (edge cases) / ⚪ LOW (polish).
+更新基线：2026-08-25。
 
-## PPU: Cycle-Accurate Rendering (General — 🔴 Root Cause Class)
+本文件记录项目级能力和下一步。NES 的逐 ROM/mapper 实测结果不在这里重复维护，
+统一查看 [NES 兼容性结果](../nes-issue.md)。
 
-**Symptom class**: Early frames may appear correct while later frames diverge, often with large full-frame color/layout mismatch.
+状态定义：
 
-**Root-cause class**: PPU cycle-level behavior mismatch, not a single register API bug. Typical sources:
-1. Tile/attribute/pattern fetch cycle placement (1-256)
-2. Sprite evaluation timing (65-256, 257-320)
-3. Idle/pre-fetch behavior (337-339)
-4. Deferred state application timing (`$2006`, `$2007`, rendering-enable latency)
+- 已实现：代码路径存在，并有至少一个直接测试或实际消费者
+- 已验证：在已写明的输入和范围内与参考结果一致
+- 完成：满足明确的发布标准，而不是“有一个类/文件”
 
-**Fix requirement**: systematic cycle-by-cycle migration to Mesen2 behavior (see `docs/migration_guide.md` Phase 3-4).
+## 当前基线
 
----
+### 已有能力
 
-## PPU Core Features (Remaining)
+- [x] 纯 C 的多系统公共边界：`<ear6/ear6.h>`
+- [x] 系统扩展头边界：`<ear6/nes.h>`、`<ear6/flash.h>`
+- [x] Test 系统：用于 framebuffer 和宿主循环自检
+- [x] NES 系统：iNES/NES 2.0 加载、CPU、PPU、APU、输入和 mapper 工厂
+- [x] 通用 RGBA8888 framebuffer 输出
+- [x] 16-bit PCM 回调和拉取式输出
+- [x] 原生共享库、CLI、Qt 宿主、WASM 桥接和浏览器宿主
+- [x] NES DB 构建时嵌入，原生/WASM 共用数据
+- [x] NES CPU 周期驱动 PPU master clock，并通过内存 handler 分发表路由设备
+- [x] NES PRG/CHR 页表、work/save RAM 内存区和 submapper 元数据
+- [x] NES 基础 APU 和部分扩展音频（VRC6、Namco 163、Sunsoft 5B）
+- [x] 多个 mapper 的固定帧回归与 Mesen2 抽样对比
 
-### 🔴 Critical (still open)
+### 系统成熟度
 
-- [ ] **Cycle-accuracy drift in timing-sensitive titles** — architecture-level residual mismatch still appears in VS-class titles; keep migration/trace workflow focused on first-divergence at register/cycle level
+| 系统 | 创建 | 加载 | 视频 | 音频 | 系统扩展 | 发布状态 |
+|---|---:|---:|---:|---:|---:|---|
+| Test | 是 | 是 | 是 | 无 | 不需要 | 开发工具 |
+| NES | 是 | 是 | 是 | 是 | 部分 | 开发中 |
+| Flash | 否 | 否 | 否 | 否 | 仅声明 | 未实现 |
 
-### 🟡 High (affects compatibility)
+## P0：稳定 Public API
 
-- [ ] **First-frame PPU access restriction parity** — verify/port `RestrictPpuAccessOnFirstFrame` behavior for `$2000-$2007`
-- [ ] **Grayscale + intensify bits output parity** — verify full emphasis behavior in final framebuffer path vs Mesen2
-- [ ] **Open bus decay parity** — complete/verify decay semantics across PPU register interactions
+这些项目在把 0.1.x API 推荐给第三方长期集成前必须完成。
 
-### 🔵 Medium
+- [ ] 处理已声明但无实现符号的 `ear6_nes_set_region()`：实现并测试，或在破坏性
+      版本中移除声明
+- [ ] 处理已声明但无实现符号的 `ear6_nes_set_mapper()`，并明确它是调试覆盖还是
+      正式加载配置
+- [ ] Flash 核心实现前，处理无实现符号的 `ear6_flash_set_version()`
+- [ ] 定义公开错误枚举，替代文档化但未命名的 `-1/-2/-3`
+- [ ] 增加音频格式查询：sample rate、channel count、sample format
+- [ ] 明确并测试 `ear6_load_data()` 的空指针、负 size、超大输入和输入缓冲区生命周期
+- [ ] 为 framebuffer 和音频指针有效期建立 API contract 测试
+- [ ] 增加安装后 consumer 测试：纯 C 编译、C++ 编译和 `find_package(Ear6)` 链接
+- [ ] 决定 `ear6_test()` 是正式诊断 API 还是移除的早期兼容符号
+- [ ] 定义线程与回调重入策略；当前只支持宿主串行访问一个上下文
 
-- [ ] **`$2004` open bus read** — precise read behavior during rendering (returns OAM copy buffer)
-- [ ] **Palette read open bus** — `palette_ram_mask & open_bus` high bit merging on `$2007` reads
-- [ ] **Memory read buffer corruption on palette reads** — `memory_read_buffer_` updated from mapper for $3F00+ addresses, should NOT be updated (internal PPU RAM)
+## P0：NES 正确性
 
----
+兼容性优先级以 [nes-issue.md](../nes-issue.md) 的最新证据为准。当前最明确的
+开放差异包括：
 
-## PPU: Additional Implementation Gaps
+- [ ] Mapper 4：处理多个 ROM 的局部/完全差异与 frame-phase 差异
+- [ ] Mapper 45/shared CHR-RAM：定位 CPU trace 一致后的首个 PPU 差异
+- [ ] Mapper 7：定位 `Battletoads Double Dragon` 的局部像素差异
+- [ ] Mapper 23：定位 `Ganbare Goemon 2` 从 frame 11 开始的 sprite 时序差异
+- [ ] 对只有单 ROM、单帧或 mapper probe 的 100% 结果扩展覆盖，避免把探针成功
+      表述为 mapper 完成
+- [ ] 对 mapper factory 中尚无 `nes-issue.md` 证据的实现逐个建立基线
 
-- [ ] **CPU/PPU master clock alignment** — `ppu_offset_` may still need adjustment vs Mesen2 `_ppuOffset` for exact dot timing
-- [ ] **PAL / Dendy parity** — scanline count and timing behavior still need validation against reference
+通用硬件差距：
 
----
+- [ ] FDS RAM adapter、寄存器、磁盘和扩展音频
+- [ ] PAL/Dendy 的 CPU、PPU、APU 帧时序与公共配置路径
+- [ ] battery-backed save RAM 的宿主持久化 API
+- [ ] save/load state 序列化 API 与版本策略
+- [ ] Zapper、Four Score、Arkanoid controller、Power Pad 等设备选择 API
+- [ ] VS System/DualSystem 的 coin、DIP switch 和双机设备模型
+- [ ] DMC DMA 与 sprite DMA 并发、cycle stealing 和边缘时序验证
+- [ ] PPU open bus decay、`$2004/$2007` 边缘行为和首帧访问限制验证
+- [ ] mapper submapper、bus conflict、IRQ 和扩展音频的系统化覆盖
 
-## Mappers
+## P1：多系统平台
 
-- [x] **NROM** (mapper 0) — complete, unit tested
-- [x] **MMC1** (mapper 1) — SMB3, Zelda, Metroid, Mega Man 2 (complete, unit tested)
-- [x] **UNROM** (mapper 2) — Mega Man, Castlevania, Contra (complete, unit tested)
-- [x] **CNROM** (mapper 3) — Arkanoid, Mappy (complete, unit tested)
-- [ ] **MMC3** (mapper 4) — SMB3, Ninja Gaiden, Super C, Megaman 2-6 (IRQ notification architecture fixed; Rev A IRQ supported; SMB3 scrolling bug still open — see ROM-Specific Regressions)
-- [ ] **MMC5** (mapper 5) — Castlevania 3, Just Breed
-- [ ] **AxROM** (mapper 7) — Battletoads, Marble Madness
-- [ ] **MMC3 variant** — MMC6 (StarTropics), clone mappers
-- [ ] **VRC6** (mapper 24/26) — Castlevania 3 (JP), Wai Wai World 2
-- [ ] **VRC7** (mapper 85) — Lagrange Point (FM synthesis)
-- [ ] **FDS** (mapper 0xFFFF) — Disk System (Zelda, Metroid JP)
-- [ ] **Namco163** (mapper 19/210) — Splatterhouse, Dragon Spirit
-- [ ] **Sunsoft 5B** (mapper 69/68) — Gimmick!, Batman
-- [ ] **MMC3 IRQ counter** — scanline IRQ for split-screen (notification architecture fixed; Rev A IRQ supported; batch-model A12 count may still diverge from cycle-interleaved model)
-- [ ] **Bus conflict** — ANROM/GXROM/CNROM bus conflict behavior
-- [ ] **CHR-RAM/ROM page switching** — needs full 256-entry page table
-- [ ] **SRAM battery backup** — save game support
-- [ ] **`RomInfo` lacks `SubMapperID`** — required for mapper 002 submapper 2 bus conflict detection. Add field, parse from iNES 2.0 byte 15.
+- [ ] 定义“系统实现可用性”查询，避免宿主通过枚举猜测支持状态
+- [ ] 把 CLI 内容检测从 NES magic 扩展为可注册的系统探测器
+- [ ] 让 Desktop/Web 的系统选择、输入映射和媒体配置不依赖 NES 常量
+- [ ] 设计第二个真实系统实现，用它验证通用 API 是否真的系统无关
+- [ ] 明确每个系统的内容格式、区域/时钟、输入设备和持久化扩展头
+- [ ] 建立原生与 WASM 对同一输入的帧/音频一致性测试
 
----
+Flash 是否作为第二个真实系统继续实现，需要先形成核心范围、文件格式、帧推进
+语义和安全模型；在此之前它只是保留的 API 方向。
 
-## APU / Audio
+## P1：工具与自动化
 
-- [ ] **Square 1 & 2** — duty cycle, sweep, envelope, length counter
-- [ ] **Triangle** — linear counter, sequence generator, length counter
-- [ ] **Noise** — shift register, mode, envelope, length counter
-- [ ] **DMC** — delta modulation channel, sample DMA, IRQ
-- [ ] **Frame Counter** — 4-step/5-step mode, IRQ, sequencer
-- [ ] **Sound Mixer** — channel mixing, DC filter, sample rate conversion
-- [ ] **DMC DMA** — cycle stealing during CPU idle
-- [ ] **PAL timing** — APU rate changes NTSC/PAL
-- [ ] **$4017 write = APU frame counter reset** — verify frame-counter behavior/timing parity against Mesen2
+- [ ] 把 ear6/Mesen2 批量截图、像素统计和首差异帧查找收敛为仓库脚本
+- [ ] 为 CPU sequence trace 增加规范化和自动首差异报告
+- [ ] 增加 raw index、mapped index、final RGB 三层自动比较
+- [ ] 对本地 ROM 集生成 mapper/ROM/帧覆盖清单，区分 skipped 与 passed
+- [ ] 把 100% 结果和差异报告的固定字段自动校验进 `nes-issue.md`
+- [ ] 增加 sanitizers 和长时间创建/加载/销毁压力测试
 
----
+## P2：用户能力
 
-## CPU
+- [ ] 游戏存档导入/导出和安全落盘
+- [ ] save state 管理
+- [ ] 可配置控制器与多玩家输入
+- [ ] 调试器：CPU 寄存器、内存、PPU viewer、断点和 trace
+- [ ] cheat/Game Genie
+- [ ] NSF 播放
+- [ ] 视频滤镜、缩放策略和可选 NTSC 模拟
 
-- [ ] **CPU/PPU phase randomization** — `RandomizeCpuPpuAlignment` at reset
-- [ ] **DMC DMA cycle timing** — DMC read interleaving with instruction cycles
-- [ ] **SPR-DMA + DMC-DMA concurrency** — precise timing when both run
-- [ ] **Illegal opcode DMA timing** — SHY/SHX/SHAA/SHAZ/TAS with DMA interruption
-- [ ] **NMI/IRQ edge detection** — confirm exact φ1/φ2 timing
+这些能力不得污染通用 API。只有跨系统共有的语义进入 `ear6.h`；系统硬件概念
+进入各自扩展头，宿主产品功能留在 app 层。
 
----
+## 文档完成标准
 
-## System / Platform
-
-- [ ] **Game Genie / cheat codes**
-- [ ] **NSF player** — NES Sound Format playback
-- [ ] **FDS** — Famicom Disk System (extra mapper, disk rotation, audio)
-- [ ] **VS System / VS DualSystem** — arcade NES with coin input/device model coverage
-- [ ] **Expansion audio** — VRC6/VRC7/Namco163/Sunsoft5B
-- [ ] **HD Pack support** — high-resolution texture packs
-- [ ] **NTSC video filter** — blargg NTSC, Bisqwit NTSC
-- [ ] **Overclocking** — `PpuExtraScanlinesBeforeNmi` / `AfterNmi`
-- [ ] **Save/Load state** — serialize/deserialize component state
-- [ ] **Debugger** — register view, PPU viewer, trace logger
-- [ ] **Input devices** — Zapper, Four Score, Arkanoid controller, Power Pad
-
----
-
-## ROM-Specific Regressions
-
-### Super Mario Bros. 3 (J) — MMC3 (mapper 4)
-
-- [ ] **Scrolling / vertical offset bug** — status bar split is misaligned; game area scrolls incorrectly relative to Mesen2 reference.
-  - **Root cause**: MMC3 IRQ scanline counter fires at wrong scanline → CHR bank switch happens too early/late → wrong tile data for status bar vs game area.
-  - **Fixes applied** (not yet sufficient):
-    - Moved VRAM address notification from `BaseMapper::read_vram`/`write_vram` to `NesPpu::set_bus_address`, matching Mesen2's single-notification-point architecture. This fixes 5 paths where A12 transitions were missed (scanline first cycle, VRAM address increment, delayed address update, rendering disable).
-    - Fixed extra sprite tile loads to go through `NesPpu::read_vram` instead of direct `mapper_->read_vram`, ensuring A12 notification for sprite fetches.
-    - Added MMC3 Rev A IRQ support (`force_mmc3_rev_a_irqs_` from ROM DB chip string "MMC3A"). Not relevant for SMB3 (Rev B), but needed for other MMC3A games.
-    - Added `chip` field to `RomInfo` and NES DB parser for mapper variant detection.
-  - **Remaining investigation needed**:
-    - PPU cycle-level interleaving: ear6 processes PPU rendering in batch per CPU cycle, while Mesen2 interleaves at master-clock granularity. This may cause A12 rising edge count differences during scanlines with mixed NT/AT/pattern fetches.
-    - Verify exact A12 transition count per scanline matches Mesen2 for SMB3's scroll register setup sequence.
-    - Compare IRQ counter value at each scanline boundary between ear6 and Mesen2 using trace output.
-  - **Priority**: 🔴 CRITICAL — affects one of the most popular NES titles.
-  - **ROM**: `Super Mario Bros 3 (J).nes` (mapper 4, MMC3B, PRG 256KB + CHR 256KB + battery)
-
-### FDS BIOS (NROM mapper 0)
-- [ ] Missing FDS hardware stub → wrong palette values. Reads `$4024-$403F` return open bus (0x00) → BIOS takes wrong code path.
-- **Fix**: Minimal FDS stub returning sane values, `$6000-$7FFF` WRAM, detect by submapper or hash.
-
-### Duck Hunt (NROM mapper 0)
-- [ ] Missing Zapper emulation → "Connect Zapper" screen instead of game/title. Port 2 `$4017` returns 0x40.
-- **Fix**: Implement Zapper on port 2, or CLI option for port 2 device type.
-
-### VS-class titles (mapper/PPU-model sensitive)
-- [ ] Ensure NES DB/PPU model mapping and raw->RGB path match Mesen2 defaults.
-- [ ] Keep cycle-accurate migration tasks in place for timing-sensitive VS titles.
-
----
-
-## Testing
-
-- [ ] **nestest.nes** — CPU instruction set verification
-- [ ] **blargg PPU tests** — palette, sprite, vblank, scroll
-- [ ] **blargg APU tests** — length counter, envelope, sweep, DMC
-- [ ] **Full compatibility suite** — 100+ popular ROMs
-- [x] **Choplifter (J).nes** — permanent regression test (mapper 3, CNROM).
-      ear6 transitions to game screen at frame 6 (blue sky); Mesen2 is
-      stuck on title screen past 600 frames. ear6 is **correct** here.
-- [ ] **Frame-by-frame trace compare** — script that runs ear6 and Mesen2 side-by-side for the same ROM, finds the first divergent PPU register event
-- [ ] Build reusable first-divergence workflow script: compare raw index, mapped index, and final RGB in separate stages.
+- [x] 根 README 作为简洁入口
+- [x] 按用户、API 使用者和核心开发者组织的文档目录
+- [x] 多系统架构和扩展边界说明
+- [x] Public API 参数、错误、所有权、回调和示例手册
+- [x] 构建、测试、安装和开发指南
+- [x] 当前路线图与 NES 兼容性实测分离
+- [ ] 每次 Public API 或系统支持变化时，在同一个提交中更新文档

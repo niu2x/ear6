@@ -1,34 +1,54 @@
-# ear6
+# Ear6
 
-A tiny but serious cross-platform emulator library project.
+Ear6 is a small, cross-platform, multi-system game emulator library with a
+system-agnostic C API. The NES core is the most mature implementation today,
+while the library boundary is designed for NES and future systems alike.
 
-## What this project is
+```text
+host application -> <ear6/ear6.h> -> selected emulator system
+                                      + <ear6/nes.h> for NES extensions
+```
 
-- NES implementation is primarily benchmarked and aligned against the **Mesen2** project (timing, behavior, migration workflow).
-- Our core output is a **cross-platform emulator library**: native + web targets from one codebase.
+## Start here
 
-## Why this matters
+- [Documentation](docs/README.md)
+- [Quick start](docs/getting-started.md)
+- [Public API manual](docs/api-reference.md)
+- [Architecture](docs/architecture.md)
+- [Roadmap](docs/TODO.md)
 
-- Build once, integrate anywhere: desktop apps, tools, and browser runtimes.
-- Keep emulator behavior consistent across platforms, including wasm.
+Build the native library, CLI, and optional Qt desktop app:
 
-## Project Status
+```bash
+make ear6
+./build/app/cli/ear6-cli info path/to/game.nes
+```
 
-| Mapper | Name | Status |
-|--------|------|--------|
-| 0 | NROM | ✅ Complete, unit tests |
-| 1 | MMC1 (SMB3, Zelda, Metroid) | ✅ Complete, unit tests |
-| 2 | UNROM (Mega Man, Castlevania) | ✅ Complete, unit tests |
-| 3 | CNROM (Arkanoid, Mappy) | ✅ Complete, unit tests |
+Run the test suite:
 
-All four basic mappers are implemented and verified with frame-by-frame regression
-tests against Mesen2 reference output. See `nes-issue.md` for detailed coverage.
+```bash
+make test
+```
 
-> The author is currently busy with other things. Contributions and issues are
-> still welcome, but responses may be slower.
+Build and serve the WebAssembly frontend:
 
-## Live demo
+```bash
+make serve
+```
 
-- https://niu2x.github.io/ear6
+Live demo: <https://niu2x.github.io/ear6>
 
-If you just want to see it running in browser, open the link and start there.
+## Current scope
+
+| System | Status |
+|---|---|
+| Test | Implemented for host/API validation |
+| NES | Implemented and actively compared against Mesen2 |
+| Flash | Public API placeholder; core not implemented |
+
+NES compatibility is tracked by evidence, not by mapper source-file count.
+See [NES compatibility results](nes-issue.md) for sampled 100% matches and
+known differences.
+
+ROMs and BIOS files are not distributed with Ear6. Use only content you are
+legally entitled to use.

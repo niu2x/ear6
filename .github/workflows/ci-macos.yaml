@@ -1,0 +1,70 @@
+name: macOS CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build-ci-macos
+          -DCMAKE_BUILD_TYPE=Release
+          -DEAR6_BUILD_DESKTOP=ON
+          -DEAR6_BUILD_QT_DESKTOP=OFF
+          -DEAR6_BUILD_WASM=OFF
+          -DEAR6_BUILD_TESTS=ON
+
+      - name: Build app and tests
+        run: >-
+          cmake --build build-ci-macos
+          --config Release
+          --target ear6-desktop ear6-test ear6-desktop-common-test
+          --parallel 3
+
+      - name: Run tests
+        run: >-
+          ctest --test-dir build-ci-macos
+          --build-config Release
+          --output-on-failure
+
+      - name: Check app dependencies
+        shell: bash
+        run: |
+          app_binary="build-ci-macos/apps/desktop/macos/Ear6.app/Contents/MacOS/Ear6"
+          test -x "$app_binary"
+          otool -L "$app_binary"
+          if otool -L "$app_binary" | sed 1d | awk '{print $1}' | grep -Eq '(^|/)libear6([.]|$)'; then
+            echo "Ear6.app must link the Ear6 core statically." >&2
+            exit 1
+          fi
+
+      - name: Package app
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent \
+            build-ci-macos/apps/desktop/macos/Ear6.app \
+            "artifacts/Ear6-macOS-${{ runner.arch }}.zip"
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ear6-macOS-${{ runner.arch }}
+          path: artifacts/Ear6-macOS-${{ runner.arch }}.zip
+          if-no-files-found: error
+          retention-days: 14

@@ -82,6 +82,16 @@ make cli -C ../mesen2/DesktopApp
 
 ## 测试层级
 
+### macOS CI
+
+`.github/workflows/ci-macos.yaml` 在 pull request、`master` 分支 push 和手动触发时
+构建 Release 版原生 macOS 宿主。该任务关闭可选 Qt 宿主，运行核心与 Desktop
+common 测试，并检查 `Ear6.app` 没有动态链接 Ear6 核心。通过后会上传保留 macOS
+bundle 元数据的 ZIP，作为保留 14 天的 Actions Artifact。
+
+该 Artifact 只用于持续集成验证，不是面向用户的正式发布包。正式版本、签名、
+公证和 GitHub Release 由独立的 tag 发布流程负责。
+
 ### API 测试
 
 至少覆盖成功路径、无效参数、错误系统类型、重复创建销毁和 `nullptr` 安全行为。

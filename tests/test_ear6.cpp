@@ -197,6 +197,24 @@ static std::vector<uint8_t> save_state(Ear6* ctx) {
     return state;
 }
 
+static uint32_t state_crc32(const uint8_t* data, size_t size) {
+    uint32_t crc = 0xFFFFFFFFu;
+    for (size_t i = 0; i < size; ++i) {
+        crc ^= data[i];
+        for (int bit = 0; bit < 8; ++bit) {
+            crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+        }
+    }
+    return ~crc;
+}
+
+static void write_u32_le(std::vector<uint8_t>& data, size_t offset, uint32_t value) {
+    ASSERT_LE(offset + sizeof(value), data.size());
+    for (size_t i = 0; i < sizeof(value); ++i) {
+        data[offset + i] = static_cast<uint8_t>(value >> (i * 8));
+    }
+}
+
 static std::vector<uint8_t> make_mapper0_test_rom(uint8_t marker) {
     std::vector<uint8_t> rom(16 + 0x4000, 0);
     rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;
@@ -231,6 +249,45 @@ static std::vector<uint8_t> make_mapper_test_rom(uint8_t mapper) {
         rom[offset + 0x1FFD] = 0x80;
     }
     return rom;
+}
+
+TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
+    constexpr size_t STATE_HEADER_SIZE = 40;
+    constexpr size_t PAYLOAD_CRC_OFFSET = 32;
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    ASSERT_EQ(ear6_load_from_memory(
+        ctx, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+    for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
+
+    std::vector<uint8_t> before = save_state(ctx);
+    ASSERT_GT(before.size(), STATE_HEADER_SIZE);
+
+    std::vector<uint8_t> truncated(before.begin(), before.end() - 1);
+    EXPECT_NE(ear6_load_state_from_memory(ctx, truncated.data(), truncated.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
+
+    std::vector<uint8_t> bad_crc = before;
+    bad_crc.back() ^= 0x01;
+    EXPECT_NE(ear6_load_state_from_memory(ctx, bad_crc.data(), bad_crc.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
+
+    // Mapper 0 payload ends with kb_enabled_, a serialized bool. Keep the
+    // container CRC valid so failure happens after partial state restoration.
+    std::vector<uint8_t> invalid_payload = before;
+    invalid_payload.back() = 2;
+    uint32_t crc = state_crc32(
+        invalid_payload.data() + STATE_HEADER_SIZE,
+        invalid_payload.size() - STATE_HEADER_SIZE
+    );
+    write_u32_le(invalid_payload, PAYLOAD_CRC_OFFSET, crc);
+    EXPECT_NE(ear6_load_state_from_memory(
+        ctx, invalid_payload.data(), invalid_payload.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
+
+    ear6_destroy(ctx);
 }
 
 TEST(Ear6State, SupportedNesMappersContinueDeterministically) {

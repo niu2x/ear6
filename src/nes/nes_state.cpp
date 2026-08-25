@@ -139,6 +139,18 @@ void sync_std_array(StateStream& s, std::array<T, Size>& values) {
     for (T& value : values) s.sync(value);
 }
 
+template<typename T>
+void sync_fixed_vector(StateStream& s, std::vector<T>& values) {
+    uint64_t size = values.size();
+    s.sync(size);
+    if (s.has_error()) return;
+    if (s.is_loading() && size != values.size()) {
+        s.fail();
+        return;
+    }
+    for (T& value : values) s.sync(value);
+}
+
 } // namespace
 
 void NesCpu::serialize(StateStream& s) {
@@ -462,9 +474,9 @@ void VsControlManager::serialize(StateStream& s) {
 }
 
 void BaseMapper::serialize(StateStream& s) {
-    s.sync_vector(chr_ram_);
-    s.sync_vector(work_ram_);
-    s.sync_vector(save_ram_);
+    sync_fixed_vector(s, chr_ram_);
+    sync_fixed_vector(s, work_ram_);
+    sync_fixed_vector(s, save_ram_);
     s.sync_span(nametable_ram_, nt_ram_size_);
     s.sync(mirroring_type_);
 
@@ -569,7 +581,7 @@ uint8_t* Mapper001::restore_state_memory(uint8_t region, uint32_t offset) {
 }
 
 void Mapper001::serialize(StateStream& s) {
-    s.sync_vector(work_ram_);
+    sync_fixed_vector(s, work_ram_);
     BaseMapper::serialize(s);
     s.sync(write_buffer_);
     s.sync(shift_count_);
@@ -596,7 +608,7 @@ uint8_t* Mapper002::restore_state_memory(uint8_t region, uint32_t offset) {
 }
 
 void Mapper002::serialize(StateStream& s) {
-    s.sync_vector(work_ram_);
+    sync_fixed_vector(s, work_ram_);
     BaseMapper::serialize(s);
 }
 
@@ -612,7 +624,7 @@ uint8_t* Mapper004::restore_state_memory(uint8_t region, uint32_t offset) {
 }
 
 void Mapper004::serialize(StateStream& s) {
-    s.sync_vector(work_ram_);
+    sync_fixed_vector(s, work_ram_);
     BaseMapper::serialize(s);
     s.sync(irq_reload_value_);
     s.sync(irq_counter_);
@@ -656,8 +668,8 @@ uint8_t* Mapper005::restore_state_memory(uint8_t region, uint32_t offset) {
 }
 
 void Mapper005::serialize(StateStream& s) {
-    s.sync_vector(exram_);
-    s.sync_vector(wram_);
+    sync_fixed_vector(s, exram_);
+    sync_fixed_vector(s, wram_);
     BaseMapper::serialize(s);
     s.sync(prg_mode_);
     s.sync(chr_mode_);
@@ -740,7 +752,7 @@ uint8_t* Mapper016::restore_state_memory(uint8_t region, uint32_t offset) {
 }
 
 void Mapper016::serialize(StateStream& s) {
-    s.sync_vector(sram_);
+    sync_fixed_vector(s, sram_);
     BaseMapper::serialize(s);
     s.sync_array(chr_regs_);
     s.sync(prg_page_);

@@ -1,5 +1,5 @@
 #include "nes_console.h"
-#include "base_mapper.h"
+#include "mappers/base_mapper.h"
 #include <cstring>
 #include "nes_memory_manager.h"
 

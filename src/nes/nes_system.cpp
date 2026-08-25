@@ -1,5 +1,5 @@
 #include "nes_system.h"
-#include "mapper_factory.h"
+#include "mappers/mapper_factory.h"
 #include "nes_ppu.h"
 #include "../state_stream.h"
 

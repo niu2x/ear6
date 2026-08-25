@@ -1,6 +1,6 @@
 #include "nes_console.h"
 #include "nes_memory_manager.h"
-#include "base_mapper.h"
+#include "mappers/base_mapper.h"
 #include "nes_cpu.h"
 #include <cstring>
 #include <cstdio>

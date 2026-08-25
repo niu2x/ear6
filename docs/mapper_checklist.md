@@ -21,8 +21,8 @@ submapper、PRG/CHR 大小、battery、mirroring 和板卡/chip 信息一致。
 - 共享寄存器布局和 IRQ/audio 核心的 mapper family 复用一个实现，并在 `init()`
   中按 `info.mapper_number`、`info.submapper_id` 和 NES DB 元数据选 variant。
 - 只有确实相同的硬件才能别名到已有 mapper；记录 Mesen2 对应类和选择条件。
-- 同步更新 `mapper_factory.cpp` 的 `is_supported()` 与 `create()`，避免一个列表支持
-  而另一个遗漏。
+- 同步更新 `src/nes/mappers/mapper_factory.cpp` 的 `is_supported()` 与 `create()`，
+  避免一个列表支持而另一个遗漏。
 
 ## 3. 初始化内存
 

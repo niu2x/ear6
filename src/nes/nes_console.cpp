@@ -6,9 +6,9 @@
 #include "nes_memory_manager.h"
 #include "nes_control_manager.h"
 #include "vs_control_manager.h"
-#include "base_mapper.h"
+#include "mappers/base_mapper.h"
 #include "ines_loader.h"
-#include "mapper_factory.h"
+#include "mappers/mapper_factory.h"
 #include "nes_db_embedded.h"
 #include <cstdio>
 #include <cstdlib>

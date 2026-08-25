@@ -110,7 +110,8 @@ ABI、渲染上传和宿主主循环，不是游戏系统。
 
 NES 系统包含 6502 CPU、PPU、APU、输入管理、iNES/NES 2.0 加载、内嵌 NES DB
 覆盖以及 mapper 工厂。CPU 每个读写周期推进 PPU master clock，mapper、APU 和
-输入挂在 CPU 时钟与内存分发表上。
+输入挂在 CPU 时钟与内存分发表上。mapper 子系统集中在 `src/nes/mappers/`，其中
+包含基类、工厂、具体硬件实现和 mapper 专用辅助件。
 
 “mapper 工厂可以创建”不表示所有游戏路径已经验证。实测覆盖和差异统一记录在
 [NES 兼容性结果](../nes-issue.md)。

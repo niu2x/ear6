@@ -2,7 +2,7 @@
 
 #include "ines_memory_handler.h"
 #include "nes_types.h"
-#include "../state_stream.h"
+#include "../../state_stream.h"
 #include <cstdint>
 #include <memory>
 #include <vector>

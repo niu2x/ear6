@@ -9,7 +9,8 @@
 |---|---|
 | `include/ear6/` | 安装给使用者的纯 C Public API |
 | `src/` | 私有 C/C++ 核心和系统抽象 |
-| `src/nes/` | NES CPU、PPU、APU、输入、加载器和 mapper |
+| `src/nes/` | NES CPU、PPU、APU、输入和加载器 |
+| `src/nes/mappers/` | NES mapper 基类、工厂、硬件实现和 mapper 专用辅助件 |
 | `app/cli/` | 无窗口工具、截图、ROM 信息和音频录制 |
 | `app/desktop/` | Qt 桌面宿主 |
 | `app/web/` | Emscripten 导出桥接 |

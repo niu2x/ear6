@@ -59,107 +59,6 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/system_test.cpp
     src/blip_buf.c
     src/nes/ines_loader.cpp
-    src/nes/mapper_factory.cpp
-    src/nes/mapper_000.cpp
-    src/nes/mapper_001.cpp
-    src/nes/mapper_002.cpp
-    src/nes/mapper_003.cpp
-    src/nes/mapper_004.cpp
-    src/nes/mapper_005.cpp
-    src/nes/mapper_006.cpp
-    src/nes/mapper_007.cpp
-    src/nes/mapper_009.cpp
-    src/nes/mapper_011.cpp
-    src/nes/mapper_013.cpp
-    src/nes/mapper_015.cpp
-    src/nes/mapper_016.cpp
-    src/nes/mapper_018.cpp
-    src/nes/mapper_019.cpp
-    src/nes/mapper_vrc2_4.cpp
-    src/nes/mapper_vrc6.cpp
-    src/nes/vrc_irq.cpp
-    src/nes/mapper_032.cpp
-    src/nes/mapper_033.cpp
-    src/nes/mapper_034.cpp
-    src/nes/mapper_035.cpp
-    src/nes/mapper_038.cpp
-    src/nes/mapper_039.cpp
-    src/nes/mapper_041.cpp
-    src/nes/mapper_058.cpp
-    src/nes/mapper_060.cpp
-    src/nes/mapper_061.cpp
-    src/nes/mapper_062.cpp
-    src/nes/mapper_064.cpp
-    src/nes/mapper_065.cpp
-    src/nes/mapper_066.cpp
-    src/nes/mapper_067.cpp
-    src/nes/mapper_068.cpp
-    src/nes/mapper_069.cpp
-    src/nes/mapper_070.cpp
-    src/nes/mapper_072.cpp
-    src/nes/mapper_073.cpp
-    src/nes/mapper_074.cpp
-    src/nes/mapper_075.cpp
-    src/nes/mapper_078.cpp
-    src/nes/mapper_079.cpp
-    src/nes/mapper_086.cpp
-    src/nes/mapper_087.cpp
-    src/nes/mapper_089.cpp
-    src/nes/mapper_090.cpp
-    src/nes/mapper_092.cpp
-    src/nes/mapper_093.cpp
-    src/nes/mapper_094.cpp
-    src/nes/mapper_099.cpp
-    src/nes/mapper_133.cpp
-    src/nes/mapper_140.cpp
-    src/nes/mapper_143.cpp
-    src/nes/mapper_145.cpp
-    src/nes/mapper_148.cpp
-    src/nes/mapper_149.cpp
-    src/nes/mapper_156.cpp
-    src/nes/mapper_180.cpp
-    src/nes/mapper_184.cpp
-    src/nes/mapper_107.cpp
-    src/nes/mapper_112.cpp
-    src/nes/mapper_117.cpp
-    src/nes/mapper_118.cpp
-    src/nes/mapper_185.cpp
-    src/nes/mapper_40.cpp
-    src/nes/mapper_42.cpp
-    src/nes/mapper_43.cpp
-    src/nes/mapper_045.cpp
-    src/nes/mapper_46.cpp
-    src/nes/mapper_50.cpp
-    src/nes/mapper_71.cpp
-    src/nes/mapper_77.cpp
-    src/nes/mapper_200.cpp
-    src/nes/mapper_203.cpp
-    src/nes/mapper_204.cpp
-    src/nes/mapper_213.cpp
-    src/nes/mapper_214.cpp
-    src/nes/mapper_240.cpp
-    src/nes/mapper_241.cpp
-    src/nes/mapper_242.cpp
-    src/nes/mapper_225.cpp
-    src/nes/mapper_229.cpp
-    src/nes/mapper_231.cpp
-    src/nes/mapper_244.cpp
-    src/nes/mapper_245.cpp
-    src/nes/mapper_246.cpp
-    src/nes/mapper_252.cpp
-    src/nes/mapper_namco108.cpp
-    src/nes/mapper_sachen_74ls374n.cpp
-    src/nes/mapper_57.cpp
-    src/nes/mapper_170.cpp
-    src/nes/mapper_174.cpp
-    src/nes/mapper_202.cpp
-    src/nes/mapper_216.cpp
-    src/nes/mapper_221.cpp
-    src/nes/mapper_226.cpp
-    src/nes/mapper_227.cpp
-    src/nes/mapper_230.cpp
-    src/nes/mapper_233.cpp
-    src/nes/base_mapper.cpp
     src/nes/nes_memory_manager.cpp
     src/nes/nes_cpu.cpp
     src/nes/nes_ppu.cpp
@@ -178,6 +77,8 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/nes/nes_state.cpp
     "${EAR6_NES_DB_EMBEDDED_H}"
 )
+
+add_subdirectory(src/nes/mappers)
 
 target_sources(ear6 PRIVATE $<TARGET_OBJECTS:ear6_upb>)
 
@@ -198,7 +99,10 @@ target_include_directories(ear6 PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-target_include_directories(ear6 PRIVATE ${CMAKE_SOURCE_DIR}/src/state)
+target_include_directories(ear6 PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/nes
+    ${CMAKE_SOURCE_DIR}/src/state
+)
 target_include_directories(ear6 SYSTEM PRIVATE
     ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0
     ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0/third_party/utf8_range

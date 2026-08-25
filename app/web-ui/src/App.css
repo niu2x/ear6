@@ -430,6 +430,14 @@ canvas {
   font-weight: 500;
 }
 
+.stat-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
 .status-value,
 .metric-value {
   min-width: 0;

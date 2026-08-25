@@ -380,7 +380,9 @@ function App() {
             className={`runtime-stat performance-stat ${loadClass}`}
             title="Average ear6_step time as a share of the 16.67 ms frame budget"
           >
-            <span className="stat-label"><Gauge size={14} /> PERFORMANCE</span>
+            <span className="stat-icon" role="img" aria-label="Performance">
+              <Gauge size={18} />
+            </span>
             <div className="performance-readings">
               <span className="performance-reading">
                 <small>FPS</small>

@@ -323,6 +323,17 @@ TEST(Ear6State, SupportedNesMappersContinueDeterministically) {
         ASSERT_EQ(ear6_load_state_from_memory(ctx, checkpoint.data(), checkpoint.size()), 0);
         ASSERT_EQ(ear6_step(ctx), 0);
         EXPECT_EQ(save_state(ctx), expected);
+
+        Ear6* restored = ear6_create(EAR6_SYSTEM_NES);
+        ASSERT_NE(restored, nullptr);
+        ASSERT_EQ(ear6_load_from_memory(
+            restored, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+        ASSERT_EQ(ear6_load_state_from_memory(
+            restored, checkpoint.data(), checkpoint.size()), 0);
+        ASSERT_EQ(ear6_step(restored), 0);
+        EXPECT_EQ(save_state(restored), expected);
+
+        ear6_destroy(restored);
         ear6_destroy(ctx);
     }
 }
@@ -406,6 +417,16 @@ TEST(Ear6State, RealRomMappersContinueDeterministically) {
         ASSERT_EQ(ear6_load_state_from_memory(ctx, checkpoint.data(), checkpoint.size()), 0);
         for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
         EXPECT_EQ(save_state(ctx), expected);
+
+        Ear6* restored = ear6_create(EAR6_SYSTEM_NES);
+        ASSERT_NE(restored, nullptr);
+        ASSERT_EQ(ear6_load_from_file(restored, path.c_str()), 0);
+        ASSERT_EQ(ear6_load_state_from_memory(
+            restored, checkpoint.data(), checkpoint.size()), 0);
+        for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(restored), 0);
+        EXPECT_EQ(save_state(restored), expected);
+
+        ear6_destroy(restored);
         ear6_destroy(ctx);
     }
     EXPECT_GT(exercised, 0);

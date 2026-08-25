@@ -151,6 +151,25 @@ void sync_fixed_vector(StateStream& s, std::vector<T>& values) {
     for (T& value : values) s.sync(value);
 }
 
+template<typename T>
+void sync_optional_fixed_vector(
+    StateStream& s,
+    std::vector<T>& values,
+    uint64_t fixed_size
+) {
+    uint64_t size = values.size();
+    s.sync(size);
+    if (s.has_error()) return;
+    if (s.is_loading()) {
+        if (size != 0 && size != fixed_size) {
+            s.fail();
+            return;
+        }
+        values.resize(static_cast<size_t>(size));
+    }
+    for (T& value : values) s.sync(value);
+}
+
 } // namespace
 
 void NesCpu::serialize(StateStream& s) {
@@ -474,7 +493,10 @@ void VsControlManager::serialize(StateStream& s) {
 }
 
 void BaseMapper::serialize(StateStream& s) {
-    sync_fixed_vector(s, chr_ram_);
+    sync_optional_fixed_vector(s, chr_ram_, get_chr_ram_size());
+    if (s.is_loading() && !s.has_error()) {
+        chr_ram_size_ = static_cast<uint32_t>(chr_ram_.size());
+    }
     sync_fixed_vector(s, work_ram_);
     sync_fixed_vector(s, save_ram_);
     s.sync_span(nametable_ram_, nt_ram_size_);

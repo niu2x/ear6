@@ -224,8 +224,9 @@ identity。Ear6 会将它与当前内容的 identity 比较；未加载 ROM 或 
 
 当前 Test 系统和 MapperFactory 接受的全部 NES mapper 都支持完整 state 往返。
 回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `assets/nes/rom/` 中
-现有的真实 ROM mapper 样本做恢复后重放验证。这里的 state 覆盖不表示这些 mapper
-已经达到 Mesen2 的逐周期或逐像素精确性；兼容性证据仍以 `nes-issue.md` 为准。
+现有的真实 ROM mapper 样本做恢复后重放验证；两类测试都同时覆盖原上下文恢复和
+新建上下文加载同一 ROM 后恢复。这里的 state 覆盖不表示这些 mapper 已经达到
+Mesen2 的逐周期或逐像素精确性；兼容性证据仍以 `nes-issue.md` 为准。
 
 Emscripten 宿主可通过 `ear6_web_save_state_to_memory()` 和
 `ear6_web_load_state_from_memory()` 使用相同语义。WASM32 中 `size_t` 与 state 大小

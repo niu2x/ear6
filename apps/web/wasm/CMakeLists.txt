@@ -1,6 +1,6 @@
 add_executable(ear6-wasm wasm_exports.cpp)
 
-target_link_libraries(ear6-wasm PRIVATE ear6)
+target_link_libraries(ear6-wasm PRIVATE ear6_a)
 
 cxx_project_preset(ear6-wasm)
 warning_as_error_enable(ear6-wasm)

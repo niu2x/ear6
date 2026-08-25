@@ -20,7 +20,7 @@
 Flash 扩展头 `<ear6/flash.h>` 目前仅为占位。所有头文件都可由 C 编译器直接
 包含；C++ 下声明自动放入 `extern "C"`。
 
-CMake 安装包导出目标 `Ear6::ear6`：
+CMake 安装包导出共享目标 `Ear6::ear6` 和静态目标 `Ear6::ear6_a`：
 
 ```cmake
 find_package(Ear6 CONFIG REQUIRED)
@@ -28,6 +28,9 @@ find_package(Ear6 CONFIG REQUIRED)
 add_executable(player main.c)
 target_link_libraries(player PRIVATE Ear6::ear6)
 ```
+
+需要把核心直接装入单个宿主程序时链接 `Ear6::ear6_a`。该目标会传递
+`EAR6_STATIC_DEFINE`，调用者不需要自行定义导出宏。
 
 版本字符串由 `<ear6/version.h>` 中的 `EAR6_VERSION` 提供。
 

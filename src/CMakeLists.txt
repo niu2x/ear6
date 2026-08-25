@@ -1,9 +1,3 @@
-if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    set(EAR6_LIBRARY_TYPE STATIC)
-else()
-    set(EAR6_LIBRARY_TYPE SHARED)
-endif()
-
 set(EAR6_NES_DB_TXT "${CMAKE_SOURCE_DIR}/data/nes/nes-db.txt")
 set(EAR6_NES_DB_EMBEDDED_H "${CMAKE_BINARY_DIR}/generated/nes_db_embedded.h")
 
@@ -19,7 +13,7 @@ add_custom_command(
 
 add_custom_target(ear6_generate_nes_db_header DEPENDS "${EAR6_NES_DB_EMBEDDED_H}")
 
-add_library(ear6 ${EAR6_LIBRARY_TYPE}
+set(EAR6_LIBRARY_SOURCES
     core/ear6.cpp
     core/state/state_container.upb.c
     core/state/state_container.upb_minitable.c
@@ -45,8 +39,10 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     "${EAR6_NES_DB_EMBEDDED_H}"
 )
 
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    add_library(ear6 SHARED ${EAR6_LIBRARY_SOURCES})
+endif()
 add_subdirectory(systems/nes/mappers)
-target_sources(ear6 PRIVATE $<TARGET_OBJECTS:ear6_upb>)
 
 if(NOT MSVC)
     set_source_files_properties(
@@ -56,39 +52,59 @@ if(NOT MSVC)
     )
 endif()
 
-add_dependencies(ear6 ear6_generate_nes_db_header)
+function(ear6_configure_library target)
+    target_sources(${target} PRIVATE $<TARGET_OBJECTS:ear6_upb>)
+    add_dependencies(${target} ear6_generate_nes_db_header)
 
-target_include_directories(ear6 PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
-    $<INSTALL_INTERFACE:include>
-)
+    target_include_directories(${target} PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
+        $<INSTALL_INTERFACE:include>
+    )
 
-target_include_directories(ear6 PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/core
-    ${CMAKE_CURRENT_SOURCE_DIR}/core/state
-    ${CMAKE_CURRENT_SOURCE_DIR}/systems/nes
-    ${CMAKE_CURRENT_SOURCE_DIR}/systems/nes/audio
-    ${CMAKE_SOURCE_DIR}/third_party/blip_buf
-)
-target_include_directories(ear6 SYSTEM PRIVATE
-    ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0
-    ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0/third_party/utf8_range
-)
+    target_include_directories(${target} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/core
+        ${CMAKE_CURRENT_SOURCE_DIR}/core/state
+        ${CMAKE_CURRENT_SOURCE_DIR}/systems/nes
+        ${CMAKE_CURRENT_SOURCE_DIR}/systems/nes/audio
+        ${CMAKE_SOURCE_DIR}/third_party/blip_buf
+    )
+    target_include_directories(${target} SYSTEM PRIVATE
+        ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0
+        ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0/third_party/utf8_range
+    )
 
-target_link_libraries(ear6 PRIVATE Threads::Threads)
+    target_link_libraries(${target} PRIVATE Threads::Threads)
 
-if(EAR6_ENABLE_CPU_SEQ_TRACE)
-    target_compile_definitions(ear6 PRIVATE EAR6_ENABLE_CPU_SEQ_TRACE)
+    if(EAR6_ENABLE_CPU_SEQ_TRACE)
+        target_compile_definitions(${target} PRIVATE EAR6_ENABLE_CPU_SEQ_TRACE)
+    endif()
+
+    cxx_project_preset(${target})
+    warning_as_error_enable(${target})
+endfunction()
+
+if(TARGET ear6)
+    ear6_configure_library(ear6)
 endif()
 
-cxx_project_preset(ear6)
-warning_as_error_enable(ear6)
+add_library(ear6_a STATIC ${EAR6_LIBRARY_SOURCES})
+ear6_add_nes_mapper_sources(ear6_a)
+ear6_configure_library(ear6_a)
+target_compile_definitions(ear6_a PUBLIC EAR6_STATIC_DEFINE)
+set_target_properties(ear6_a PROPERTIES OUTPUT_NAME ear6)
 
 include(GenerateExportHeader)
+if(TARGET ear6)
+    set(EAR6_EXPORT_TARGET ear6)
+else()
+    set(EAR6_EXPORT_TARGET ear6_a)
+endif()
 generate_export_header(
-    ear6
+    ${EAR6_EXPORT_TARGET}
+    BASE_NAME ear6
     EXPORT_MACRO_NAME EAR6_API
+    STATIC_DEFINE EAR6_STATIC_DEFINE
     EXPORT_FILE_NAME "${CMAKE_BINARY_DIR}/ear6/export.h"
 )

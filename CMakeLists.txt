@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.17.0)
 
 project(Ear6 VERSION 0.1.0 LANGUAGES CXX C)
 
+if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+    set(
+        CMAKE_OSX_DEPLOYMENT_TARGET
+        "11.0"
+        CACHE STRING
+        "Minimum macOS version for native Ear6 targets"
+        FORCE
+    )
+endif()
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 include(cxx_project)
@@ -11,7 +21,17 @@ include(CMakePackageConfigHelpers)
 
 message(STATUS "Build for ${CMAKE_SYSTEM_NAME}")
 
-option(EAR6_BUILD_DESKTOP "Build desktop app (Windows/macOS/Linux, requires Qt6)" ON)
+option(EAR6_BUILD_DESKTOP "Build desktop host applications" ON)
+if(APPLE)
+    set(EAR6_BUILD_QT_DESKTOP_DEFAULT OFF)
+else()
+    set(EAR6_BUILD_QT_DESKTOP_DEFAULT ON)
+endif()
+option(
+    EAR6_BUILD_QT_DESKTOP
+    "Build the optional cross-platform Qt desktop host"
+    ${EAR6_BUILD_QT_DESKTOP_DEFAULT}
+)
 option(EAR6_BUILD_WASM "Build WebAssembly bindings (requires Emscripten)" OFF)
 option(EAR6_BUILD_TESTS "Build the Ear6 test suite" OFF)
 option(EAR6_ENABLE_CPU_SEQ_TRACE "Enable per-instruction CPU trace (compile gate for EAR6_TRACE_CPU_SEQ env)" ON)
@@ -33,7 +53,12 @@ if(EAR6_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-install(TARGETS ear6
+set(EAR6_INSTALL_TARGETS ear6_a)
+if(TARGET ear6)
+    list(APPEND EAR6_INSTALL_TARGETS ear6)
+endif()
+
+install(TARGETS ${EAR6_INSTALL_TARGETS}
     EXPORT Ear6Targets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -14,7 +14,10 @@
 | `src/systems/nes/audio/` | NES APU、声道与混音实现 |
 | `src/systems/nes/mappers/` | NES mapper 基类、工厂、硬件实现和 mapper 专用辅助件 |
 | `apps/cli/` | 无窗口工具、截图、ROM 信息和音频录制 |
-| `apps/desktop/` | Qt 桌面宿主 |
+| `apps/desktop/` | 桌面宿主构建入口 |
+| `apps/desktop/common/` | 桌面宿主共用的会话、音频缓冲和 state 持久化 |
+| `apps/desktop/macos/` | 原生 AppKit、CoreGraphics 和 CoreAudio 宿主 |
+| `apps/desktop/qt/` | 可选 Qt 桌面宿主 |
 | `apps/web/wasm/` | Emscripten 导出桥接 |
 | `apps/web/ui/` | 浏览器宿主界面；`public/` 存放无需打包的前端静态资源 |
 | `tests/api/`、`tests/state/` | Public API 与 state 格式测试 |
@@ -34,10 +37,11 @@ make test
 make clean
 ```
 
-只检查核心编译：
+只检查共享库或静态库编译：
 
 ```bash
 cmake --build build --target ear6
+cmake --build build --target ear6_a
 ```
 
 运行完整或聚焦测试：

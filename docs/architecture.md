@@ -26,6 +26,11 @@ Ear6 的核心产品是模拟器库，不是某一个前端，也不局限于某
 `apps/desktop/` 和 `apps/web/` 都是库的消费者，不应绕过 Public API 直接访问
 NES 内部对象。
 
+Desktop 的平台无关会话位于 `apps/desktop/common/`。macOS 宿主使用 Objective-C++、
+AppKit、CoreGraphics 和 AudioQueue，并静态链接 `ear6_a`；Qt 宿主是显式可选的兼容
+实现。原生平台的 `ear6` 是供普通动态链接消费者使用的共享 target；Emscripten 不
+支持该类共享库，只构建供 `ear6-wasm` 静态链接的 `ear6_a`。
+
 ### 通用 API 层
 
 `include/ear6/ear6.h` 提供所有系统共有的生命周期：

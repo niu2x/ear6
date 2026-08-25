@@ -40,27 +40,39 @@ set_target_properties(ear6-test PROPERTIES
 add_test(NAME ear6-test COMMAND ear6-test)
 
 if(EAR6_BUILD_DESKTOP)
+    add_executable(ear6-desktop-common-test
+        desktop/common_test.cpp
+    )
+    target_link_libraries(ear6-desktop-common-test PRIVATE
+        ear6-desktop-common
+        ear6_a
+        ${EAR6_GTEST_LIB}
+        ${EAR6_GTEST_MAIN_LIB}
+    )
+    cxx_project_preset(ear6-desktop-common-test)
+    warning_as_error_enable(ear6-desktop-common-test)
+    add_test(NAME ear6-desktop-common-test COMMAND ear6-desktop-common-test)
+endif()
+
+if(EAR6_BUILD_DESKTOP AND EAR6_BUILD_QT_DESKTOP)
     find_package(Qt6 COMPONENTS Widgets QUIET)
 endif()
-if(EAR6_BUILD_DESKTOP AND TARGET Qt6::Widgets)
-    add_executable(ear6-desktop-test
-        ${CMAKE_SOURCE_DIR}/apps/desktop/tests/save_store_test.cpp
-        ${CMAKE_SOURCE_DIR}/apps/desktop/save_store.cpp
+if(EAR6_BUILD_DESKTOP AND EAR6_BUILD_QT_DESKTOP AND TARGET Qt6::Widgets)
+    add_executable(ear6-desktop-qt-test
+        ${CMAKE_SOURCE_DIR}/apps/desktop/qt/tests/save_store_test.cpp
+        ${CMAKE_SOURCE_DIR}/apps/desktop/qt/save_store.cpp
     )
-    target_include_directories(ear6-desktop-test PRIVATE
-        ${CMAKE_SOURCE_DIR}/apps/desktop
+    target_include_directories(ear6-desktop-qt-test PRIVATE
+        ${CMAKE_SOURCE_DIR}/apps/desktop/qt
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_BINARY_DIR}
     )
-    target_link_libraries(ear6-desktop-test PRIVATE
+    target_link_libraries(ear6-desktop-qt-test PRIVATE
         ear6
         ${EAR6_GTEST_LIB}
         Qt6::Widgets
     )
-    cxx_project_preset(ear6-desktop-test)
-    warning_as_error_enable(ear6-desktop-test)
-    set_target_properties(ear6-desktop-test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
-    )
-    add_test(NAME ear6-desktop-test COMMAND ear6-desktop-test)
+    cxx_project_preset(ear6-desktop-qt-test)
+    warning_as_error_enable(ear6-desktop-qt-test)
+    add_test(NAME ear6-desktop-qt-test COMMAND ear6-desktop-qt-test)
 endif()

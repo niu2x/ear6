@@ -141,9 +141,10 @@ C++ protobuf runtime、reflection、JSON、text format、compiler 或 Abseil。
 
 当前官方宿主采用单槽策略，key 都是 `system_type + content_identity`：
 
-- Desktop 写入 `QStandardPaths::AppDataLocation/states/`，文件名为
-  `<system>-<identity>.e6s`，通过 `QSaveFile` 原子覆盖；Load Save 菜单扫描并验证
-  目录内 state。
+- 原生 macOS Desktop 写入 `~/Library/Application Support/Ear6/states/`；Qt Desktop
+  写入 `QStandardPaths::AppDataLocation/states/`。二者文件名均为
+  `<system>-<identity>.e6s`，以原子替换实现覆盖；Load State 菜单扫描并验证目录内
+  state。
 - Web 写入 `localStorage` 的 `ear6.save.v1.<system>.<identity>` key；JSON record
   保存 `.e6s` 的 base64、ROM 名、保存时间和菜单 PNG 缩略图。Load 菜单按当地时间
   展示，`.e6s` 导入/导出仍作为显式操作保留。

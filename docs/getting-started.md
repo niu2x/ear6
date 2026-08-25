@@ -1,7 +1,7 @@
 # 快速开始
 
-本章面向第一次构建 Ear6 的用户。Ear6 可以作为库嵌入应用，也提供 CLI、Qt
-桌面程序和 WebAssembly 前端。
+本章面向第一次构建 Ear6 的用户。Ear6 可以作为库嵌入应用，也提供 CLI、原生
+macOS 桌面程序、可选 Qt 桌面程序和 WebAssembly 前端。
 
 ## 依赖
 
@@ -10,7 +10,8 @@
 - CMake 3.17 或更高版本
 - 支持 C++17 的编译器
 - Threads、Boost `program_options` 和 OpenSSL
-- Qt 6 Widgets（可选，仅用于 `ear6-desktop`）
+- macOS 11 或更高版本；Desktop 使用系统自带的 AppKit、CoreGraphics 和 AudioToolbox
+- Qt 6 Widgets（可选，仅用于 `ear6-desktop-qt`）
 
 Web 构建还需要 Emscripten；前端开发需要 Node.js 和 npm。
 
@@ -24,9 +25,26 @@ make ear6
 
 这会配置 Release 构建，并按本机依赖生成：
 
-- `ear6` 动态库（Linux 为 `.so`，macOS 为 `.dylib`）
+- `ear6` 共享库（Linux 为 `.so`，macOS 为 `.dylib`）
+- `ear6_a` 静态库 target（产物为平台对应的静态库）
 - `build/apps/cli/ear6-cli`
-- `ear6-desktop`（找到 Qt 6 时）
+- macOS：`build/apps/desktop/macos/Ear6.app`
+- 其他平台：找到 Qt 6 时构建 `ear6-desktop-qt`
+
+运行 macOS 应用：
+
+```bash
+open build/apps/desktop/macos/Ear6.app
+```
+
+macOS 默认不查找 Qt。需要同时构建兼容宿主时显式启用：
+
+```bash
+cmake -B build -S . \
+  -DEAR6_BUILD_DESKTOP=ON \
+  -DEAR6_BUILD_QT_DESKTOP=ON
+cmake --build build --target ear6-desktop-qt
+```
 
 不需要桌面程序时，可以直接配置核心、CLI 和测试：
 
@@ -109,6 +127,8 @@ cmake --install build --prefix /path/to/ear6-install
 find_package(Ear6 CONFIG REQUIRED)
 target_link_libraries(my_emulator_host PRIVATE Ear6::ear6)
 ```
+
+单文件宿主可以改为链接静态目标 `Ear6::ear6_a`。
 
 公开头文件统一从 `ear6/` 命名空间包含：
 

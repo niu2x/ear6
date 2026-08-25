@@ -21,7 +21,7 @@
 - [x] NES 系统：iNES/NES 2.0 加载、CPU、PPU、APU、输入和 mapper 工厂
 - [x] 通用 RGBA8888 framebuffer 输出
 - [x] 16-bit PCM 回调和拉取式输出
-- [x] 原生共享库、CLI、Qt 宿主、WASM 桥接和浏览器宿主
+- [x] 原生共享/静态库、CLI、macOS 原生宿主、可选 Qt 宿主、WASM 桥接和浏览器宿主
 - [x] NES DB 构建时嵌入，原生/WASM 共用数据
 - [x] NES CPU 周期驱动 PPU master clock，并通过内存 handler 分发表路由设备
 - [x] NES PRG/CHR 页表、work/save RAM 内存区和 submapper 元数据

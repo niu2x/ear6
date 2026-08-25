@@ -99,7 +99,10 @@ as runtime support.
 - `src/systems/test/`: Test system used for API and host validation
 - `src/systems/nes/`: NES implementation
 - `apps/cli/`: CLI host
-- `apps/desktop/`: Qt host
+- `apps/desktop/`: desktop host build dispatcher
+- `apps/desktop/common/`: shared desktop session, audio, and state persistence
+- `apps/desktop/macos/`: native AppKit/CoreAudio host
+- `apps/desktop/qt/`: optional Qt host
 - `apps/web/wasm/`: Emscripten bridge
 - `apps/web/ui/`: browser host
 - `tests/api/`, `tests/state/`: common API and state tests
@@ -127,8 +130,10 @@ cmake --build build --target ear6-test
 ./build/ear6-test --gtest_filter=ChoplifterRegression.*
 ```
 
-`make ear6` builds the native shared library, CLI, and Qt desktop app when Qt 6
-is available. `make ear6-web` requires `EMSCRIPTEN_CMAKE_TOOLCHAIN` in `.env`.
+`make ear6` builds the native shared/static libraries, CLI, and platform desktop
+host. macOS builds the native AppKit host by default; Qt is opt-in through
+`EAR6_BUILD_QT_DESKTOP`. `make ear6-web` requires `EMSCRIPTEN_CMAKE_TOOLCHAIN`
+in `.env`.
 A rebuild is the C/C++ lint/type check:
 
 ```bash

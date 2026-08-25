@@ -1,4 +1,4 @@
-target_sources(ear6 PRIVATE
+set(EAR6_NES_MAPPER_SOURCES
     base_mapper.cpp
     mapper_factory.cpp
     mapper_000.cpp
@@ -101,3 +101,14 @@ target_sources(ear6 PRIVATE
     mapper_vrc6.cpp
     vrc_irq.cpp
 )
+
+list(TRANSFORM EAR6_NES_MAPPER_SOURCES PREPEND "${CMAKE_CURRENT_LIST_DIR}/")
+set(EAR6_NES_MAPPER_SOURCES "${EAR6_NES_MAPPER_SOURCES}" PARENT_SCOPE)
+
+function(ear6_add_nes_mapper_sources target)
+    target_sources(${target} PRIVATE ${EAR6_NES_MAPPER_SOURCES})
+endfunction()
+
+if(TARGET ear6)
+    ear6_add_nes_mapper_sources(ear6)
+endif()

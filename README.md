@@ -17,7 +17,7 @@ host application -> <ear6/ear6.h> -> selected emulator system
 - [Architecture](docs/architecture.md)
 - [Roadmap](docs/TODO.md)
 
-Build the native library, CLI, and optional Qt desktop app:
+Build the native libraries, CLI, and desktop host:
 
 ```bash
 make ear6

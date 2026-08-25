@@ -17,6 +17,13 @@ export interface Ear6Module {
   _ear6_web_create(system: number): number
   _ear6_web_destroy(ctx: number): void
   _ear6_web_load_from_memory(ctx: number, ptr: number, size: number): number
+  _ear6_web_save_state_to_memory(
+    ctx: number,
+    bufferPtr: number,
+    capacity: number,
+    stateSizePtr: number,
+  ): number
+  _ear6_web_load_state_from_memory(ctx: number, ptr: number, size: number): number
   _ear6_web_step(ctx: number): number
   _ear6_web_get_framebuffer(ctx: number): number
   _ear6_web_get_frame_width(ctx: number): number

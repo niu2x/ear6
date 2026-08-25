@@ -20,6 +20,21 @@ int ear6_web_load_from_memory(Ear6* ctx, const void* data, int size) {
 }
 
 EMSCRIPTEN_KEEPALIVE
+int ear6_web_save_state_to_memory(
+    Ear6* ctx,
+    void* buffer,
+    size_t capacity,
+    size_t* state_size
+) {
+    return ear6_save_state_to_memory(ctx, buffer, capacity, state_size);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int ear6_web_load_state_from_memory(Ear6* ctx, const void* data, size_t size) {
+    return ear6_load_state_from_memory(ctx, data, size);
+}
+
+EMSCRIPTEN_KEEPALIVE
 int ear6_web_step(Ear6* ctx) {
     return ear6_step(ctx);
 }

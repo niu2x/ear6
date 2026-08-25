@@ -1,52 +1,56 @@
-# Ear6 Web UI Redesign (v2)
+# Ear6 Web UI
 
-## Goals
+## Product Goal
 
-This version focuses on practical usability improvements:
-
-- Larger menu/button text for readability on desktop and laptop displays
-- English-only interface text
-- Simpler structure with one primary NES workflow instead of maintaining three active contexts
-- Dedicated fullscreen button
-- Built-in instructions/help modal for first-time users
-- Cleaner retro-hardware style with better visual hierarchy
+The Web UI is an immersive, single-system NES emulator. The game framebuffer
+is the primary surface; controls and diagnostics stay compact and readable
+around it. UI effects must never alter the framebuffer pixels.
 
 ## Visual Direction
 
-Theme: **warm industrial console** (not pixel-art UI).
+Theme: precision console in a dark room.
 
-- Dark steel background with subtle gradients
-- Bright amber/orange action color for primary controls
-- High-contrast text with clear type sizes (15px-24px)
-- CRT-like framed screen area with standby text animation
+- Neutral near-black environment instead of a blue-tinted application shell
+- Warm amber for the primary action only
+- Green, orange, and red reserved for runtime and performance state
+- High-contrast warm-white text and muted labels that remain readable
+- Square, hardware-like controls with restrained borders and motion
+- Responsive one-screen layout on common desktop and mobile viewports
 
 ## Layout
 
-1. **Top Bar**
-   - Power/status indicator + title `Ear6 Emulator`
-   - ROM file name on the right
+1. **Header**
+   - Ear6 identity, current state, and loaded ROM name
+2. **Screen stage**
+   - Unmodified 256x240 framebuffer centered in a minimal hardware frame
+3. **Console deck**
+   - Open, reset, run/pause, fullscreen, and keyboard controls
+   - Live status, FPS, and step-load diagnostics
+4. **Build strip**
+   - Short Git revision and build timestamp
+   - Build timestamp is stored as ISO UTC and rendered in the browser's local
+     timezone
 
-2. **Control Toolbar**
-   - `Open ROM`, `Reset`, `Run/Pause`, `Fullscreen`, `How to Play`
-   - `Region` selector (`NTSC`, `PAL`)
-   - System pills shown as status only: `NES Ready`, `Test (soon)`, `Flash (soon)`
+## Runtime Metrics
 
-3. **Screen Area**
-   - Main canvas centered in a CRT-style frame
-   - Standby message when no ROM is loaded
+`FPS` counts actual emulated frames, not browser repaint callbacks. Emulation
+uses a fixed 60Hz timestep even on 120Hz and 144Hz displays.
 
-4. **Bottom Status Bar**
-   - Left: state text (`Ready`, `Loading ROM...`, `Running`, `Paused`, errors)
-   - Right: live FPS counter
+`STEP LOAD` measures only the average wall-clock duration of `ear6_step()`:
 
-## Interaction Rules
+```text
+average step time / 16.67 ms frame budget * 100
+```
 
-- `Open ROM`: loads file and shows first frame
-- `Run/Pause`: toggles emulation loop
-- `Reset`: reloads the currently loaded ROM data
-- `Region`: applies NES region immediately
-- `Fullscreen`: enters/exits browser fullscreen on the screen container
-- `How to Play`: opens modal instructions and key mapping
+A 5% load means the core has roughly 20x real-time compute headroom. Values at
+or above 100% mean the core alone cannot sustain 60 FPS. Canvas copying and
+browser rendering are intentionally excluded from this metric.
+
+## Build Metadata
+
+Vite reads the short Git revision during the build and embeds an ISO build
+timestamp. GitHub Actions already checks out the repository before running the
+Vite build, so the Pages workflow requires no extra metadata step or variable.
 
 ## Keyboard Mapping
 
@@ -55,9 +59,3 @@ Theme: **warm industrial console** (not pixel-art UI).
 - `X`: B
 - `Enter`: Start
 - `Shift`: Select
-
-## Scope Notes
-
-- This UI version prioritizes a strong NES experience first
-- Test/Flash are intentionally shown as non-interactive placeholders to reduce cognitive load
-- Future versions can reintroduce multi-system active switching when those systems have complete UX flows

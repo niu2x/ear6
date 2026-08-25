@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import {
   Activity,
   Clock3,
+  Download,
+  FileUp,
   FolderOpen,
   Gamepad2,
   Gauge,
@@ -22,6 +24,22 @@ const SYSTEM_NES = 1
 const EMULATION_FPS = 60
 const FRAME_DURATION_MS = 1000 / EMULATION_FPS
 const MAX_CATCH_UP_STEPS = 3
+
+function allocateCString(mod: Ear6Module, value: string) {
+  const encoded = new TextEncoder().encode(value)
+  const ptr = mod._malloc(encoded.length + 1)
+  if (!ptr) return 0
+  mod.HEAPU8.set(encoded, ptr)
+  mod.HEAPU8[ptr + encoded.length] = 0
+  return ptr
+}
+
+function stateFileStem(name: string) {
+  const stem = /\.ear6state$/i.test(name)
+    ? name.replace(/\.ear6state$/i, '')
+    : name.replace(/\.[^.]+$/, '')
+  return stem || 'ear6-session'
+}
 
 function formatBuildTime(value: string) {
   const date = new Date(value)
@@ -46,6 +64,7 @@ function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const screenRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const stateInputRef = useRef<HTMLInputElement | null>(null)
 
   const [ready, setReady] = useState(false)
   const [initError, setInitError] = useState(false)
@@ -57,6 +76,7 @@ function App() {
   const [stepTime, setStepTime] = useState(0)
   const [romName, setRomName] = useState('')
   const [hasRom, setHasRom] = useState(false)
+  const [canReset, setCanReset] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
   useEffect(() => { runningRef.current = isRunning }, [isRunning])
@@ -221,24 +241,113 @@ function App() {
     if (!file) return
     setStatusText('Loading ROM...')
     let ptr = 0
+    let namePtr = 0
     try {
       const bytes = new Uint8Array(await file.arrayBuffer())
       ptr = mod._malloc(bytes.length)
       if (!ptr) throw new Error('Unable to allocate ROM memory')
+      namePtr = allocateCString(mod, file.name)
+      if (!namePtr) throw new Error('Unable to allocate ROM name')
       mod.HEAPU8.set(bytes, ptr)
-      if (mod._ear6_web_load_from_memory(ctxRef.current, ptr, bytes.length) !== 0) {
+      if (mod._ear6_web_load_from_memory(ctxRef.current, ptr, bytes.length, namePtr) !== 0) {
         throw new Error('ROM load failed')
       }
       romDataRef.current = bytes
       mod._ear6_web_step(ctxRef.current)
       setHasRom(true)
+      setCanReset(true)
       setRomName(file.name)
       setIsRunning(true)
       setStatusText('Running')
     } catch {
       setHasRom(false)
+      setCanReset(false)
       setIsRunning(false)
       setStatusText('Unable to load ROM')
+    } finally {
+      if (ptr) mod._free(ptr)
+      if (namePtr) mod._free(namePtr)
+      input.value = ''
+    }
+  }
+
+  const downloadState = () => {
+    const mod = modRef.current
+    const ctx = ctxRef.current
+    if (!mod || !ctx || !hasRom) return
+
+    let sizePtr = 0
+    let statePtr = 0
+    try {
+      sizePtr = mod._malloc(4)
+      if (!sizePtr) throw new Error('Unable to allocate state size')
+      if (mod._ear6_web_save_state_to_memory(ctx, 0, 0, sizePtr) !== 0) {
+        throw new Error('State size query failed')
+      }
+      const stateSize = new DataView(mod.HEAPU8.buffer).getUint32(sizePtr, true)
+      if (!stateSize) throw new Error('Empty state')
+      statePtr = mod._malloc(stateSize)
+      if (!statePtr) throw new Error('Unable to allocate state memory')
+      if (mod._ear6_web_save_state_to_memory(ctx, statePtr, stateSize, sizePtr) !== 0) {
+        throw new Error('State save failed')
+      }
+
+      const stateBytes = new Uint8Array(stateSize)
+      stateBytes.set(new Uint8Array(mod.HEAPU8.buffer, statePtr, stateSize))
+      const url = URL.createObjectURL(new Blob(
+        [stateBytes.buffer],
+        { type: 'application/octet-stream' },
+      ))
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `${stateFileStem(romName)}.ear6state`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      setStatusText('State downloaded')
+    } catch {
+      setStatusText('Unable to save state')
+    } finally {
+      if (statePtr) mod._free(statePtr)
+      if (sizePtr) mod._free(sizePtr)
+    }
+  }
+
+  const openState = async () => {
+    const mod = modRef.current
+    const input = stateInputRef.current
+    const ctx = ctxRef.current
+    if (!mod || !input || !ctx) return
+    const file = input.files?.[0]
+    if (!file) return
+
+    const wasRunning = runningRef.current
+    let ptr = 0
+    setStatusText('Loading state...')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      ptr = mod._malloc(bytes.length)
+      if (!ptr) throw new Error('Unable to allocate state memory')
+      mod.HEAPU8.set(bytes, ptr)
+      runningRef.current = false
+      if (mod._ear6_web_load_state_from_memory(ctx, ptr, bytes.length) !== 0) {
+        runningRef.current = wasRunning
+        throw new Error('State load failed')
+      }
+
+      romDataRef.current = null
+      setHasRom(true)
+      setCanReset(false)
+      setRomName(stateFileStem(file.name))
+      setIsRunning(false)
+      setFps(0)
+      setStepLoad(0)
+      setStepTime(0)
+      setStatusText('State loaded')
+    } catch {
+      runningRef.current = wasRunning
+      setStatusText('Unable to load state')
     } finally {
       if (ptr) mod._free(ptr)
       input.value = ''
@@ -257,13 +366,22 @@ function App() {
     const data = romDataRef.current
     if (!mod || !data || !ctxRef.current) return
     const ptr = mod._malloc(data.length)
-    if (!ptr) {
+    const namePtr = allocateCString(mod, romName)
+    if (!ptr || !namePtr) {
+      if (ptr) mod._free(ptr)
+      if (namePtr) mod._free(namePtr)
       setStatusText('Reset failed')
       return
     }
     mod.HEAPU8.set(data, ptr)
-    const result = mod._ear6_web_load_from_memory(ctxRef.current, ptr, data.length)
+    const result = mod._ear6_web_load_from_memory(
+      ctxRef.current,
+      ptr,
+      data.length,
+      namePtr,
+    )
     mod._free(ptr)
+    mod._free(namePtr)
     if (result !== 0) {
       setStatusText('Reset failed')
       return
@@ -353,7 +471,30 @@ function App() {
             <FolderOpen size={18} />
             <span className="button-label">Open ROM</span>
           </button>
-          <button className="control-button" onClick={resetRom} disabled={!hasRom} title="Reset">
+          <input
+            ref={stateInputRef}
+            type="file"
+            accept=".ear6state,application/octet-stream"
+            onChange={openState}
+            aria-label="Open state file"
+            hidden
+          />
+          <div className="state-actions" role="group" aria-label="Save state controls">
+            <button className="control-button" onClick={downloadState} disabled={!hasRom} title="Download state">
+              <Download size={18} />
+              <span className="button-label">Save</span>
+            </button>
+            <button className="control-button" onClick={() => stateInputRef.current?.click()} title="Open state">
+              <FileUp size={18} />
+              <span className="button-label">Load</span>
+            </button>
+          </div>
+          <button
+            className="control-button"
+            onClick={resetRom}
+            disabled={!canReset}
+            title={canReset ? 'Reset' : 'Reset requires an opened ROM'}
+          >
             <RotateCcw size={18} />
             <span className="button-label">Reset</span>
           </button>

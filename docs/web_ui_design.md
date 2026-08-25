@@ -24,13 +24,15 @@ Theme: precision console in a dark room.
 1. **Header**
    - Ear6 identity, current state, and loaded ROM name
 2. **Desktop workspace**
-   - Open, reset, run/pause, fullscreen, and keyboard controls in a left rail
+   - Open ROM, save/load state, reset, run/pause, fullscreen, and keyboard
+     controls in a left rail
    - Unmodified 256x240 framebuffer centered in a minimal hardware frame
    - Live status and one combined FPS/step-load performance panel in a right
      rail
 3. **Responsive controls**
    - Below 1000px, controls and diagnostics move beneath the screen so the
      framebuffer keeps the full viewport width
+   - On mobile, the seven controls wrap into a four-column icon grid
 4. **Build strip**
    - Short Git revision aligned left and build timestamp aligned right
    - Build timestamp is stored as ISO UTC and rendered in the browser's local
@@ -50,6 +52,14 @@ average step time / 16.67 ms frame budget * 100
 A 5% load means the core has roughly 20x real-time compute headroom. Values at
 or above 100% mean the core alone cannot sustain 60 FPS. Canvas copying and
 browser rendering are intentionally excluded from this metric.
+
+## State Files
+
+The Save control downloads a `.ear6state` file through the WASM memory API.
+The Load control restores that file into an otherwise empty NES context; no
+separate ROM selection or network request is required because v2 state embeds
+the original content. A loaded state starts paused. The cold-reset control is
+disabled until the host has original ROM bytes available locally.
 
 ## Build Metadata
 

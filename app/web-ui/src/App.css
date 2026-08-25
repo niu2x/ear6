@@ -311,6 +311,21 @@ canvas {
   box-shadow: 12px 0 36px rgba(0, 0, 0, 0.18);
 }
 
+.state-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.state-actions .control-button {
+  min-height: 46px;
+  padding: 0 6px;
+  justify-content: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
 .control-button,
 .icon-text-button,
 .icon-button {
@@ -662,6 +677,18 @@ kbd {
     font-size: 13px;
   }
 
+  .state-actions {
+    width: auto;
+    display: flex;
+    gap: 8px;
+  }
+
+  .state-actions .control-button {
+    width: auto;
+    min-height: 42px;
+    padding: 0 12px;
+  }
+
   .runtime-stats {
     grid-area: auto;
     width: min(620px, 100%);
@@ -753,8 +780,18 @@ kbd {
   .toolbar {
     width: 100%;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
+  }
+
+  .state-actions {
+    display: contents;
+  }
+
+  .state-actions .control-button {
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
   }
 
   .control-button {

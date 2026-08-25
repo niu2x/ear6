@@ -16,7 +16,12 @@ export interface Ear6Module {
   HEAPU8: Uint8Array
   _ear6_web_create(system: number): number
   _ear6_web_destroy(ctx: number): void
-  _ear6_web_load_from_memory(ctx: number, ptr: number, size: number): number
+  _ear6_web_load_from_memory(
+    ctx: number,
+    ptr: number,
+    size: number,
+    nameHintPtr: number,
+  ): number
   _ear6_web_save_state_to_memory(
     ctx: number,
     bufferPtr: number,

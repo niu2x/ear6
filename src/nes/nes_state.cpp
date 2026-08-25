@@ -438,7 +438,10 @@ void BaseMapper::serialize(StateStream& s) {
             else if (locate(pointer, work_ram_.data(), work_ram_.size(), offset)) region = WORK_RAM;
             else if (locate(pointer, save_ram_.data(), save_ram_.size(), offset)) region = SAVE_RAM;
             else if (locate(pointer, nametable_ram_, nt_ram_size_, offset)) region = NAMETABLE_RAM;
-            else region = UNKNOWN;
+            else {
+                region = UNKNOWN;
+                s.fail();
+            }
         }
         s.sync(region);
         s.sync(offset);
@@ -458,6 +461,7 @@ void BaseMapper::serialize(StateStream& s) {
                     break;
                 case UNKNOWN:
                     pointer = nullptr;
+                    s.fail();
                     break;
             }
             if (!pointer && region != NONE && region != UNKNOWN) s.fail();

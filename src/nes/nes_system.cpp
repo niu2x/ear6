@@ -154,6 +154,68 @@ static const uint8_t PALETTE_LUT_2C05[64] = {
    48,49,50,51,52,53,54,55,56,57,58,59,60,15,62,63
 };
 
+static bool is_mapper_state_supported(int mapper_number) {
+    switch (mapper_number) {
+        case 0:
+        case 3:
+        case 7:
+        case 11:
+        case 13:
+        case 15:
+        case 33:
+        case 34:
+        case 38:
+        case 39:
+        case 58:
+        case 61:
+        case 62:
+        case 66:
+        case 70:
+        case 71:
+        case 77:
+        case 78:
+        case 79:
+        case 86:
+        case 87:
+        case 89:
+        case 93:
+        case 94:
+        case 101:
+        case 107:
+        case 113:
+        case 133:
+        case 140:
+        case 143:
+        case 144:
+        case 145:
+        case 146:
+        case 148:
+        case 149:
+        case 174:
+        case 180:
+        case 184:
+        case 185:
+        case 200:
+        case 203:
+        case 204:
+        case 213:
+        case 214:
+        case 216:
+        case 225:
+        case 227:
+        case 229:
+        case 231:
+        case 240:
+        case 241:
+        case 242:
+        case 244:
+        case 246:
+            return true;
+        default:
+            return false;
+    }
+}
+
 NesSystem::NesSystem()
     : console_(std::make_unique<nes::NesConsole>())
     , rgba_framebuffer_(256 * 240 * 4, 0) {
@@ -176,7 +238,8 @@ int NesSystem::load(const void* data, int size) {
 }
 
 int NesSystem::save_state(std::vector<uint8_t>& data) const {
-    if (!console_ || content_identity_ == 0 || console_->get_rom_info().mapper_number != 0) {
+    if (!console_ || content_identity_ == 0
+        || !is_mapper_state_supported(console_->get_rom_info().mapper_number)) {
         return -1;
     }
 
@@ -195,7 +258,8 @@ int NesSystem::save_state(std::vector<uint8_t>& data) const {
 }
 
 int NesSystem::load_state(const void* data, size_t size) {
-    if (!console_ || content_identity_ == 0 || console_->get_rom_info().mapper_number != 0) {
+    if (!console_ || content_identity_ == 0
+        || !is_mapper_state_supported(console_->get_rom_info().mapper_number)) {
         return -1;
     }
 

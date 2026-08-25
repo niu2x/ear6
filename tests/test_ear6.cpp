@@ -1,5 +1,6 @@
 #include <ear6/ear6.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -207,6 +208,59 @@ static std::vector<uint8_t> make_mapper0_test_rom(uint8_t marker) {
     rom[16 + 0x3FFD] = 0x80;
     rom[16 + 0x0100] = marker;
     return rom;
+}
+
+static std::vector<uint8_t> make_mapper_test_rom(uint8_t mapper) {
+    constexpr size_t PRG_SIZE = 0x8000;
+    constexpr size_t CHR_SIZE = 0x2000;
+    std::vector<uint8_t> rom(16 + PRG_SIZE + CHR_SIZE, 0);
+    rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;
+    rom[4] = PRG_SIZE / 0x4000;
+    rom[5] = CHR_SIZE / 0x2000;
+    rom[6] = static_cast<uint8_t>((mapper & 0x0F) << 4);
+    rom[7] = mapper & 0xF0;
+
+    for (size_t bank = 0; bank < PRG_SIZE; bank += 0x2000) {
+        size_t offset = 16 + bank;
+        rom[offset + 0] = 0xE6; // INC $00
+        rom[offset + 1] = 0x00;
+        rom[offset + 2] = 0x4C; // JMP $8000
+        rom[offset + 3] = 0x00;
+        rom[offset + 4] = 0x80;
+        rom[offset + 0x1FFC] = 0x00;
+        rom[offset + 0x1FFD] = 0x80;
+    }
+    return rom;
+}
+
+TEST(Ear6State, StatelessNesMappersContinueDeterministically) {
+    const uint8_t mappers[] = {
+        3, 7, 11, 13, 15, 33, 34, 38, 39, 58, 61, 62, 66, 70, 71, 77,
+        78, 79, 86, 87, 89, 93, 94, 101, 107, 113, 133, 140, 143, 144,
+        145, 146, 148, 149, 174, 180, 184, 185, 200, 203, 204, 213, 214,
+        216, 225, 227, 229, 231, 240, 241, 242, 244, 246,
+    };
+
+    for (uint8_t mapper : mappers) {
+        SCOPED_TRACE(static_cast<int>(mapper));
+        Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+        ASSERT_NE(ctx, nullptr);
+        std::vector<uint8_t> rom = make_mapper_test_rom(mapper);
+        ASSERT_EQ(ear6_load_from_memory(
+            ctx, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+        ASSERT_EQ(ear6_step(ctx), 0);
+
+        std::vector<uint8_t> checkpoint = save_state(ctx);
+        ASSERT_FALSE(checkpoint.empty());
+        ASSERT_EQ(ear6_step(ctx), 0);
+        std::vector<uint8_t> expected = save_state(ctx);
+        ASSERT_FALSE(expected.empty());
+
+        ASSERT_EQ(ear6_load_state_from_memory(ctx, checkpoint.data(), checkpoint.size()), 0);
+        ASSERT_EQ(ear6_step(ctx), 0);
+        EXPECT_EQ(save_state(ctx), expected);
+        ear6_destroy(ctx);
+    }
 }
 
 TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {

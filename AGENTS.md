@@ -70,12 +70,12 @@ covered. State buffers embed the original loaded content so they can restore a
 fresh context without a separate ROM. The core must reject format version,
 content identity, checksum, incompatible target system, or payload mismatches
 without changing the current state. A successful load atomically replaces the
-current content.
-Treat state files as content-bearing artifacts: they may be large and may carry
-the same copyright and redistribution restrictions as the embedded ROM.
-The state container must not persist `Ear6SystemType`; the target system is
-selected by the context, while content identity and the system payload validate
-whether that system can accept the state.
+current content. Treat state files as content-bearing artifacts: they may be
+large and may carry the same copyright and redistribution restrictions as the
+embedded ROM.
+The common envelope persists `Ear6SystemType` for dispatch and validation.
+Every system owns its payload layout and must version that payload internally,
+so one system can evolve without redefining unrelated systems' state data.
 
 Current support must be stated precisely:
 

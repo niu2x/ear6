@@ -69,13 +69,13 @@ int build_state(Ear6* ctx, std::vector<uint8_t>& state) {
     stream.sync_bytes(magic, sizeof(magic));
 
     uint32_t version = EAR6_STATE_FORMAT_VERSION;
+    uint32_t system_type = static_cast<uint32_t>(ctx->system_type);
     uint64_t content_identity = ctx->system->get_content_identity();
     uint64_t content_size = ctx->content.size();
     uint64_t name_hint_size = ctx->content_name_hint.size();
     uint64_t payload_size = payload.size();
     uint32_t flags = ctx->has_content ? STATE_FLAG_HAS_CONTENT : 0;
-    uint32_t reserved_32 = 0;
-    uint64_t reserved_64 = 0;
+    uint64_t reserved = 0;
 
     std::vector<uint8_t> body;
     body.reserve(ctx->content_name_hint.size() + ctx->content.size() + payload.size());
@@ -85,14 +85,14 @@ int build_state(Ear6* ctx, std::vector<uint8_t>& state) {
     uint32_t body_crc = crc32(body.data(), body.size());
 
     stream.sync(version);
-    stream.sync(flags);
+    stream.sync(system_type);
     stream.sync(content_identity);
     stream.sync(content_size);
     stream.sync(name_hint_size);
     stream.sync(payload_size);
     stream.sync(body_crc);
-    stream.sync(reserved_32);
-    stream.sync(reserved_64);
+    stream.sync(flags);
+    stream.sync(reserved);
     if (!body.empty()) {
         stream.sync_bytes(body.data(), body.size());
     }
@@ -217,33 +217,33 @@ extern "C" int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t s
         ear6::StateStream stream(data, size);
         uint8_t magic[sizeof(STATE_MAGIC)] = {};
         uint32_t version = 0;
-        uint32_t flags = 0;
+        uint32_t system_type = 0;
         uint64_t content_identity = 0;
         uint64_t content_size = 0;
         uint64_t name_hint_size = 0;
         uint64_t payload_size = 0;
         uint32_t body_crc = 0;
-        uint32_t reserved_32 = 0;
-        uint64_t reserved_64 = 0;
+        uint32_t flags = 0;
+        uint64_t reserved = 0;
         stream.sync_bytes(magic, sizeof(magic));
         stream.sync(version);
-        stream.sync(flags);
+        stream.sync(system_type);
         stream.sync(content_identity);
         stream.sync(content_size);
         stream.sync(name_hint_size);
         stream.sync(payload_size);
         stream.sync(body_crc);
-        stream.sync(reserved_32);
-        stream.sync(reserved_64);
+        stream.sync(flags);
+        stream.sync(reserved);
 
         if (stream.has_error()
             || std::memcmp(magic, STATE_MAGIC, sizeof(magic)) != 0
             || version != EAR6_STATE_FORMAT_VERSION
+            || system_type != static_cast<uint32_t>(ctx->system_type)
             || (flags & ~STATE_KNOWN_FLAGS) != 0
             || ((flags & STATE_FLAG_HAS_CONTENT) == 0
                 && (content_size != 0 || name_hint_size != 0))
-            || reserved_32 != 0
-            || reserved_64 != 0
+            || reserved != 0
             || name_hint_size > MAX_STATE_NAME_HINT_SIZE
             || content_size > static_cast<uint64_t>(std::numeric_limits<int>::max())
             || name_hint_size > stream.get_remaining()) {

@@ -20,7 +20,9 @@ int TestSystem::load(const void* data, int size) {
 
 int TestSystem::save_state(std::vector<uint8_t>& data) const {
     StateStream stream;
+    uint32_t payload_version = 1;
     int tick = tick_;
+    stream.sync(payload_version);
     stream.sync(tick);
     data = stream.get_data();
     return 0;
@@ -28,9 +30,12 @@ int TestSystem::save_state(std::vector<uint8_t>& data) const {
 
 int TestSystem::load_state(const void* data, size_t size) {
     StateStream stream(data, size);
+    uint32_t payload_version = 0;
     int tick = 0;
+    stream.sync(payload_version);
     stream.sync(tick);
-    if (stream.has_error() || stream.get_remaining() != 0 || tick < 0) {
+    if (stream.has_error() || stream.get_remaining() != 0
+        || payload_version != 1 || tick < 0) {
         return -1;
     }
     tick_ = tick;

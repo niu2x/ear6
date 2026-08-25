@@ -224,6 +224,30 @@ static uint64_t read_u64_le(const std::vector<uint8_t>& data, size_t offset) {
     return value;
 }
 
+TEST(Ear6State, RejectsUnknownSystemPayloadVersionWithoutMutation) {
+    constexpr size_t STATE_HEADER_SIZE = 64;
+    constexpr size_t BODY_CRC_OFFSET = 48;
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> before = save_state(ctx);
+    ASSERT_GT(before.size(), STATE_HEADER_SIZE);
+
+    std::vector<uint8_t> future_payload = before;
+    future_payload[STATE_HEADER_SIZE] = 2;
+    write_u32_le(future_payload, BODY_CRC_OFFSET, state_crc32(
+        future_payload.data() + STATE_HEADER_SIZE,
+        future_payload.size() - STATE_HEADER_SIZE
+    ));
+
+    EXPECT_NE(ear6_load_state_from_memory(
+        ctx, future_payload.data(), future_payload.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
+
+    ear6_destroy(ctx);
+}
+
 static std::vector<uint8_t> make_mapper0_test_rom(uint8_t marker) {
     std::vector<uint8_t> rom(16 + 0x4000, 0);
     rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;

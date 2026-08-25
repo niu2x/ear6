@@ -77,7 +77,7 @@ include/ear6/<system>.h   未来系统扩展
 上下文拥有所有返回缓冲区。宿主只能读取，不能释放；指针的有效期和音频消费
 规则详见 [Public API 手册](api-reference.md)。
 
-Save state 的系统 payload 由各系统实现序列化；通用层负责内容身份、
+Save state 的系统 payload 由各系统实现序列化；通用层负责系统类型、内容身份、
 原始内容、名称、长度和校验。核心不选择文件路径，也不管理存档槽位。宿主可以把
 同一内存 buffer 写入文件、数据库或云端。battery-backed save RAM 属于游戏硬件
 持久化，不等同于整机 save state。
@@ -87,8 +87,10 @@ identity，再恢复系统 payload，全部成功后才替换当前系统。这�
 ROM 能在以后只凭 state 恢复，也保证损坏 state 不会留下半加载的游戏。代价是 state
 体积和分发属性包含 ROM 本身；压缩、加密、槽位和文件管理仍属于宿主层。
 
-容器不保存 `Ear6SystemType`。当前由宿主创建目标系统，未来可以增加内容探测来选择
-系统；是否兼容由目标系统加载内嵌内容、校验 identity 和解析 payload 的结果决定。
+公共容器保存 `Ear6SystemType`，用于校验当前上下文并支持未来按 state 自动创建目标
+系统。容器版本只描述公共 envelope；每个系统独立定义和版本化 payload，因此 NES、
+Test 和未来系统可以采用不同结构、独立升级。最终兼容性仍由目标系统加载内容、
+校验 identity 和解析 payload 的结果决定。
 
 ## 当前系统
 

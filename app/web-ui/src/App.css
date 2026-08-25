@@ -87,7 +87,7 @@ button:focus-visible {
 .loading-screen strong {
   color: var(--text);
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .loading-text,
@@ -154,7 +154,7 @@ button:focus-visible {
 
 .brand-copy strong {
   font-size: 24px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .brand-copy small {
@@ -194,7 +194,7 @@ button:focus-visible {
 .session-state {
   flex: 0 0 auto;
   color: var(--text-soft);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .session-divider {
@@ -266,7 +266,7 @@ canvas {
 
 .standby strong {
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .standby i {
@@ -333,7 +333,7 @@ canvas {
   padding: 0 13px;
   justify-content: flex-start;
   font-size: 15px;
-  font-weight: 750;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -360,6 +360,7 @@ canvas {
   border-color: var(--amber-bright);
   background: var(--amber);
   color: #18130a;
+  font-weight: 600;
 }
 
 .control-button.primary:hover:not(:disabled) {
@@ -376,7 +377,7 @@ canvas {
   min-height: 38px;
   padding: 0 13px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .icon-button {
@@ -407,6 +408,14 @@ canvas {
   column-gap: 9px;
 }
 
+.status-stat {
+  flex: 0.65 1 0;
+}
+
+.performance-stat {
+  flex: 1.35 1 0;
+}
+
 .runtime-stat:last-child {
   border-bottom: 0;
 }
@@ -418,69 +427,63 @@ canvas {
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
-.runtime-stat strong {
+.status-value,
+.metric-value {
   min-width: 0;
   overflow: hidden;
   color: var(--text);
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.runtime-stat strong.running,
-.step-stat.healthy strong {
+.status-value.running,
+.performance-stat.healthy .load-reading .metric-value {
   color: var(--green);
 }
 
-.runtime-stat strong.paused,
-.step-stat.warning strong {
+.status-value.paused,
+.performance-stat.warning .load-reading .metric-value {
   color: var(--orange);
 }
 
-.step-stat.critical strong {
+.performance-stat.critical .load-reading .metric-value {
   color: var(--red);
 }
 
-.runtime-stat small {
+.performance-readings {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+}
+
+.performance-reading {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.performance-reading + .performance-reading {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.performance-reading small,
+.metric-detail {
   color: var(--muted);
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
-}
-
-.fps-stat {
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-}
-
-.fps-stat .stat-label {
-  grid-column: 1 / -1;
-}
-
-.fps-stat small {
-  align-self: end;
-  padding-bottom: 2px;
-}
-
-.step-stat {
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto 3px;
-}
-
-.step-stat strong {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  align-self: center;
+  font-size: 11px;
 }
 
 .load-meter {
-  grid-column: 1 / -1;
   height: 3px;
-  margin-top: 4px;
+  margin-top: 14px;
   overflow: hidden;
   background: #303135;
 }
@@ -492,11 +495,11 @@ canvas {
   transition: width 240ms ease, background-color 160ms ease;
 }
 
-.step-stat.warning .load-meter i {
+.performance-stat.warning .load-meter i {
   background: var(--orange);
 }
 
-.step-stat.critical .load-meter i {
+.performance-stat.critical .load-meter i {
   background: var(--red);
 }
 
@@ -566,6 +569,7 @@ canvas {
 
 .modal-head strong {
   font-size: 18px;
+  font-weight: 600;
 }
 
 .control-map {
@@ -653,7 +657,7 @@ kbd {
     border-top: 1px solid #292a2d;
     border-left: 0;
     display: grid;
-    grid-template-columns: minmax(120px, 1fr) 92px minmax(210px, 1.35fr);
+    grid-template-columns: minmax(140px, 0.7fr) minmax(300px, 1.3fr);
     align-items: stretch;
     background: transparent;
     box-shadow: none;
@@ -668,6 +672,14 @@ kbd {
 
   .runtime-stat:first-child {
     border-left: 0;
+  }
+
+  .performance-readings {
+    margin-top: 6px;
+  }
+
+  .load-meter {
+    margin-top: 6px;
   }
 }
 
@@ -742,7 +754,7 @@ kbd {
   }
 
   .runtime-stats {
-    grid-template-columns: minmax(0, 1fr) 82px;
+    grid-template-columns: minmax(0, 1fr);
     row-gap: 7px;
   }
 
@@ -754,8 +766,8 @@ kbd {
     border-left: 0;
   }
 
-  .step-stat {
-    min-height: 48px;
+  .performance-stat {
+    min-height: 72px;
     padding-top: 6px;
     border-top: 1px solid #292a2d;
     border-left: 0;

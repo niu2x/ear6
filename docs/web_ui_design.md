@@ -24,7 +24,8 @@ Theme: precision console in a dark room.
 2. **Desktop workspace**
    - Open, reset, run/pause, fullscreen, and keyboard controls in a left rail
    - Unmodified 256x240 framebuffer centered in a minimal hardware frame
-   - Live status, FPS, and step-load diagnostics in a right rail
+   - Live status and one combined FPS/step-load performance panel in a right
+     rail
 3. **Responsive controls**
    - Below 1000px, controls and diagnostics move beneath the screen so the
      framebuffer keeps the full viewport width

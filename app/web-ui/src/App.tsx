@@ -374,20 +374,27 @@ function App() {
         <div className="runtime-stats" aria-label="Runtime performance">
           <div className="runtime-stat status-stat" aria-live="polite">
             <span className="stat-label"><Activity size={14} /> STATUS</span>
-            <strong className={statusClass}>{statusText}</strong>
-          </div>
-          <div className="runtime-stat fps-stat">
-            <span className="stat-label">FPS</span>
-            <strong>{hasRom ? fps : '--'}</strong>
-            <small>/ 60</small>
+            <span className={`status-value ${statusClass}`}>{statusText}</span>
           </div>
           <div
-            className={`runtime-stat step-stat ${loadClass}`}
+            className={`runtime-stat performance-stat ${loadClass}`}
             title="Average ear6_step time as a share of the 16.67 ms frame budget"
           >
-            <span className="stat-label"><Gauge size={14} /> STEP LOAD</span>
-            <strong>{hasRom ? stepLoad.toFixed(1) : '--'}%</strong>
-            <small>{hasRom ? `${stepTime.toFixed(2)} ms` : '16.67 ms budget'}</small>
+            <span className="stat-label"><Gauge size={14} /> PERFORMANCE</span>
+            <div className="performance-readings">
+              <span className="performance-reading">
+                <small>FPS</small>
+                <span className="metric-value">{hasRom ? fps : '--'}</span>
+                <span className="metric-detail">/ 60</span>
+              </span>
+              <span className="performance-reading load-reading">
+                <small>STEP LOAD</small>
+                <span className="metric-value">{hasRom ? stepLoad.toFixed(1) : '--'}%</span>
+                <span className="metric-detail">
+                  {hasRom ? `${stepTime.toFixed(2)} ms` : '16.67 ms budget'}
+                </span>
+              </span>
+            </div>
             <span
               className="load-meter"
               role="progressbar"

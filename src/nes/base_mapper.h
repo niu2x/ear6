@@ -136,6 +136,19 @@ protected:
     virtual uint16_t register_end_address() { return 0xFFFF; }
     virtual bool allow_register_read() { return false; }
 
+    virtual bool locate_state_memory(
+        uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+        (void)pointer;
+        (void)region;
+        (void)offset;
+        return false;
+    }
+    virtual uint8_t* restore_state_memory(uint8_t region, uint32_t offset) {
+        (void)region;
+        (void)offset;
+        return nullptr;
+    }
+
     void add_register_range(uint16_t start, uint16_t end, MemoryOperation operation = MemoryOperation::ANY);
     void remove_register_range(uint16_t start, uint16_t end,
                                MemoryOperation operation = MemoryOperation::ANY);

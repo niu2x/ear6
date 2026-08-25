@@ -6,6 +6,7 @@ namespace ear6::nes {
 
 class Mapper004 : public BaseMapper {
 public:
+    void serialize(ear6::StateStream& stream) override;
     void init(const RomInfo& info,
               const std::vector<uint8_t>& prg_rom,
               const std::vector<uint8_t>& chr_rom) override;
@@ -39,6 +40,9 @@ protected:
     uint64_t a12_low_clock_ = 0;
 
 private:
+    bool locate_state_memory(
+        uint8_t* pointer, uint8_t& region, uint32_t& offset) const override;
+    uint8_t* restore_state_memory(uint8_t region, uint32_t offset) override;
     std::vector<uint8_t> work_ram_;
 };
 

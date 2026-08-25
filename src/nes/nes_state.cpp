@@ -6,6 +6,9 @@
 #include "base_mapper.h"
 #include "delta_modulation_channel.h"
 #include "mapper_000.h"
+#include "mapper_001.h"
+#include "mapper_002.h"
+#include "mapper_004.h"
 #include "mapper_006.h"
 #include "mapper_009.h"
 #include "mapper_018.h"
@@ -13,6 +16,7 @@
 #include "mapper_032.h"
 #include "mapper_035.h"
 #include "mapper_041.h"
+#include "mapper_045.h"
 #include "mapper_060.h"
 #include "mapper_064.h"
 #include "mapper_065.h"
@@ -116,6 +120,16 @@ void sync_status(StateStream& s, PPUStatusFlags& status) {
     s.sync(status.sprite_overflow);
     s.sync(status.sprite_zero_hit);
     s.sync(status.vertical_blank);
+}
+
+bool locate_vector_memory(
+    uint8_t* pointer, const std::vector<uint8_t>& values, uint32_t& offset) {
+    if (!pointer || values.empty()) return false;
+    uintptr_t address = reinterpret_cast<uintptr_t>(pointer);
+    uintptr_t begin = reinterpret_cast<uintptr_t>(values.data());
+    if (address < begin || address >= begin + values.size()) return false;
+    offset = static_cast<uint32_t>(address - begin);
+    return true;
 }
 
 template<typename T, size_t Size>
@@ -460,6 +474,7 @@ void BaseMapper::serialize(StateStream& s) {
         WORK_RAM = 4,
         SAVE_RAM = 5,
         NAMETABLE_RAM = 6,
+        MAPPER_REGION_START = 0x80,
         UNKNOWN = 0xFF,
     };
 
@@ -473,7 +488,7 @@ void BaseMapper::serialize(StateStream& s) {
     };
 
     auto sync_page = [&](uint8_t*& pointer, bool ppu_page) {
-        Region region = NONE;
+        uint8_t region = NONE;
         uint32_t offset = 0;
         if (s.is_saving() && pointer) {
             if (locate(pointer, prg_rom_.data(), prg_rom_.size(), offset)) region = PRG_ROM;
@@ -483,8 +498,14 @@ void BaseMapper::serialize(StateStream& s) {
             else if (locate(pointer, save_ram_.data(), save_ram_.size(), offset)) region = SAVE_RAM;
             else if (locate(pointer, nametable_ram_, nt_ram_size_, offset)) region = NAMETABLE_RAM;
             else {
-                region = UNKNOWN;
-                s.fail();
+                uint8_t mapper_region = 0;
+                if (locate_state_memory(pointer, mapper_region, offset)
+                    && mapper_region < UNKNOWN - MAPPER_REGION_START) {
+                    region = static_cast<uint8_t>(MAPPER_REGION_START + mapper_region);
+                } else {
+                    region = UNKNOWN;
+                    s.fail();
+                }
             }
         }
         s.sync(region);
@@ -507,6 +528,15 @@ void BaseMapper::serialize(StateStream& s) {
                     pointer = nullptr;
                     s.fail();
                     break;
+                default:
+                    if (region >= MAPPER_REGION_START) {
+                        pointer = restore_state_memory(
+                            static_cast<uint8_t>(region - MAPPER_REGION_START), offset);
+                    } else {
+                        pointer = nullptr;
+                    }
+                    if (!pointer) s.fail();
+                    break;
             }
             if (!pointer && region != NONE && region != UNKNOWN) s.fail();
         }
@@ -523,6 +553,84 @@ void BaseMapper::serialize(StateStream& s) {
 void Mapper000::serialize(StateStream& s) {
     BaseMapper::serialize(s);
     s.sync(chr_is_ram_);
+}
+
+bool Mapper001::locate_state_memory(
+    uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+    if (!locate_vector_memory(pointer, work_ram_, offset)) return false;
+    region = 0;
+    return true;
+}
+
+uint8_t* Mapper001::restore_state_memory(uint8_t region, uint32_t offset) {
+    return region == 0 && offset < work_ram_.size() ? work_ram_.data() + offset : nullptr;
+}
+
+void Mapper001::serialize(StateStream& s) {
+    s.sync_vector(work_ram_);
+    BaseMapper::serialize(s);
+    s.sync(write_buffer_);
+    s.sync(shift_count_);
+    s.sync(wram_disable_);
+    s.sync(chr_mode_);
+    s.sync(prg_mode_);
+    s.sync(slot_select_);
+    s.sync(chr_reg0_);
+    s.sync(chr_reg1_);
+    s.sync(prg_reg_);
+    s.sync(last_write_cycle_);
+    s.sync(last_chr_reg_);
+}
+
+bool Mapper002::locate_state_memory(
+    uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+    if (!locate_vector_memory(pointer, work_ram_, offset)) return false;
+    region = 0;
+    return true;
+}
+
+uint8_t* Mapper002::restore_state_memory(uint8_t region, uint32_t offset) {
+    return region == 0 && offset < work_ram_.size() ? work_ram_.data() + offset : nullptr;
+}
+
+void Mapper002::serialize(StateStream& s) {
+    s.sync_vector(work_ram_);
+    BaseMapper::serialize(s);
+}
+
+bool Mapper004::locate_state_memory(
+    uint8_t* pointer, uint8_t& region, uint32_t& offset) const {
+    if (!locate_vector_memory(pointer, work_ram_, offset)) return false;
+    region = 0;
+    return true;
+}
+
+uint8_t* Mapper004::restore_state_memory(uint8_t region, uint32_t offset) {
+    return region == 0 && offset < work_ram_.size() ? work_ram_.data() + offset : nullptr;
+}
+
+void Mapper004::serialize(StateStream& s) {
+    s.sync_vector(work_ram_);
+    BaseMapper::serialize(s);
+    s.sync(irq_reload_value_);
+    s.sync(irq_counter_);
+    s.sync(irq_reload_);
+    s.sync(irq_enabled_);
+    s.sync(force_mmc3_rev_a_irqs_);
+    s.sync(prg_mode_);
+    s.sync(chr_mode_);
+    s.sync(current_register_);
+    s.sync_array(registers_);
+    s.sync(wram_enabled_);
+    s.sync(wram_write_protected_);
+    s.sync(reg_a000_);
+    s.sync(a12_low_clock_);
+}
+
+void Mapper045::serialize(StateStream& s) {
+    Mapper004::serialize(s);
+    sync_std_array(s, outer_registers_);
+    s.sync(outer_register_index_);
 }
 
 void Mapper006::serialize(StateStream& s) {

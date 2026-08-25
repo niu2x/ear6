@@ -215,6 +215,15 @@ static void write_u32_le(std::vector<uint8_t>& data, size_t offset, uint32_t val
     }
 }
 
+static uint64_t read_u64_le(const std::vector<uint8_t>& data, size_t offset) {
+    EXPECT_LE(offset + sizeof(uint64_t), data.size());
+    uint64_t value = 0;
+    for (size_t i = 0; i < sizeof(value); ++i) {
+        value |= static_cast<uint64_t>(data[offset + i]) << (i * 8);
+    }
+    return value;
+}
+
 static std::vector<uint8_t> make_mapper0_test_rom(uint8_t marker) {
     std::vector<uint8_t> rom(16 + 0x4000, 0);
     rom[0] = 'N'; rom[1] = 'E'; rom[2] = 'S'; rom[3] = 0x1A;
@@ -252,8 +261,8 @@ static std::vector<uint8_t> make_mapper_test_rom(uint8_t mapper) {
 }
 
 TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
-    constexpr size_t STATE_HEADER_SIZE = 40;
-    constexpr size_t PAYLOAD_CRC_OFFSET = 32;
+    constexpr size_t STATE_HEADER_SIZE = 64;
+    constexpr size_t BODY_CRC_OFFSET = 48;
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
@@ -274,18 +283,49 @@ TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
     EXPECT_NE(ear6_load_state_from_memory(ctx, bad_crc.data(), bad_crc.size()), 0);
     EXPECT_EQ(save_state(ctx), before);
 
-    // Mapper 0 payload ends with kb_enabled_, a serialized bool. Keep the
-    // container CRC valid so failure happens after partial state restoration.
+    // Mapper 0 payload ends with kb_enabled_, a serialized bool. Keep the body
+    // CRC valid so failure happens inside the system payload loader.
     std::vector<uint8_t> invalid_payload = before;
     invalid_payload.back() = 2;
     uint32_t crc = state_crc32(
         invalid_payload.data() + STATE_HEADER_SIZE,
         invalid_payload.size() - STATE_HEADER_SIZE
     );
-    write_u32_le(invalid_payload, PAYLOAD_CRC_OFFSET, crc);
+    write_u32_le(invalid_payload, BODY_CRC_OFFSET, crc);
     EXPECT_NE(ear6_load_state_from_memory(
         ctx, invalid_payload.data(), invalid_payload.size()), 0);
     EXPECT_EQ(save_state(ctx), before);
+
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, NesStateEmbedsContentAndNameHint) {
+    constexpr size_t STATE_HEADER_SIZE = 64;
+    constexpr size_t CONTENT_SIZE_OFFSET = 24;
+    constexpr size_t NAME_HINT_SIZE_OFFSET = 32;
+
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(ctx, nullptr);
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    const std::string source_hint =
+        "https://example.invalid/download/embedded-game.nes?token=secret";
+    const std::string name_hint = "embedded-game.nes";
+    ASSERT_EQ(ear6_load_from_memory(
+        ctx, rom.data(), static_cast<int>(rom.size()), source_hint.c_str()), 0);
+
+    std::vector<uint8_t> state = save_state(ctx);
+    ASSERT_FALSE(state.empty());
+    uint64_t content_size = read_u64_le(state, CONTENT_SIZE_OFFSET);
+    uint64_t name_hint_size = read_u64_le(state, NAME_HINT_SIZE_OFFSET);
+    ASSERT_EQ(content_size, rom.size());
+    ASSERT_EQ(name_hint_size, name_hint.size());
+    ASSERT_GE(state.size(), STATE_HEADER_SIZE + name_hint.size() + rom.size());
+    EXPECT_EQ(std::string(
+        state.begin() + STATE_HEADER_SIZE,
+        state.begin() + STATE_HEADER_SIZE + name_hint.size()), name_hint);
+    EXPECT_TRUE(std::equal(
+        rom.begin(), rom.end(),
+        state.begin() + STATE_HEADER_SIZE + name_hint.size()));
 
     ear6_destroy(ctx);
 }
@@ -326,8 +366,6 @@ TEST(Ear6State, SupportedNesMappersContinueDeterministically) {
 
         Ear6* restored = ear6_create(EAR6_SYSTEM_NES);
         ASSERT_NE(restored, nullptr);
-        ASSERT_EQ(ear6_load_from_memory(
-            restored, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
         ASSERT_EQ(ear6_load_state_from_memory(
             restored, checkpoint.data(), checkpoint.size()), 0);
         ASSERT_EQ(ear6_step(restored), 0);
@@ -420,7 +458,6 @@ TEST(Ear6State, RealRomMappersContinueDeterministically) {
 
         Ear6* restored = ear6_create(EAR6_SYSTEM_NES);
         ASSERT_NE(restored, nullptr);
-        ASSERT_EQ(ear6_load_from_file(restored, path.c_str()), 0);
         ASSERT_EQ(ear6_load_state_from_memory(
             restored, checkpoint.data(), checkpoint.size()), 0);
         for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(restored), 0);
@@ -449,7 +486,7 @@ TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {
     for (int i = 0; i < 4; ++i) ASSERT_EQ(ear6_step(ctx), 0);
     std::vector<uint8_t> actual = save_state(ctx);
     ASSERT_EQ(actual.size(), expected.size());
-    constexpr size_t STATE_HEADER_SIZE = 40;
+    constexpr size_t STATE_HEADER_SIZE = 64;
     auto mismatch = std::mismatch(
         actual.begin() + STATE_HEADER_SIZE,
         actual.end(),
@@ -463,7 +500,7 @@ TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {
     ear6_destroy(ctx);
 }
 
-TEST(Ear6State, RejectsStateForDifferentNesContent) {
+TEST(Ear6State, EmbeddedContentReplacesDifferentNesContent) {
     std::vector<uint8_t> first_rom = make_mapper0_test_rom(0x11);
     std::vector<uint8_t> second_rom = make_mapper0_test_rom(0x22);
     Ear6* first = ear6_create(EAR6_SYSTEM_NES);
@@ -475,16 +512,14 @@ TEST(Ear6State, RejectsStateForDifferentNesContent) {
 
     std::vector<uint8_t> state = save_state(first);
     ASSERT_FALSE(state.empty());
-    std::vector<uint8_t> before = save_state(second);
-    ASSERT_FALSE(before.empty());
-    EXPECT_NE(ear6_load_state_from_memory(second, state.data(), state.size()), 0);
-    EXPECT_EQ(save_state(second), before);
+    ASSERT_EQ(ear6_load_state_from_memory(second, state.data(), state.size()), 0);
+    EXPECT_EQ(save_state(second), state);
 
     ear6_destroy(first);
     ear6_destroy(second);
 }
 
-TEST(Ear6State, RejectsNesStateUntilContentIsLoaded) {
+TEST(Ear6State, LoadsEmbeddedNesContentIntoEmptyContext) {
     std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
     Ear6* loaded = ear6_create(EAR6_SYSTEM_NES);
     Ear6* empty = ear6_create(EAR6_SYSTEM_NES);
@@ -495,10 +530,42 @@ TEST(Ear6State, RejectsNesStateUntilContentIsLoaded) {
 
     std::vector<uint8_t> state = save_state(loaded);
     ASSERT_FALSE(state.empty());
-    EXPECT_NE(ear6_load_state_from_memory(empty, state.data(), state.size()), 0);
+    ASSERT_EQ(ear6_load_state_from_memory(empty, state.data(), state.size()), 0);
+    EXPECT_EQ(save_state(empty), state);
 
     ear6_destroy(loaded);
     ear6_destroy(empty);
+}
+
+TEST(Ear6State, RejectsModifiedEmbeddedContentWithoutMutation) {
+    constexpr size_t STATE_HEADER_SIZE = 64;
+    constexpr size_t BODY_CRC_OFFSET = 48;
+
+    std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
+    Ear6* source = ear6_create(EAR6_SYSTEM_NES);
+    Ear6* current = ear6_create(EAR6_SYSTEM_NES);
+    ASSERT_NE(source, nullptr);
+    ASSERT_NE(current, nullptr);
+    ASSERT_EQ(ear6_load_from_memory(
+        source, rom.data(), static_cast<int>(rom.size()), nullptr), 0);
+    std::vector<uint8_t> other_rom = make_mapper0_test_rom(0x22);
+    ASSERT_EQ(ear6_load_from_memory(
+        current, other_rom.data(), static_cast<int>(other_rom.size()), nullptr), 0);
+
+    std::vector<uint8_t> state = save_state(source);
+    std::vector<uint8_t> before = save_state(current);
+    ASSERT_GT(state.size(), STATE_HEADER_SIZE + 16 + 0x0100);
+    state[STATE_HEADER_SIZE + 16 + 0x0100] ^= 0x01;
+    write_u32_le(state, BODY_CRC_OFFSET, state_crc32(
+        state.data() + STATE_HEADER_SIZE,
+        state.size() - STATE_HEADER_SIZE
+    ));
+
+    EXPECT_NE(ear6_load_state_from_memory(current, state.data(), state.size()), 0);
+    EXPECT_EQ(save_state(current), before);
+
+    ear6_destroy(source);
+    ear6_destroy(current);
 }
 
 TEST(Ear6Create, FlashSystemNotImplemented) {

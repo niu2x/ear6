@@ -26,8 +26,8 @@
 - [x] NES CPU 周期驱动 PPU master clock，并通过内存 handler 分发表路由设备
 - [x] NES PRG/CHR 页表、work/save RAM 内存区和 submapper 元数据
 - [x] NES 基础 APU 和部分扩展音频（VRC6、Namco 163、Sunsoft 5B）
-- [x] 版本化内存 save state：Test 系统及全部受支持 NES mapper，含内容身份、
-      CRC、损坏回滚和连续运行测试
+- [x] 自包含的版本化内存 save state：嵌入原始内容，覆盖 Test 系统及全部受支持
+      NES mapper，含内容身份、CRC、原子恢复和连续运行测试
 - [x] 多个 mapper 的固定帧回归与 Mesen2 抽样对比
 
 ### 系统成熟度

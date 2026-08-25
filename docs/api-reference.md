@@ -200,12 +200,36 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 ```
 
 当容量不足时函数返回非零，并通过 `state_size` 返回所需容量。成功后 buffer 中是
-带 magic、格式版本、系统类型、内容身份、payload 长度和校验值的 Ear6 state。
-该二进制格式不等同于 Mesen2 state，也不承诺其他模拟器可以读取。
+带 magic、格式版本、系统类型、内容身份、原始内容、名称提示、系统 payload 和
+整体校验值的 Ear6 state。该二进制格式不等同于 Mesen2 state，也不承诺其他
+模拟器可以读取。
 
-当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `1`。加载器只接受与当前
+当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `2`。加载器只接受与当前
 版本完全相同的 state；不迁移、不兼容读取旧版本。格式升级后，旧 state 会明确
 返回失败，宿主不应修改或自行拼接 state 头。
+
+v2 固定头为 64 字节，所有整数均为 little-endian：
+
+| Offset | 字段 | 大小 |
+|---:|---|---:|
+| 0 | magic `EAR6STAT` | 8 |
+| 8 | format version | 4 |
+| 12 | `Ear6SystemType` | 4 |
+| 16 | content identity | 8 |
+| 24 | content size | 8 |
+| 32 | name hint size | 8 |
+| 40 | system payload size | 8 |
+| 48 | body CRC32 | 4 |
+| 52 | flags | 4 |
+| 56 | reserved，必须为 0 | 8 |
+
+header 后的 body 依次为名称字节、原始内容字节和系统 payload；CRC32 覆盖整个
+body。该布局只用于诊断和格式说明，宿主仍应把 state 当作不透明 buffer。
+
+state 内嵌原始 ROM，因此大小至少约等于 ROM 大小加运行态 payload。它不是压缩包，
+也没有加密。文件名提示只保留末尾名称，不保存本地目录、URL query 或 fragment。
+state 与内嵌 ROM 具有相同的隐私、版权和分发风险；宿主不能把它当成不含游戏内容
+的小型元数据文件。
 
 ### `ear6_load_state_from_memory`
 
@@ -213,19 +237,19 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 ```
 
-恢复前必须先在上下文中加载同一个游戏内容。格式版本、系统类型、内容身份或
-checksum 不匹配时返回非零，不修改当前模拟状态。加载成功后，先前取得的
-framebuffer 和音频指针均视为失效，宿主应重新查询。
+无需预先加载 ROM。Ear6 先在临时系统中加载 state 内嵌的内容，再恢复系统 payload；
+只有两步都成功才会原子替换 `ctx` 当前系统。格式版本、系统类型、内容 identity、
+长度、checksum 或 payload 不匹配时返回非零，原有内容和模拟状态保持不变。加载
+成功后，先前取得的 framebuffer 和音频指针均视为失效，宿主应重新查询。
 
-state 不包含 ROM 数据；宿主必须单独保留 ROM，并先调用 `ear6_load_from_file()` 或
-`ear6_load_from_memory()`。state 头只保存由完整 ROM 数据计算出的 64-bit content
-identity。Ear6 会将它与当前内容的 identity 比较；未加载 ROM 或 identity 不一致
-时拒绝恢复。该 identity 和 CRC 用于发现误配与损坏，不是防篡改的密码学验证。
+state 头保存由完整 ROM 数据计算出的 64-bit content identity，并对名称、ROM 和
+payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现误配与损坏，不是防篡改
+的密码学验证。
 
 当前 Test 系统和 MapperFactory 接受的全部 NES mapper 都支持完整 state 往返。
 回归测试对全部受支持 mapper 做合成 ROM 连续运行验证，并对 `assets/nes/rom/` 中
 现有的真实 ROM mapper 样本做恢复后重放验证；两类测试都同时覆盖原上下文恢复和
-新建上下文加载同一 ROM 后恢复。这里的 state 覆盖不表示这些 mapper 已经达到
+空白新上下文直接从 state 恢复内嵌 ROM。这里的 state 覆盖不表示这些 mapper 已经达到
 Mesen2 的逐周期或逐像素精确性；兼容性证据仍以 `nes-issue.md` 为准。
 
 Emscripten 宿主可通过 `ear6_web_save_state_to_memory()` 和

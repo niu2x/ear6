@@ -66,9 +66,12 @@ validates state buffers; host applications own file paths, slots, compression,
 databases, and cloud persistence. Do not add state-file I/O to the core, and do
 not confuse whole-machine state with battery-backed game save RAM. A system
 must reject save/load state until all state that affects future execution is
-covered. State buffers do not embed loaded content: the host must load the same
-content first, and the core must reject format version, system type, content
-identity, checksum, or payload mismatches without changing the current state.
+covered. State buffers embed the original loaded content so they can restore a
+fresh context without a separate ROM. The core must reject format version,
+system type, content identity, checksum, or payload mismatches without changing
+the current state. A successful load atomically replaces the current content.
+Treat state files as content-bearing artifacts: they may be large and may carry
+the same copyright and redistribution restrictions as the embedded ROM.
 
 Current support must be stated precisely:
 

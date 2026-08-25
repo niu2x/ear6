@@ -78,10 +78,14 @@ include/ear6/<system>.h   未来系统扩展
 规则详见 [Public API 手册](api-reference.md)。
 
 Save state 的系统 payload 由各系统实现序列化；通用层负责系统类型、内容身份、
-长度和校验。核心不选择文件路径，也不管理存档槽位。宿主可以把同一内存 buffer
-写入文件、数据库或云端。battery-backed save RAM 属于游戏硬件持久化，不等同于
-整机 save state。state 不嵌入 ROM；宿主恢复前必须先加载同一内容，通用层用内容
-身份拒绝未加载内容或 ROM 不匹配的恢复。
+原始内容、名称、长度和校验。核心不选择文件路径，也不管理存档槽位。宿主可以把
+同一内存 buffer 写入文件、数据库或云端。battery-backed save RAM 属于游戏硬件
+持久化，不等同于整机 save state。
+
+state 是自包含快照，会嵌入 ROM。恢复时通用层创建临时系统，加载内嵌内容并校验
+identity，再恢复系统 payload，全部成功后才替换当前系统。这使浏览器下载的网络
+ROM 能在以后只凭 state 恢复，也保证损坏 state 不会留下半加载的游戏。代价是 state
+体积和分发属性包含 ROM 本身；压缩、加密、槽位和文件管理仍属于宿主层。
 
 ## 当前系统
 

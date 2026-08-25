@@ -8,8 +8,10 @@
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 struct Ear6 {
@@ -19,11 +21,18 @@ struct Ear6 {
     void* frame_user_data = nullptr;
     Ear6AudioCallback audio_cb = nullptr;
     void* audio_user_data = nullptr;
+    bool has_content = false;
+    std::vector<uint8_t> content;
+    std::string content_name_hint;
 };
 
 namespace {
 
 constexpr uint8_t STATE_MAGIC[8] = {'E', 'A', 'R', '6', 'S', 'T', 'A', 'T'};
+constexpr uint32_t STATE_FLAG_HAS_CONTENT = 1u << 0;
+constexpr uint32_t STATE_KNOWN_FLAGS = STATE_FLAG_HAS_CONTENT;
+constexpr size_t STATE_HEADER_SIZE = 64;
+constexpr uint64_t MAX_STATE_NAME_HINT_SIZE = 4096;
 
 uint32_t crc32(const uint8_t* data, size_t size) {
     uint32_t crc = 0xFFFFFFFFu;
@@ -34,6 +43,19 @@ uint32_t crc32(const uint8_t* data, size_t size) {
         }
     }
     return ~crc;
+}
+
+std::string normalize_content_name_hint(const char* name_hint) {
+    if (!name_hint) return {};
+    std::string name(name_hint);
+    size_t query = name.find_first_of("?#");
+    if (query != std::string::npos) name.resize(query);
+    size_t separator = name.find_last_of("/\\");
+    if (separator != std::string::npos) name.erase(0, separator + 1);
+    if (name.size() > MAX_STATE_NAME_HINT_SIZE) {
+        name.erase(0, name.size() - MAX_STATE_NAME_HINT_SIZE);
+    }
+    return name;
 }
 
 int build_state(Ear6* ctx, std::vector<uint8_t>& state) {
@@ -49,19 +71,56 @@ int build_state(Ear6* ctx, std::vector<uint8_t>& state) {
     uint32_t version = EAR6_STATE_FORMAT_VERSION;
     uint32_t system_type = static_cast<uint32_t>(ctx->system_type);
     uint64_t content_identity = ctx->system->get_content_identity();
+    uint64_t content_size = ctx->content.size();
+    uint64_t name_hint_size = ctx->content_name_hint.size();
     uint64_t payload_size = payload.size();
-    uint32_t payload_crc = crc32(payload.data(), payload.size());
-    uint32_t reserved = 0;
+    uint32_t flags = ctx->has_content ? STATE_FLAG_HAS_CONTENT : 0;
+    uint64_t reserved = 0;
+
+    std::vector<uint8_t> body;
+    body.reserve(ctx->content_name_hint.size() + ctx->content.size() + payload.size());
+    body.insert(body.end(), ctx->content_name_hint.begin(), ctx->content_name_hint.end());
+    body.insert(body.end(), ctx->content.begin(), ctx->content.end());
+    body.insert(body.end(), payload.begin(), payload.end());
+    uint32_t body_crc = crc32(body.data(), body.size());
+
     stream.sync(version);
     stream.sync(system_type);
     stream.sync(content_identity);
+    stream.sync(content_size);
+    stream.sync(name_hint_size);
     stream.sync(payload_size);
-    stream.sync(payload_crc);
+    stream.sync(body_crc);
+    stream.sync(flags);
     stream.sync(reserved);
-    if (!payload.empty()) {
-        stream.sync_bytes(payload.data(), payload.size());
+    if (!body.empty()) {
+        stream.sync_bytes(body.data(), body.size());
     }
     state = stream.get_data();
+    return 0;
+}
+
+int load_content(
+    Ear6* ctx,
+    const void* data,
+    int size,
+    const char* name_hint
+) {
+    if (size < 0 || (!data && size > 0)) return -1;
+
+    std::vector<uint8_t> content;
+    if (size > 0) {
+        const auto* bytes = static_cast<const uint8_t*>(data);
+        content.assign(bytes, bytes + size);
+    }
+    std::string stored_name_hint = normalize_content_name_hint(name_hint);
+
+    int result = ctx->system->load_from_memory(data, size, name_hint);
+    if (result != 0) return result;
+
+    ctx->content = std::move(content);
+    ctx->content_name_hint = std::move(stored_name_hint);
+    ctx->has_content = true;
     return 0;
 }
 
@@ -102,6 +161,7 @@ extern "C" int ear6_load_from_file(Ear6* ctx, const char* path) {
         std::fseek(f, 0, SEEK_END);
         long sz = std::ftell(f);
         if (sz < 0) { std::fclose(f); return -3; }
+        if (sz > std::numeric_limits<int>::max()) { std::fclose(f); return -3; }
         std::vector<uint8_t> buf(static_cast<size_t>(sz));
         std::rewind(f);
         if (std::fread(buf.data(), 1, buf.size(), f) != buf.size()) {
@@ -109,7 +169,7 @@ extern "C" int ear6_load_from_file(Ear6* ctx, const char* path) {
             return -3;
         }
         std::fclose(f);
-        return ctx->system->load_from_memory(buf.data(), static_cast<int>(sz), path);
+        return load_content(ctx, buf.data(), static_cast<int>(sz), path);
     } catch (...) {
         return -2;
     }
@@ -123,7 +183,7 @@ extern "C" int ear6_load_from_memory(
 ) {
     if (!ctx || !ctx->system) return -1;
     try {
-        return ctx->system->load_from_memory(data, size, name_hint);
+        return load_content(ctx, data, size, name_hint);
     } catch (...) {
         return -2;
     }
@@ -159,49 +219,77 @@ extern "C" int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t s
         uint32_t version = 0;
         uint32_t system_type = 0;
         uint64_t content_identity = 0;
+        uint64_t content_size = 0;
+        uint64_t name_hint_size = 0;
         uint64_t payload_size = 0;
-        uint32_t payload_crc = 0;
-        uint32_t reserved = 0;
+        uint32_t body_crc = 0;
+        uint32_t flags = 0;
+        uint64_t reserved = 0;
         stream.sync_bytes(magic, sizeof(magic));
         stream.sync(version);
         stream.sync(system_type);
         stream.sync(content_identity);
+        stream.sync(content_size);
+        stream.sync(name_hint_size);
         stream.sync(payload_size);
-        stream.sync(payload_crc);
+        stream.sync(body_crc);
+        stream.sync(flags);
         stream.sync(reserved);
 
         if (stream.has_error()
             || std::memcmp(magic, STATE_MAGIC, sizeof(magic)) != 0
             || version != EAR6_STATE_FORMAT_VERSION
             || system_type != static_cast<uint32_t>(ctx->system_type)
-            || content_identity != ctx->system->get_content_identity()
+            || (flags & ~STATE_KNOWN_FLAGS) != 0
+            || ((flags & STATE_FLAG_HAS_CONTENT) == 0
+                && (content_size != 0 || name_hint_size != 0))
             || reserved != 0
-            || payload_size != stream.get_remaining()
-            || payload_crc != crc32(
-                static_cast<const uint8_t*>(data) + (size - stream.get_remaining()),
-                stream.get_remaining()
-            )) {
+            || name_hint_size > MAX_STATE_NAME_HINT_SIZE
+            || content_size > static_cast<uint64_t>(std::numeric_limits<int>::max())
+            || name_hint_size > stream.get_remaining()) {
             return -4;
         }
 
-        const auto* payload = static_cast<const uint8_t*>(data) + (size - stream.get_remaining());
-        std::vector<uint8_t> backup;
-        if (ctx->system->save_state(backup) != 0) return -4;
+        size_t remaining = stream.get_remaining();
+        remaining -= static_cast<size_t>(name_hint_size);
+        if (content_size > remaining) return -4;
+        remaining -= static_cast<size_t>(content_size);
+        if (payload_size != remaining) return -4;
 
-        int result = 0;
-        try {
-            result = ctx->system->load_state(payload, stream.get_remaining());
-        } catch (...) {
-            try {
-                ctx->system->load_state(backup.data(), backup.size());
-            } catch (...) {
-            }
-            return -2;
+        const auto* body = static_cast<const uint8_t*>(data) + STATE_HEADER_SIZE;
+        if (body_crc != crc32(body, size - STATE_HEADER_SIZE)) return -4;
+
+        std::string name_hint(
+            reinterpret_cast<const char*>(body),
+            static_cast<size_t>(name_hint_size)
+        );
+        if (name_hint.find('\0') != std::string::npos) return -4;
+        const uint8_t* content = body + name_hint_size;
+        const uint8_t* payload = content + content_size;
+
+        std::vector<uint8_t> stored_content;
+        if ((flags & STATE_FLAG_HAS_CONTENT) != 0 && content_size > 0) {
+            stored_content.assign(content, content + content_size);
         }
-        if (result != 0) {
-            ctx->system->load_state(backup.data(), backup.size());
+        auto candidate = create_system(ctx->system_type);
+        if ((flags & STATE_FLAG_HAS_CONTENT) != 0) {
+            const char* hint = name_hint.empty() ? nullptr : name_hint.c_str();
+            int result = candidate->load_from_memory(
+                content,
+                static_cast<int>(content_size),
+                hint
+            );
+            if (result != 0) return result;
         }
-        return result;
+        if (candidate->get_content_identity() != content_identity) return -4;
+        int result = candidate->load_state(payload, static_cast<size_t>(payload_size));
+        if (result != 0) return result;
+
+        ctx->system = std::move(candidate);
+        ctx->has_content = (flags & STATE_FLAG_HAS_CONTENT) != 0;
+        ctx->content = std::move(stored_content);
+        ctx->content_name_hint = std::move(name_hint);
+        return 0;
     } catch (...) {
         return -2;
     }

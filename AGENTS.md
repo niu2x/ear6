@@ -15,6 +15,8 @@ following links are the maintained entry points:
   system, host-boundary, and new-system work
 - [Public API manual](docs/api-reference.md): required for public headers, C
   ABI, callbacks, media buffers, installation, or host integration
+- [Save state format](docs/state-format.md): required for state serialization,
+  compatibility, previews, persistence, or save/load host UI
 - [Project roadmap](docs/TODO.md): required when assessing current support,
   choosing priorities, or completing roadmap work
 - [NES compatibility results](nes-issue.md): required for any NES accuracy,

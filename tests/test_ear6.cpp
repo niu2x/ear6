@@ -150,7 +150,9 @@ TEST(Ear6State, RejectsInvalidStateWithoutMutation) {
 }
 
 TEST(Ear6State, RejectsOlderFormatVersionWithoutMutation) {
-    static_assert(EAR6_STATE_FORMAT_VERSION > 0, "state format version must be positive");
+    static_assert(
+        EAR6_STATE_CONTAINER_WIRE_VERSION > 0,
+        "state container wire version must be positive");
 
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);
@@ -162,7 +164,7 @@ TEST(Ear6State, RejectsOlderFormatVersionWithoutMutation) {
     ASSERT_EQ(ear6_save_state_to_memory(ctx, state.data(), state.size(), &state_size), 0);
 
     constexpr size_t VERSION_OFFSET = 8;
-    uint32_t old_version = EAR6_STATE_FORMAT_VERSION - 1;
+    uint32_t old_version = EAR6_STATE_CONTAINER_WIRE_VERSION - 1;
     for (size_t i = 0; i < sizeof(old_version); ++i) {
         state[VERSION_OFFSET + i] = static_cast<uint8_t>(old_version >> (i * 8));
     }
@@ -211,6 +213,34 @@ static uint32_t state_crc32(const uint8_t* data, size_t size) {
     return ~crc;
 }
 
+static constexpr size_t STATE_PREAMBLE_SIZE = 32;
+static constexpr size_t STATE_BODY_SIZE_OFFSET = 16;
+static constexpr size_t STATE_BODY_CRC_OFFSET = 24;
+static constexpr uint32_t STATE_FIELD_SYSTEM_TYPE = 1;
+static constexpr uint32_t STATE_FIELD_CONTENT_IDENTITY = 2;
+static constexpr uint32_t STATE_FIELD_CONTENT_NAME = 3;
+static constexpr uint32_t STATE_FIELD_CONTENT = 4;
+static constexpr uint32_t STATE_FIELD_SYSTEM_STATE = 5;
+static constexpr uint32_t STATE_FIELD_PREVIEW = 6;
+
+struct StateFieldRange {
+    bool found = false;
+    size_t field_offset = 0;
+    size_t data_offset = 0;
+    size_t size = 0;
+    size_t end_offset = 0;
+    uint32_t wire_type = 0;
+};
+
+static uint32_t read_u32_le(const std::vector<uint8_t>& data, size_t offset) {
+    if (offset + sizeof(uint32_t) > data.size()) return 0;
+    uint32_t value = 0;
+    for (size_t i = 0; i < sizeof(value); ++i) {
+        value |= static_cast<uint32_t>(data[offset + i]) << (i * 8);
+    }
+    return value;
+}
+
 static void write_u32_le(std::vector<uint8_t>& data, size_t offset, uint32_t value) {
     ASSERT_LE(offset + sizeof(value), data.size());
     for (size_t i = 0; i < sizeof(value); ++i) {
@@ -218,40 +248,243 @@ static void write_u32_le(std::vector<uint8_t>& data, size_t offset, uint32_t val
     }
 }
 
-static uint64_t read_u64_le(const std::vector<uint8_t>& data, size_t offset) {
-    EXPECT_LE(offset + sizeof(uint64_t), data.size());
-    uint64_t value = 0;
+static void write_u64_le(std::vector<uint8_t>& data, size_t offset, uint64_t value) {
+    ASSERT_LE(offset + sizeof(value), data.size());
     for (size_t i = 0; i < sizeof(value); ++i) {
-        value |= static_cast<uint64_t>(data[offset + i]) << (i * 8);
+        data[offset + i] = static_cast<uint8_t>(value >> (i * 8));
     }
-    return value;
+}
+
+static bool read_varint(
+    const std::vector<uint8_t>& data,
+    size_t offset,
+    size_t limit,
+    uint64_t* value,
+    size_t* next
+) {
+    uint64_t result = 0;
+    for (unsigned shift = 0; shift < 64 && offset < limit; shift += 7) {
+        uint8_t byte = data[offset++];
+        result |= static_cast<uint64_t>(byte & 0x7f) << shift;
+        if ((byte & 0x80) == 0) {
+            *value = result;
+            *next = offset;
+            return true;
+        }
+    }
+    return false;
+}
+
+static void append_varint(std::vector<uint8_t>& data, uint64_t value) {
+    do {
+        uint8_t byte = static_cast<uint8_t>(value & 0x7f);
+        value >>= 7;
+        data.push_back(value == 0 ? byte : static_cast<uint8_t>(byte | 0x80));
+    } while (value != 0);
+}
+
+static StateFieldRange find_state_field(
+    const std::vector<uint8_t>& state,
+    uint32_t wanted_id,
+    size_t body_offset = STATE_PREAMBLE_SIZE,
+    size_t body_size = 0,
+    size_t occurrence = 0
+) {
+    StateFieldRange result;
+    if (body_offset > state.size()) return result;
+    size_t limit = body_size == 0 ? state.size() : body_offset + body_size;
+    if (limit > state.size()) return result;
+
+    size_t offset = body_offset;
+    while (offset < limit) {
+        size_t field_offset = offset;
+        uint64_t tag = 0;
+        if (!read_varint(state, offset, limit, &tag, &offset) || tag == 0) return {};
+        uint32_t field_id = static_cast<uint32_t>(tag >> 3);
+        uint32_t wire_type = static_cast<uint32_t>(tag & 7);
+        size_t data_offset = offset;
+        size_t field_size = 0;
+        if (wire_type == 0) {
+            uint64_t ignored = 0;
+            if (!read_varint(state, offset, limit, &ignored, &offset)) return {};
+            field_size = offset - data_offset;
+        } else if (wire_type == 1) {
+            if (limit - offset < 8) return {};
+            field_size = 8;
+            offset += field_size;
+        } else if (wire_type == 2) {
+            uint64_t length = 0;
+            if (!read_varint(state, offset, limit, &length, &offset)
+                || length > limit - offset) {
+                return {};
+            }
+            data_offset = offset;
+            field_size = static_cast<size_t>(length);
+            offset += field_size;
+        } else if (wire_type == 5) {
+            if (limit - offset < 4) return {};
+            field_size = 4;
+            offset += field_size;
+        } else {
+            return {};
+        }
+        if (field_id == wanted_id) {
+            if (occurrence-- == 0) {
+                result.found = true;
+                result.field_offset = field_offset;
+                result.data_offset = data_offset;
+                result.size = field_size;
+                result.end_offset = offset;
+                result.wire_type = wire_type;
+                return result;
+            }
+        }
+    }
+    return result;
+}
+
+static void refresh_state_container(std::vector<uint8_t>& state) {
+    ASSERT_GE(state.size(), STATE_PREAMBLE_SIZE);
+    size_t preamble_size = read_u32_le(state, 12);
+    ASSERT_GE(preamble_size, STATE_PREAMBLE_SIZE);
+    ASSERT_LE(preamble_size, state.size());
+    write_u64_le(state, STATE_BODY_SIZE_OFFSET, state.size() - preamble_size);
+    write_u32_le(state, STATE_BODY_CRC_OFFSET, state_crc32(
+        state.data() + preamble_size, state.size() - preamble_size));
+}
+
+static void append_test_length_delimited_field(
+    std::vector<uint8_t>& state,
+    uint32_t field_id,
+    const std::vector<uint8_t>& data
+) {
+    append_varint(state, (static_cast<uint64_t>(field_id) << 3) | 2);
+    append_varint(state, data.size());
+    state.insert(state.end(), data.begin(), data.end());
+    refresh_state_container(state);
+}
+
+static void append_test_varint_field(
+    std::vector<uint8_t>& state,
+    uint32_t field_id,
+    uint64_t value
+) {
+    append_varint(state, static_cast<uint64_t>(field_id) << 3);
+    append_varint(state, value);
+    refresh_state_container(state);
+}
+
+static void remove_state_field(std::vector<uint8_t>& state, uint32_t field_id) {
+    StateFieldRange field = find_state_field(state, field_id);
+    ASSERT_TRUE(field.found);
+    state.erase(
+        state.begin() + static_cast<std::ptrdiff_t>(field.field_offset),
+        state.begin() + static_cast<std::ptrdiff_t>(field.end_offset));
+    refresh_state_container(state);
+}
+
+static bool reverse_state_fields(std::vector<uint8_t>& state) {
+    if (state.size() < STATE_PREAMBLE_SIZE) return false;
+    size_t preamble_size = read_u32_le(state, 12);
+    if (preamble_size < STATE_PREAMBLE_SIZE || preamble_size > state.size()) return false;
+
+    std::vector<std::vector<uint8_t>> fields;
+    size_t offset = preamble_size;
+    while (offset < state.size()) {
+        uint64_t tag = 0;
+        size_t after_tag = 0;
+        if (!read_varint(state, offset, state.size(), &tag, &after_tag)) return false;
+        StateFieldRange field = find_state_field(
+            state, static_cast<uint32_t>(tag >> 3), offset, state.size() - offset);
+        if (!field.found || field.field_offset != offset) return false;
+        size_t end = field.end_offset;
+        fields.emplace_back(state.begin() + offset, state.begin() + end);
+        offset = end;
+    }
+    std::reverse(fields.begin(), fields.end());
+    state.resize(preamble_size);
+    for (const auto& field : fields) {
+        state.insert(state.end(), field.begin(), field.end());
+    }
+    refresh_state_container(state);
+    return true;
 }
 
 TEST(Ear6State, RejectsUnknownSystemPayloadVersionWithoutMutation) {
-    constexpr size_t STATE_HEADER_SIZE = 64;
-    constexpr size_t BODY_CRC_OFFSET = 48;
-    constexpr size_t PREVIEW_SIZE_OFFSET = 56;
-
     Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
     ASSERT_NE(ctx, nullptr);
     ASSERT_EQ(ear6_step(ctx), 0);
     std::vector<uint8_t> before = save_state(ctx);
-    ASSERT_GT(before.size(), STATE_HEADER_SIZE);
+    ASSERT_GT(before.size(), STATE_PREAMBLE_SIZE);
 
     std::vector<uint8_t> future_payload = before;
-    size_t payload_offset = STATE_HEADER_SIZE
-        + static_cast<size_t>(read_u64_le(future_payload, PREVIEW_SIZE_OFFSET));
-    ASSERT_LT(payload_offset, future_payload.size());
-    future_payload[payload_offset] = 2;
-    write_u32_le(future_payload, BODY_CRC_OFFSET, state_crc32(
-        future_payload.data() + STATE_HEADER_SIZE,
-        future_payload.size() - STATE_HEADER_SIZE
-    ));
+    StateFieldRange payload = find_state_field(future_payload, STATE_FIELD_SYSTEM_STATE);
+    ASSERT_TRUE(payload.found);
+    ASSERT_GT(payload.size, 0u);
+    future_payload[payload.data_offset] = 2;
+    refresh_state_container(future_payload);
 
     EXPECT_NE(ear6_load_state_from_memory(
         ctx, future_payload.data(), future_payload.size()), 0);
     EXPECT_EQ(save_state(ctx), before);
 
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, SkipsUnknownOptionalContainerField) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> canonical = save_state(ctx);
+    std::vector<uint8_t> extended = canonical;
+    append_test_length_delimited_field(extended, 100, {0xE6, 0x01});
+
+    Ear6StateInfo info = {};
+    EXPECT_EQ(ear6_get_state_info(extended.data(), extended.size(), &info), 0);
+    EXPECT_EQ(ear6_load_state_from_memory(ctx, extended.data(), extended.size()), 0);
+    EXPECT_EQ(save_state(ctx), canonical);
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, RejectsMissingRequiredContainerFieldWithoutMutation) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> before = save_state(ctx);
+    std::vector<uint8_t> incomplete = before;
+    remove_state_field(incomplete, STATE_FIELD_SYSTEM_STATE);
+
+    Ear6StateInfo info = {};
+    EXPECT_NE(ear6_get_state_info(incomplete.data(), incomplete.size(), &info), 0);
+    EXPECT_NE(ear6_load_state_from_memory(ctx, incomplete.data(), incomplete.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, AcceptsReorderedContainerFields) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> canonical = save_state(ctx);
+    std::vector<uint8_t> reordered = canonical;
+    ASSERT_TRUE(reverse_state_fields(reordered));
+    ASSERT_NE(reordered, canonical);
+
+    EXPECT_EQ(ear6_load_state_from_memory(ctx, reordered.data(), reordered.size()), 0);
+    EXPECT_EQ(save_state(ctx), canonical);
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, AcceptsDuplicateScalarUsingLastValue) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> before = save_state(ctx);
+    std::vector<uint8_t> duplicate = before;
+    append_test_varint_field(duplicate, STATE_FIELD_SYSTEM_TYPE, EAR6_SYSTEM_TEST);
+
+    EXPECT_EQ(ear6_load_state_from_memory(ctx, duplicate.data(), duplicate.size()), 0);
+    EXPECT_EQ(save_state(ctx), before);
     ear6_destroy(ctx);
 }
 
@@ -292,9 +525,6 @@ static std::vector<uint8_t> make_mapper_test_rom(uint8_t mapper) {
 }
 
 TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
-    constexpr size_t STATE_HEADER_SIZE = 64;
-    constexpr size_t BODY_CRC_OFFSET = 48;
-
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
     std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
@@ -303,7 +533,7 @@ TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
     for (int i = 0; i < 3; ++i) ASSERT_EQ(ear6_step(ctx), 0);
 
     std::vector<uint8_t> before = save_state(ctx);
-    ASSERT_GT(before.size(), STATE_HEADER_SIZE);
+    ASSERT_GT(before.size(), STATE_PREAMBLE_SIZE);
 
     std::vector<uint8_t> truncated(before.begin(), before.end() - 1);
     EXPECT_NE(ear6_load_state_from_memory(ctx, truncated.data(), truncated.size()), 0);
@@ -317,12 +547,12 @@ TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
     // Mapper 0 payload ends with kb_enabled_, a serialized bool. Keep the body
     // CRC valid so failure happens inside the system payload loader.
     std::vector<uint8_t> invalid_payload = before;
-    invalid_payload.back() = 2;
-    uint32_t crc = state_crc32(
-        invalid_payload.data() + STATE_HEADER_SIZE,
-        invalid_payload.size() - STATE_HEADER_SIZE
-    );
-    write_u32_le(invalid_payload, BODY_CRC_OFFSET, crc);
+    StateFieldRange system_state = find_state_field(
+        invalid_payload, STATE_FIELD_SYSTEM_STATE);
+    ASSERT_TRUE(system_state.found);
+    ASSERT_GT(system_state.size, 0u);
+    invalid_payload[system_state.data_offset + system_state.size - 1] = 2;
+    refresh_state_container(invalid_payload);
     EXPECT_NE(ear6_load_state_from_memory(
         ctx, invalid_payload.data(), invalid_payload.size()), 0);
     EXPECT_EQ(save_state(ctx), before);
@@ -331,10 +561,6 @@ TEST(Ear6State, RejectsCorruptNesStatesWithoutMutation) {
 }
 
 TEST(Ear6State, NesStateEmbedsContentAndNameHint) {
-    constexpr size_t STATE_HEADER_SIZE = 64;
-    constexpr size_t CONTENT_SIZE_OFFSET = 24;
-    constexpr size_t NAME_HINT_SIZE_OFFSET = 32;
-
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
     std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
@@ -346,21 +572,24 @@ TEST(Ear6State, NesStateEmbedsContentAndNameHint) {
 
     std::vector<uint8_t> state = save_state(ctx);
     ASSERT_FALSE(state.empty());
-    uint64_t content_size = read_u64_le(state, CONTENT_SIZE_OFFSET);
-    uint64_t name_hint_size = read_u64_le(state, NAME_HINT_SIZE_OFFSET);
-    ASSERT_EQ(content_size, rom.size());
-    ASSERT_EQ(name_hint_size, name_hint.size());
-    ASSERT_GE(state.size(), STATE_HEADER_SIZE + name_hint.size() + rom.size());
+    StateFieldRange content = find_state_field(state, STATE_FIELD_CONTENT);
+    StateFieldRange stored_name = find_state_field(state, STATE_FIELD_CONTENT_NAME);
+    ASSERT_TRUE(content.found);
+    ASSERT_TRUE(stored_name.found);
+    ASSERT_EQ(content.size, rom.size());
+    ASSERT_EQ(stored_name.size, name_hint.size());
     EXPECT_EQ(std::string(
-        state.begin() + STATE_HEADER_SIZE,
-        state.begin() + STATE_HEADER_SIZE + name_hint.size()), name_hint);
+        state.begin() + stored_name.data_offset,
+        state.begin() + stored_name.data_offset + stored_name.size), name_hint);
     EXPECT_TRUE(std::equal(
         rom.begin(), rom.end(),
-        state.begin() + STATE_HEADER_SIZE + name_hint.size()));
+        state.begin() + content.data_offset));
 
     Ear6StateInfo info = {};
     ASSERT_EQ(ear6_get_state_info(state.data(), state.size(), &info), 0);
-    EXPECT_EQ(info.format_version, EAR6_STATE_FORMAT_VERSION);
+    EXPECT_EQ(
+        info.container_wire_version,
+        EAR6_STATE_CONTAINER_WIRE_VERSION);
     EXPECT_EQ(info.system_type, EAR6_SYSTEM_NES);
     EXPECT_NE(info.content_identity, 0u);
     EXPECT_EQ(info.content_size, rom.size());
@@ -397,12 +626,7 @@ TEST(Ear6State, NesStateEmbedsCurrentFramePreview) {
     ear6_destroy(ctx);
 }
 
-TEST(Ear6State, RejectsMalformedPreviewWithoutMutation) {
-    constexpr size_t STATE_HEADER_SIZE = 64;
-    constexpr size_t BODY_CRC_OFFSET = 48;
-    constexpr size_t CONTENT_SIZE_OFFSET = 24;
-    constexpr size_t NAME_HINT_SIZE_OFFSET = 32;
-
+TEST(Ear6State, IgnoresMalformedOptionalPreview) {
     Ear6* ctx = ear6_create(EAR6_SYSTEM_NES);
     ASSERT_NE(ctx, nullptr);
     std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
@@ -413,21 +637,41 @@ TEST(Ear6State, RejectsMalformedPreviewWithoutMutation) {
     ASSERT_FALSE(before.empty());
 
     std::vector<uint8_t> malformed = before;
-    size_t preview_offset = STATE_HEADER_SIZE
-        + static_cast<size_t>(read_u64_le(malformed, NAME_HINT_SIZE_OFFSET))
-        + static_cast<size_t>(read_u64_le(malformed, CONTENT_SIZE_OFFSET));
-    ASSERT_LE(preview_offset + 8, malformed.size());
-    write_u32_le(malformed, preview_offset + 4, 99);
-    write_u32_le(malformed, BODY_CRC_OFFSET, state_crc32(
-        malformed.data() + STATE_HEADER_SIZE,
-        malformed.size() - STATE_HEADER_SIZE
-    ));
+    StateFieldRange preview = find_state_field(malformed, STATE_FIELD_PREVIEW);
+    ASSERT_TRUE(preview.found);
+    StateFieldRange format = find_state_field(
+        malformed, 2, preview.data_offset, preview.size);
+    ASSERT_TRUE(format.found);
+    ASSERT_EQ(format.wire_type, 0u);
+    ASSERT_EQ(format.size, 1u);
+    malformed[format.data_offset] = 99;
+    refresh_state_container(malformed);
 
     Ear6StateInfo info = {};
-    EXPECT_NE(ear6_get_state_info(malformed.data(), malformed.size(), &info), 0);
-    EXPECT_NE(ear6_load_state_from_memory(ctx, malformed.data(), malformed.size()), 0);
+    EXPECT_EQ(ear6_get_state_info(malformed.data(), malformed.size(), &info), 0);
+    EXPECT_EQ(info.preview_format, EAR6_STATE_PREVIEW_NONE);
+    EXPECT_EQ(info.preview_data, nullptr);
+    EXPECT_EQ(ear6_load_state_from_memory(ctx, malformed.data(), malformed.size()), 0);
     EXPECT_EQ(save_state(ctx), before);
 
+    ear6_destroy(ctx);
+}
+
+TEST(Ear6State, LoadsWithoutOptionalPreview) {
+    Ear6* ctx = ear6_create(EAR6_SYSTEM_TEST);
+    ASSERT_NE(ctx, nullptr);
+    ASSERT_EQ(ear6_step(ctx), 0);
+    std::vector<uint8_t> canonical = save_state(ctx);
+    std::vector<uint8_t> without_preview = canonical;
+    remove_state_field(without_preview, STATE_FIELD_PREVIEW);
+
+    Ear6StateInfo info = {};
+    ASSERT_EQ(ear6_get_state_info(
+        without_preview.data(), without_preview.size(), &info), 0);
+    EXPECT_EQ(info.preview_format, EAR6_STATE_PREVIEW_NONE);
+    EXPECT_EQ(ear6_load_state_from_memory(
+        ctx, without_preview.data(), without_preview.size()), 0);
+    EXPECT_EQ(save_state(ctx), canonical);
     ear6_destroy(ctx);
 }
 
@@ -587,11 +831,10 @@ TEST(Ear6State, NesMapper0ContinuationIsDeterministic) {
     for (int i = 0; i < 4; ++i) ASSERT_EQ(ear6_step(ctx), 0);
     std::vector<uint8_t> actual = save_state(ctx);
     ASSERT_EQ(actual.size(), expected.size());
-    constexpr size_t STATE_HEADER_SIZE = 64;
     auto mismatch = std::mismatch(
-        actual.begin() + STATE_HEADER_SIZE,
+        actual.begin(),
         actual.end(),
-        expected.begin() + STATE_HEADER_SIZE
+        expected.begin()
     );
     ASSERT_EQ(mismatch.first, actual.end())
         << "first state mismatch at byte " << (mismatch.first - actual.begin())
@@ -639,9 +882,6 @@ TEST(Ear6State, LoadsEmbeddedNesContentIntoEmptyContext) {
 }
 
 TEST(Ear6State, RejectsModifiedEmbeddedContentWithoutMutation) {
-    constexpr size_t STATE_HEADER_SIZE = 64;
-    constexpr size_t BODY_CRC_OFFSET = 48;
-
     std::vector<uint8_t> rom = make_mapper0_test_rom(0x11);
     Ear6* source = ear6_create(EAR6_SYSTEM_NES);
     Ear6* current = ear6_create(EAR6_SYSTEM_NES);
@@ -655,12 +895,11 @@ TEST(Ear6State, RejectsModifiedEmbeddedContentWithoutMutation) {
 
     std::vector<uint8_t> state = save_state(source);
     std::vector<uint8_t> before = save_state(current);
-    ASSERT_GT(state.size(), STATE_HEADER_SIZE + 16 + 0x0100);
-    state[STATE_HEADER_SIZE + 16 + 0x0100] ^= 0x01;
-    write_u32_le(state, BODY_CRC_OFFSET, state_crc32(
-        state.data() + STATE_HEADER_SIZE,
-        state.size() - STATE_HEADER_SIZE
-    ));
+    StateFieldRange content = find_state_field(state, STATE_FIELD_CONTENT);
+    ASSERT_TRUE(content.found);
+    ASSERT_GT(content.size, 0x0100u);
+    state[content.data_offset + 0x0100] ^= 0x01;
+    refresh_state_container(state);
 
     EXPECT_NE(ear6_load_state_from_memory(current, state.data(), state.size()), 0);
     EXPECT_EQ(save_state(current), before);

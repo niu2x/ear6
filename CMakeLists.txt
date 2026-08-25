@@ -20,6 +20,8 @@ option(EAR6_ENABLE_CPU_SEQ_TRACE "Enable per-instruction CPU trace (compile gate
 
 find_package(Threads REQUIRED)
 
+add_subdirectory(third_party/protobuf-36.0)
+
 # ==================== 配置文件生成 ====================
 
 configure_file(
@@ -52,6 +54,8 @@ endif()
 
 add_library(ear6 ${EAR6_LIBRARY_TYPE}
     src/ear6.cpp
+    src/state/state_container.upb.c
+    src/state/state_container.upb_minitable.c
     src/system_test.cpp
     src/blip_buf.c
     src/nes/ines_loader.cpp
@@ -175,6 +179,16 @@ add_library(ear6 ${EAR6_LIBRARY_TYPE}
     "${EAR6_NES_DB_EMBEDDED_H}"
 )
 
+target_sources(ear6 PRIVATE $<TARGET_OBJECTS:ear6_upb>)
+
+if(NOT MSVC)
+    set_source_files_properties(
+        src/state/state_container.upb.c
+        src/state/state_container.upb_minitable.c
+        PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter"
+    )
+endif()
+
 add_dependencies(ear6 ear6_generate_nes_db_header)
 
 target_include_directories(ear6 PUBLIC
@@ -182,6 +196,12 @@ target_include_directories(ear6 PUBLIC
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/generated>
     $<INSTALL_INTERFACE:include>
+)
+
+target_include_directories(ear6 PRIVATE ${CMAKE_SOURCE_DIR}/src/state)
+target_include_directories(ear6 SYSTEM PRIVATE
+    ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0
+    ${CMAKE_SOURCE_DIR}/third_party/protobuf-36.0/third_party/utf8_range
 )
 
 target_link_libraries(ear6 PRIVATE Threads::Threads)

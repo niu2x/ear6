@@ -11,7 +11,7 @@ extern "C" {
 
 typedef struct Ear6 Ear6;
 
-#define EAR6_STATE_FORMAT_VERSION 3u
+#define EAR6_STATE_CONTAINER_WIRE_VERSION 1u
 
 typedef enum {
     EAR6_SYSTEM_TEST,
@@ -25,7 +25,7 @@ typedef enum {
 } Ear6StatePreviewFormat;
 
 typedef struct {
-    uint32_t format_version;
+    uint32_t container_wire_version;
     Ear6SystemType system_type;
     uint64_t content_identity;
     uint64_t content_size;

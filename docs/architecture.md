@@ -91,10 +91,11 @@ ROM 能在以后只凭 state 恢复，也保证损坏 state 不会留下半加�
 的只读预览图，供桌面或 Web 的存档选择器在不启动游戏的情况下显示缩略图；预览图
 本身不参与恢复模拟状态。没有视频输出的未来系统可以不提供预览。
 
-公共容器保存 `Ear6SystemType`，用于校验当前上下文并支持未来按 state 自动创建目标
-系统。容器版本只描述公共 envelope；每个系统独立定义和版本化 payload，因此 NES、
-Test 和未来系统可以采用不同结构、独立升级。最终兼容性仍由目标系统加载内容、
-校验 identity 和解析 payload 的结果决定。
+公共容器使用 protobuf body 保存 `Ear6SystemType` 和通用 metadata。未知字段可跳过，
+schema 中的 required 字段缺失时拒绝加载。container wire、preview message 和每个
+system payload 各自拥有版本边界，因此增加 optional 外壳字段或修改 Flash payload
+都不要求 NES state 升级。完整 wire layout 和演进规则见
+[Save State 格式](state-format.md)。
 
 ## 当前系统
 

@@ -1,0 +1,26 @@
+syntax = "proto2";
+
+package ear6.state;
+
+message Preview {
+  enum Format {
+    FORMAT_UNSPECIFIED = 0;
+    FORMAT_RGBA8888 = 1;
+    FORMAT_PNG = 2;
+  }
+
+  optional uint32 version = 1;
+  optional Format format = 2;
+  optional uint32 width = 3;
+  optional uint32 height = 4;
+  optional bytes image_data = 5;
+}
+
+message StateContainer {
+  required uint32 system_type = 1;
+  required fixed64 content_identity = 2;
+  optional string content_name = 3;
+  required bytes content = 4;
+  required bytes system_state = 5;
+  optional Preview preview = 6;
+}

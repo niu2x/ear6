@@ -12,7 +12,8 @@ Ear6 是一个跨平台、多系统的游戏模拟器库。NES 是当前最成�
 
 1. [快速开始](getting-started.md)：构建、运行 CLI 和浏览器版本
 2. [Public API 手册](api-reference.md)：在 C/C++ 应用中创建、驱动和销毁模拟器
-3. [架构与系统模型](architecture.md)：理解通用 API 与系统扩展的边界
+3. [Save State 格式](state-format.md)：理解 `.e6s` 容器、预览和系统 payload
+4. [架构与系统模型](architecture.md)：理解通用 API 与系统扩展的边界
 
 ### 开发 Ear6
 
@@ -21,6 +22,7 @@ Ear6 是一个跨平台、多系统的游戏模拟器库。NES 是当前最成�
 3. [NES 迁移与对比指南](migration_guide.md)：与 Mesen2 做逐帧、逐指令和逐周期比较
 4. [Mapper 实现清单](mapper_checklist.md)：新增或修正 NES mapper 时的检查项
 5. [NES 兼容性结果](../nes-issue.md)：已经验证的 ROM、mapper 和已知差异
+6. [Save State 格式](state-format.md)：修改 state、系统 dump 或宿主持久化前必读
 
 ### 前端
 

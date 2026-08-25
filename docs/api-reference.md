@@ -204,30 +204,23 @@ if (ear6_save_state_to_memory(ctx, NULL, 0, &size) == 0) {
 和整体校验值的 Ear6 state。该二进制格式不等同于 Mesen2 state，也不承诺其他
 模拟器可以读取。
 
-当前格式版本由 `EAR6_STATE_FORMAT_VERSION` 定义，值为 `3`。加载器只接受与当前
-版本完全相同的 state；不迁移、不兼容读取旧版本。格式升级后，旧 state 会明确
-返回失败，宿主不应修改或自行拼接 state 头。
-
-v3 固定头为 64 字节，所有整数均为 little-endian：
+container wire version 由 `EAR6_STATE_CONTAINER_WIRE_VERSION` 定义，当前值为 `1`。
+固定 preamble 为 32 字节，所有整数均为 little-endian：
 
 | Offset | 字段 | 大小 |
 |---:|---|---:|
 | 0 | magic `EAR6STAT` | 8 |
-| 8 | format version | 4 |
-| 12 | `Ear6SystemType` | 4 |
-| 16 | content identity | 8 |
-| 24 | content size | 8 |
-| 32 | name hint size | 8 |
-| 40 | system payload size | 8 |
-| 48 | body CRC32 | 4 |
-| 52 | flags | 4 |
-| 56 | preview block size | 8 |
+| 8 | container wire version | 4 |
+| 12 | preamble size | 4 |
+| 16 | protobuf body size | 8 |
+| 24 | protobuf body CRC32 | 4 |
+| 28 | reserved | 4 |
 
-header 后的 body 依次为名称字节、原始内容字节、preview block 和系统 payload；
-CRC32 覆盖整个 body。preview block 以四个 little-endian `uint32_t` 开头：preview
-version、`Ear6StatePreviewFormat`、宽度和高度，之后紧跟像素。当前 preview version
-为 `1`，格式为紧密排列的 RGBA8888。该布局只用于诊断和格式说明，宿主仍应优先
-使用 `ear6_get_state_info()`，把其余 state 数据当作不透明 buffer。
+preamble 后是 `StateContainer` 的 protobuf binary body。系统类型、content identity、
+原始 content 和 opaque system state 是 required；名称和 preview 是 optional。未知
+protobuf 字段被忽略，字段顺序不影响解析，缺少 required 字段时拒绝加载。完整字段
+编号、校验规则和演进策略见 [Save State 格式](state-format.md)。宿主应优先使用
+`ear6_get_state_info()`，不要自行拼接 state。
 
 state 内嵌原始 ROM，因此大小至少约等于 ROM 大小加运行态 payload。它不是压缩包，
 也没有加密。文件名提示只保留末尾名称，不保存本地目录、URL query 或 fragment。
@@ -249,8 +242,9 @@ int ear6_get_state_info(
 ```
 
 在不创建或修改模拟器上下文的情况下验证 state，并返回菜单展示所需的元数据：
-格式版本、系统类型、内容 identity、内容大小、名称提示和预览图。成功返回 `0`；
-magic、版本、长度、CRC 或 preview block 无效时返回非零并清空 `info`。
+container wire version、系统类型、内容 identity、内容大小、名称提示和预览图。
+成功返回 `0`；magic、wire version、protobuf、required 字段、长度或 CRC 无效时返回非零
+并清空 `info`。未知或无效的 optional preview 不影响 state 验证，只返回无预览。
 
 `content_name_hint` 和 `preview_data` 都直接指向调用者传入的 state buffer，不由 Ear6
 分配，也不能释放；它们只在该 buffer 保持原地址且未被修改时有效。名称由
@@ -269,10 +263,10 @@ int ear6_load_state_from_memory(Ear6* ctx, const void* data, size_t size);
 长度、checksum 或 payload 不匹配时返回非零，原有内容和模拟状态保持不变。加载
 成功后，先前取得的 framebuffer 和音频指针均视为失效，宿主应重新查询。
 
-公共 envelope 保存 `Ear6SystemType`，用于确认 state 能否交给当前 `ctx`，并为未来
-按 state 自动创建系统保留调度信息。各系统的 payload 布局彼此独立，并在 payload
-内部维护自己的版本；NES 和 Test 当前 payload version 都是 `1`。某个系统扩展状态
-时可以只升级自己的 payload，不需要改变其他系统的结构。
+公共 envelope 保存 `Ear6SystemType`，用于确认 state 能否交给当前 `ctx`。各系统的
+payload 是 protobuf 容器中的 opaque `system_state` 字段，并在内部维护自己的版本；NES 和
+Test 当前 payload version 都是 `1`。Flash 修改自己的 payload 不改变 NES 版本或
+loader，外壳增加 optional 字段也不升级任何 system payload。
 
 state 头保存由完整 ROM 数据计算出的 64-bit content identity，并对名称、ROM、
 preview 和 payload 组成的 body 计算 CRC32。identity 和 CRC 用于发现误配与损坏，

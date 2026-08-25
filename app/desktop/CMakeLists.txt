@@ -14,6 +14,8 @@ add_executable(ear6-desktop
     main_window.cpp
     emulator_widget.h
     emulator_widget.cpp
+    save_store.h
+    save_store.cpp
 )
 
 target_link_libraries(ear6-desktop PRIVATE

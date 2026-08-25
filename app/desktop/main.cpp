@@ -13,6 +13,7 @@ static Ear6SystemType detect_system(const QString& path) {
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
+    QApplication::setOrganizationName("Ear6");
     QApplication::setApplicationName("Ear6 Emulator");
 
     QCommandLineParser parser;

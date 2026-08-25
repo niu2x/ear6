@@ -253,6 +253,29 @@ if(EAR6_BUILD_TESTS)
     target_include_directories(ear6-test PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR})
     target_link_libraries(ear6-test PRIVATE ear6 ${EAR6_GTEST_LIB} ${EAR6_GTEST_MAIN_LIB} OpenSSL::Crypto)
     add_test(NAME ear6-test COMMAND ear6-test)
+
+    if(EAR6_BUILD_DESKTOP)
+        find_package(Qt6 COMPONENTS Widgets QUIET)
+    endif()
+    if(EAR6_BUILD_DESKTOP AND TARGET Qt6::Widgets)
+        add_executable(ear6-desktop-test
+            tests/test_save_store.cpp
+            app/desktop/save_store.cpp
+        )
+        target_include_directories(ear6-desktop-test PRIVATE
+            ${CMAKE_SOURCE_DIR}/app/desktop
+            ${CMAKE_SOURCE_DIR}/include
+            ${CMAKE_BINARY_DIR}
+        )
+        target_link_libraries(ear6-desktop-test PRIVATE
+            ear6
+            ${EAR6_GTEST_LIB}
+            Qt6::Widgets
+        )
+        cxx_project_preset(ear6-desktop-test)
+        warning_as_error_enable(ear6-desktop-test)
+        add_test(NAME ear6-desktop-test COMMAND ear6-desktop-test)
+    endif()
 endif()
 
 if(EAR6_BUILD_WEB)

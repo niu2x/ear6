@@ -53,6 +53,18 @@ A 5% load means the core has roughly 20x real-time compute headroom. Values at
 or above 100% mean the core alone cannot sustain 60 FPS. Canvas copying and
 browser rendering are intentionally excluded from this metric.
 
+## Audio Playback
+
+The Web host consumes the NES core's 96 kHz stereo PCM packet after each
+emulated frame and schedules it through Web Audio. Left and right interleaved
+samples remain separate channels. The audio context is created or resumed from
+a ROM-open, run, or controller-key gesture to satisfy browser autoplay rules.
+
+Only a short queue is kept ahead of playback. Pausing, resetting, loading
+state, or replacing a ROM clears scheduled audio so sound from the previous
+timeline cannot play after the transition. When browser audio remains blocked,
+the host consumes and discards packets instead of accumulating stale sound.
+
 ## State Files
 
 The Save control writes the current `.e6s` state to `localStorage`. Records are

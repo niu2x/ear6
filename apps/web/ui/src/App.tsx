@@ -30,12 +30,26 @@ import {
   writeStoredSave,
   type StoredSave,
 } from './saveStore'
+import { NesWebAudioPlayer } from './webAudio'
 import './App.css'
 
 const SYSTEM_NES = 1
 const EMULATION_FPS = 60
 const FRAME_DURATION_MS = 1000 / EMULATION_FPS
 const MAX_CATCH_UP_STEPS = 3
+
+function drainAudio(mod: Ear6Module, ctx: number, player: NesWebAudioPlayer | null) {
+  let frameCount = mod._ear6_web_get_audio_num_samples(ctx)
+  while (frameCount > 0) {
+    const ptr = mod._ear6_web_get_audiobuffer(ctx)
+    if (ptr && player) {
+      const samples = new Int16Array(mod.HEAPU8.buffer, ptr, frameCount * 2)
+      player.enqueueStereoS16(samples, frameCount)
+    }
+    mod._ear6_web_consume_audio(ctx)
+    frameCount = mod._ear6_web_get_audio_num_samples(ctx)
+  }
+}
 
 function allocateCString(mod: Ear6Module, value: string) {
   const encoded = new TextEncoder().encode(value)
@@ -117,6 +131,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const stateInputRef = useRef<HTMLInputElement | null>(null)
   const saveMenuRef = useRef<HTMLDivElement | null>(null)
+  const audioPlayerRef = useRef<NesWebAudioPlayer | null>(null)
 
   const [ready, setReady] = useState(false)
   const [initError, setInitError] = useState(false)
@@ -132,6 +147,13 @@ function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [showSaveMenu, setShowSaveMenu] = useState(false)
   const [storedSaves, setStoredSaves] = useState<StoredSave[]>([])
+
+  const unlockAudio = () => {
+    if (!audioPlayerRef.current) {
+      audioPlayerRef.current = new NesWebAudioPlayer()
+    }
+    audioPlayerRef.current.unlock()
+  }
 
   const refreshStoredSaves = () => {
     try {
@@ -176,6 +198,8 @@ function App() {
       if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
       const mod = modRef.current
       if (mod && ctxRef.current) mod._ear6_web_destroy(ctxRef.current)
+      audioPlayerRef.current?.close()
+      audioPlayerRef.current = null
     }
   }, [])
 
@@ -225,6 +249,7 @@ function App() {
       const button = keyMap[e.code]
       if (button === undefined) return
       e.preventDefault()
+      if (pressed) unlockAudio()
       const mod = modRef.current
       const ctx = ctxRef.current
       if (mod && ctx) {
@@ -265,6 +290,7 @@ function App() {
         while (accumulatedTime >= FRAME_DURATION_MS && steps < MAX_CATCH_UP_STEPS) {
           const stepStart = performance.now()
           mod._ear6_web_step(ctxRef.current)
+          drainAudio(mod, ctxRef.current, audioPlayerRef.current)
           totalStepTime += performance.now() - stepStart
           accumulatedTime -= FRAME_DURATION_MS
           emulatedFrames += 1
@@ -324,6 +350,9 @@ function App() {
     if (!mod || !input || !ctxRef.current) return
     const file = input.files?.[0]
     if (!file) return
+    unlockAudio()
+    runningRef.current = false
+    audioPlayerRef.current?.reset()
     setStatusText('Loading ROM...')
     let ptr = 0
     let namePtr = 0
@@ -339,14 +368,17 @@ function App() {
       }
       romDataRef.current = bytes
       mod._ear6_web_step(ctxRef.current)
+      drainAudio(mod, ctxRef.current, audioPlayerRef.current)
       setHasRom(true)
       setCanReset(true)
       setRomName(file.name)
+      runningRef.current = true
       setIsRunning(true)
       setStatusText('Running')
     } catch {
       setHasRom(false)
       setCanReset(false)
+      runningRef.current = false
       setIsRunning(false)
       setStatusText('Unable to load ROM')
     } finally {
@@ -451,6 +483,7 @@ function App() {
         throw new Error('State load failed')
       }
 
+      audioPlayerRef.current?.reset()
       romDataRef.current = null
       setHasRom(true)
       setCanReset(false)
@@ -513,6 +546,12 @@ function App() {
   const toggleRun = () => {
     if (!hasRom) return
     const next = !isRunning
+    runningRef.current = next
+    if (next) {
+      unlockAudio()
+    } else {
+      audioPlayerRef.current?.reset()
+    }
     setIsRunning(next)
     setStatusText(next ? 'Running' : 'Paused')
   }
@@ -542,7 +581,10 @@ function App() {
       setStatusText('Reset failed')
       return
     }
+    runningRef.current = false
+    audioPlayerRef.current?.reset()
     mod._ear6_web_step(ctxRef.current)
+    drainAudio(mod, ctxRef.current, null)
     setIsRunning(false)
     setStatusText('Reset complete')
   }
@@ -623,7 +665,14 @@ function App() {
             aria-label="Open ROM file"
             hidden
           />
-          <button className="control-button open-button" onClick={() => fileInputRef.current?.click()} title="Open ROM">
+          <button
+            className="control-button open-button"
+            onClick={() => {
+              unlockAudio()
+              fileInputRef.current?.click()
+            }}
+            title="Open ROM"
+          >
             <FolderOpen size={18} />
             <span className="button-label">Open ROM</span>
           </button>

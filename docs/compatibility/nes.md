@@ -1,14 +1,15 @@
 # NES Compatibility Results
 
-100% sampled mappers: 0, 1, 2, 3, 64, 69, 74, 90, 99, 118, 245, 252
+100% sampled mappers: 0, 1, 2, 3, 64, 69, 74, 90, 99, 118, 245
 
 Unless a section says that every ROM was tested, "100%" means that every pixel
 matched Mesen2 for the listed ROMs and sampled frames. It does not claim that
 untested ROMs, later gameplay, every bank, or every IRQ path is covered. Mapper
 45 also has one 100% ROM, but is not listed above because its second known ROM
 has the documented CHR-RAM/PPU difference below. Mappers 64, 69, 74, 90, 99,
-118, 245, and 252 have a permanent frame-256 regression test. Mappers 0, 1, 2,
-and 3 have full-ROM-set regression coverage at their documented frames.
+118, and 245 have a permanent frame-256 comparison regression test. Mapper 252
+has a permanent frame-256 visual regression against its canonical dump. Mappers
+0, 1, 2, and 3 have full-ROM-set regression coverage at their documented frames.
 
 > ⚠️ **Choplifter (J).nes** 在 mesen2 中渲染异常（仅显示单色错误画面），
 > ear6 渲染正常（第 6 帧进入游戏画面）。
@@ -201,8 +202,18 @@ frame-128 phase difference documented above.
 ## Mapper 252
 
 - Sampled ROMs: 1
-- Perfect sampled ROMs: 1 (100.0%)
 - Frames: 1/30/60/128/256
 
-`3GO.NES` is pixel-perfect at every sampled frame. The permanent regression
-test covers frame 256.
+The canonical `3GO.NES` dump (PRG+CHR CRC32 `8B7EE49B`) reaches the valid
+Waixing Computer Science copyright screen. The permanent regression covers its
+frame 256 output. A fresh Mesen2 comparison was unavailable for this result, so
+mapper 252 is not included in the 100% comparison list above.
+
+An earlier local file at this path had PRG+CHR CRC32 `BE1713C7` and rendered a
+stable garbled screen in both Ear6 and the previously sampled Mesen2 build. Its
+CHR data was page-shuffled: the startup registers selected 1 KiB banks
+`74`-`77`, which contained the canonical banks `64`-`67`; the canonical
+`74`-`77` data instead appeared at banks `3C`-`3F`. Reordering all sixteen 8 KiB
+CHR pages restored a pixel-identical frame 256 without changing mapper logic.
+The local regression fixture was therefore replaced with the canonical dump
+rather than adding a CRC-specific mapper workaround.

@@ -415,7 +415,7 @@ TEST(Mapper252Regression, ThreeGoFrame256) {
     const uint8_t* fb = ear6_get_framebuffer(ctx);
     ASSERT_NE(fb, nullptr);
     EXPECT_EQ(ppm_md5(fb, 256, 240),
-              "0f140dd3edd6c7a5877cb91efaa33402");
+              "070bff16d25a34136f29fed1c037397b");
     ear6_destroy(ctx);
 }
 
